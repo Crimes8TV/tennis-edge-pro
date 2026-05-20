@@ -76,6 +76,37 @@ const rank2 = players[p2]?.rank || 100;
   const active = players[player] || {};
   const playerNames = Object.keys(players);
 
+  const topMatches = Object.values(players)
+  .sort((a, b) => a.rank - b.rank)
+  .slice(0, 8)
+  .filter((_, i) => i % 2 === 0)
+  .map((p, i, arr) => [p.name, arr[i + 1]?.name])
+  .filter(m => m[1]);
+
+  const autoValuePicks = topMatches.map(([a, b]) => {
+  const pA = players[a];
+  const pB = players[b];
+
+  if (!pA || !pB) return null;
+
+  const probA = Math.round((pB.rank / (pA.rank + pB.rank)) * 100);
+  const probB = 100 - probA;
+
+  const demoOddsA = 1.80;
+  const demoOddsB = 2.10;
+
+  const valueA = probA - 100 / demoOddsA;
+  const valueB = probB - 100 / demoOddsB;
+
+  return {
+    match: `${a} vs ${b}`,
+    pick: valueA > valueB ? a : b,
+    value: Math.max(valueA, valueB),
+  };
+})
+.filter(Boolean)
+.sort((a, b) => b.value - a.value);
+
   const formData = (active.form || []).map((v, i) => ({
     match: `M-${6 - i}`,
     form: v,
@@ -93,12 +124,7 @@ const rank2 = players[p2]?.rank || 100;
   if (playerNames.length === 0) {
     return <div className="app"><main><h2>Lade Backend-Daten...</h2></main></div>;
   }
-const topMatches = Object.values(players)
-  .sort((a, b) => a.rank - b.rank)
-  .slice(0, 8)
-  .filter((_, i) => i % 2 === 0)
-  .map((p, i, arr) => [p.name, arr[i + 1]?.name])
-  .filter(m => m[1]);
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -145,6 +171,16 @@ const topMatches = Object.values(players)
           </p>
           ))}
           </div>
+
+          <div className="valuePicks">
+  <h4>💰 Auto Value Picks</h4>
+
+  {autoValuePicks.map((pick, i) => (
+    <p key={i}>
+      #{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)
+    </p>
+  ))}
+</div>
 
             <Kpis data={active} />
 
