@@ -24,7 +24,7 @@ app.get("/api/players", async (req, res) => {
 
     const data = response.data.result || [];
 
-    const players = data.slice(0, 100).map((p, i) => ({
+    const players = data.map((p, i) => ({
       name: p.player || "Unknown",
       rank: parseInt(p.place) || i + 1,
       elo: Math.round(85 - i * 0.2),
