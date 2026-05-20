@@ -143,9 +143,9 @@ app.get("/api/predict", async (req, res) => {
 
 const rankDiff = Math.abs(rank1 - rank2);
 
-const rankingFactor = Math.min(60, 30 + rankDiff * 0.3);
-const formFactor = Math.max(15, 35 - rankDiff * 0.1);
-const clutchFactor = 15;
+const rankingFactor = Math.min(70, 20 + rankDiff * 0.6);
+const formFactor = Math.max(10, 40 - rankDiff * 0.2);
+const clutchFactor = 10 + Math.random() * 10;
 const momentumFactor = 100 - rankingFactor - formFactor - clutchFactor;
 
   res.json({
@@ -157,7 +157,7 @@ const momentumFactor = 100 - rankingFactor - formFactor - clutchFactor;
       [p2]: 100 - p1Win
     },
     confidence: Math.round(Math.abs(p1Win - 50) * 2),
-    
+
    factors: {
   ranking: Math.round(rankingFactor),
   form: Math.round(formFactor),
