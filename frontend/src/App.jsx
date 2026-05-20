@@ -237,6 +237,11 @@ const topMatches = Object.values(players)
 
       <p>Confidence: {prediction.confidence}%</p>
       <p className="edge">{prediction.edge}</p>
+      {prediction.explain && (
+  <p className="proExplain">
+    🧠 {prediction.explain}
+  </p>
+)}
       <div className="valueBox">
   <h4>💰 Value Bet Check</h4>
 
