@@ -228,17 +228,8 @@ const rank2 = players[p2]?.rank || 100;
     <p>Confidence: {prediction.confidence}%</p>
     <p className="edge">{prediction.edge}</p>
     {prediction.factors && (
+  {prediction.factors && (
   <div className="factorBox">
-    {players[p1] && players[p2] && (
-  <div className="compareBox">
-    <h4>Player Compare</h4>
-
-    <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
-    <p>Return: {players[p1].return} vs {players[p2].return}</p>
-    <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
-    <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
-  </div>
-)}
     <h4>Prediction Explain</h4>
 
     <FactorBar label="Ranking" value={70} />
@@ -249,9 +240,17 @@ const rank2 = players[p2]?.rank || 100;
     <p className="surfaceNote">
       Surface: {prediction.factors.surface}
     </p>
+
+    {players[p1] && players[p2] && (
+      <div className="compareBox">
+        <h4>Player Compare</h4>
+        <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
+        <p>Return: {players[p1].return} vs {players[p2].return}</p>
+        <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
+        <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
+      </div>
+    )}
   </div>
-)}
-  </>
 )}
             </Panel>
           </>
