@@ -200,13 +200,17 @@ const rank2 = players[p2]?.rank || 100;
     <p>Confidence: {prediction.confidence}%</p>
     <p className="edge">{prediction.edge}</p>
     {prediction.factors && (
-  <div className="factors">
-    <p><strong>Based on:</strong></p>
-    <p>Ranking ({prediction.factors.ranking})</p>
-    <p>Form ({prediction.factors.form})</p>
-    <p>Clutch ({prediction.factors.clutch})</p>
-    <p>Momentum ({prediction.factors.momentum})</p>
-    <p>Surface: {prediction.factors.surface}</p>
+  <div className="factorBox">
+    <h4>Prediction Explain</h4>
+
+    <FactorBar label="Ranking" value={70} />
+    <FactorBar label="Form" value={15} />
+    <FactorBar label="Clutch" value={8} />
+    <FactorBar label="Momentum" value={7} />
+
+    <p className="surfaceNote">
+      Surface: {prediction.factors.surface}
+    </p>
   </div>
 )}
   </>
@@ -276,4 +280,18 @@ function Kpis({ data }) {
 
 function Card({ label, value }) {
  return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function FactorBar({ label, value }) {
+  return (
+    <div className="factorRow">
+      <div className="factorTop">
+        <span>{label}</span>
+        <strong>{value}%</strong>
+      </div>
+      <div className="factorTrack">
+        <div style={{ width: value + "%" }} />
+      </div>
+    </div>
+  );
 }

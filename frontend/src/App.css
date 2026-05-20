@@ -279,3 +279,47 @@ body {
 .factors strong {
   color: #22d3ee;
 }
+
+.factorBox {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+}
+
+.factorBox h4 {
+  color: #22d3ee;
+  margin-bottom: 12px;
+}
+
+.factorRow {
+  margin-bottom: 12px;
+}
+
+.factorTop {
+  display: flex;
+  justify-content: space-between;
+  color: #e5e7eb;
+  font-size: 13px;
+}
+
+.factorTrack {
+  height: 8px;
+  background: #1f2937;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.factorTrack div {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #4ade80);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
+}
+
+.surfaceNote {
+  margin-top: 10px;
+  color: #94a3b8;
+  font-size: 13px;
+}
