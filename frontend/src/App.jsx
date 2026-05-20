@@ -112,7 +112,7 @@ const rank2 = players[p2]?.rank || 100;
       </aside>
 
       <main>
-        {tab === "dashboard" && (
+        {true && (
           <>
             <Header title="Live Dashboard" />
 
