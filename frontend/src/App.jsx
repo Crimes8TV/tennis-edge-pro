@@ -14,6 +14,7 @@ export default function App() {
 const [prediction, setPrediction] = useState(null);
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
+  const [playerSearch, setPlayerSearch] = useState("");
   const [odds1, setOdds1] = useState(1.70);
 const [odds2, setOdds2] = useState(2.20);
   const [live, setLive] = useState(null);
@@ -75,6 +76,11 @@ const rank2 = players[p2]?.rank || 100;
 
   const active = players[player] || {};
   const playerNames = Object.keys(players);
+ const filteredPlayerNames = playerSearch
+  ? playerNames.filter(name =>
+      name.toLowerCase().includes(playerSearch.toLowerCase())
+    )
+  : playerNames;
 
   const topMatches = Object.values(players)
   .sort((a, b) => a.rank - b.rank)
@@ -235,12 +241,18 @@ const demoOddsB = 2.00;
         {tab === "predictor" && (
           <>
             <Header title="Match Predictor" />
+            <input
+  className="searchInput"
+  value={playerSearch}
+  onChange={(e) => setPlayerSearch(e.target.value)}
+  placeholder="Spieler suchen..."
+/>
             <div className="grid two">
               <select value={p1} onChange={e => setP1(e.target.value)}>
-                {playerNames.map(p => <option key={p}>{p}</option>)}
+                {filteredPlayerNames.map(p => <option key={p}>{p}</option>)}
               </select>
               <select value={p2} onChange={e => setP2(e.target.value)}>
-                {playerNames.map(p => <option key={p}>{p}</option>)}
+                {filteredPlayerNames.map(p => <option key={p}>{p}</option>)}
               </select>
             </div>
 
