@@ -129,7 +129,7 @@ const topMatches = Object.values(players)
             )}
 
             <div className="topMatches">
-           <h4>🔥 Suggested Matches CLEAN</h4>
+           <h4>🔥 Suggested Matches </h4>
            
           {topMatches.map((m, i) => (
              <p
