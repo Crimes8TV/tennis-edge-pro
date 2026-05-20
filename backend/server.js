@@ -165,6 +165,14 @@ const momentumFactor = Math.max(10, 100 - rankingFactor - formFactor - clutchFac
   momentum: Math.round(momentumFactor),
   surface
 },
+
+explain:
+  p1Win > 60
+    ? `${p1} hat klare Vorteile durch Ranking, Form und Matchup-Stärke.`
+    : p1Win < 40
+    ? `${p2} hat klare Vorteile durch Ranking, Form und Matchup-Stärke.`
+    : `Das Match ist sehr ausgeglichen. Kleine Vorteile können durch Form, Momentum oder Surface entstehen.`,
+
     edge:
       p1Win > 60
         ? `${p1} klarer Favorit`
