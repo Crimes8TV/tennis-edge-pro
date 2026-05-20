@@ -265,34 +265,43 @@ const topMatches = Object.values(players)
 </p>
 </div>
 
-      {prediction.factors && (
-        <div className="factorBox">
-          <h4>Prediction Explain</h4>
+ {prediction.factors && (
+  <div className="factorBox">
+    <h4>Prediction Explain</h4>
 
-          <FactorBar label="Ranking" value={prediction.factors.ranking} />
-<FactorBar label="Form" value={prediction.factors.form} />
-<FactorBar label="Clutch" value={prediction.factors.clutch} />
-<FactorBar label="Momentum" value={prediction.factors.momentum} />
+    <FactorBar label="Ranking" value={prediction.factors.ranking} />
+    <FactorBar label="Form" value={prediction.factors.form} />
+    <FactorBar label="Clutch" value={prediction.factors.clutch} />
+    <FactorBar label="Momentum" value={prediction.factors.momentum} />
 
-          <p className="surfaceNote">
-            Surface: {prediction.factors.surface}
-          </p>
+    <p className="surfaceNote">
+      Surface: {prediction.factors.surface}
+    </p>
 
-          {players[p1] && players[p2] && (
-            <div className="compareBox">
-              <h4>Player Compare</h4>
-              <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
-              <p>Return: {players[p1].return} vs {players[p2].return}</p>
-              <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
-              <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )}
-  </Panel>
+    <div className="advantageBox">
+      <h4>Matchup Edge</h4>
+      <p>Ranking Edge: {players[p1].rank < players[p2].rank ? p1 : p2}</p>
+      <p>Serve Edge: {players[p1].serve > players[p2].serve ? p1 : p2}</p>
+      <p>Return Edge: {players[p1].return > players[p2].return ? p1 : p2}</p>
+      <p>Momentum Edge: {players[p1].momentum > players[p2].momentum ? p1 : p2}</p>
+    </div>
+
+    {players[p1] && players[p2] && (
+      <div className="compareBox">
+        <h4>Player Compare</h4>
+        <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
+        <p>Return: {players[p1].return} vs {players[p2].return}</p>
+        <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
+        <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
+      </div>
+    )}
+  </div>
+
+)}
   </>
+)}
+</Panel>
+</>
 )}
         {tab === "surface" && (
           <>
