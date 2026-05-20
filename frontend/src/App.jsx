@@ -58,6 +58,13 @@ useEffect(() => {
   if (!p1 || !p2) return;
 const rank1 = players[p1]?.rank || 10;
 const rank2 = players[p2]?.rank || 100;
+
+console.log("PLAYER 1 DATA:", players[p1]);
+console.log("PLAYER 2 DATA:", players[p2]);
+console.log("SURFACE:", surface);
+console.log("SURFACE 1 VALUE:", players[p1]?.[surface]);
+console.log("SURFACE 2 VALUE:", players[p2]?.[surface]);
+
   fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=${surface}&surface1=${players[p1]?.[surface] || 0}&surface2=${players[p2]?.[surface] || 0}`)
     .then(res => res.json())
     .then(data => {
