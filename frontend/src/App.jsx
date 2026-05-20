@@ -256,15 +256,13 @@ const topMatches = Object.values(players)
     placeholder={`${prediction.player2} odds`}
   />
 
-  <p>
-    {prediction.player1} Value:{" "}
-    {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%
-  </p>
+  <p className={(prediction.prediction[prediction.player1] - 100 / odds1) > 0 ? "valuePositive" : "valueNegative"}>
+  {prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1) > 0 ? "+" : ""} ({(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%)
+</p>
 
-  <p>
-    {prediction.player2} Value:{" "}
-    {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%
-  </p>
+<p className={(prediction.prediction[prediction.player2] - 100 / odds2) > 0 ? "valuePositive" : "valueNegative"}>
+  {prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2) > 0 ? "+" : ""} ({(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%)
+</p>
 </div>
 
       {prediction.factors && (
