@@ -4,7 +4,10 @@ const cors = require("cors");
 const app = express();
 
 app.use(cors({
-  origin: "*"
+  origin: [
+    "https://tennis-edge-pro.vercel.app",
+    "https://tennis-edge-75d75ggx0-crimes8tvs-projects.vercel.app"
+  ]
 }));
 app.use(express.json());
 
