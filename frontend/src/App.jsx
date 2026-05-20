@@ -269,10 +269,10 @@ const topMatches = Object.values(players)
         <div className="factorBox">
           <h4>Prediction Explain</h4>
 
-          <FactorBar label="Ranking" value={70} />
-          <FactorBar label="Form" value={15} />
-          <FactorBar label="Clutch" value={8} />
-          <FactorBar label="Momentum" value={7} />
+          <FactorBar label="Ranking" value={prediction.factors.ranking} />
+<FactorBar label="Form" value={prediction.factors.form} />
+<FactorBar label="Clutch" value={prediction.factors.clutch} />
+<FactorBar label="Momentum" value={prediction.factors.momentum} />
 
           <p className="surfaceNote">
             Surface: {prediction.factors.surface}
