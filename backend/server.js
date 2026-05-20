@@ -122,7 +122,7 @@ app.get("/api/predict", async (req, res) => {
       [p1]: p1Win,
       [p2]: 100 - p1Win
     },
-    confidence: Math.abs(p1Win - 50) * 2,
+   confidence: Math.round(Math.abs(p1Win - 50) * 2),
     edge:
       p1Win > 60
         ? `${p1} klarer Favorit`
