@@ -136,13 +136,10 @@ select {
 }
 
 .panel {
-  background: linear-gradient(145deg, #0f172a, #020617);
-  border: 1px solid rgba(34, 211, 238, 0.4);
-  box-shadow: 0 0 25px rgba(34, 211, 238, 0.15);
-  border-radius: 20px;
-  padding: 20px;
-  margin-top: 20px;
-  transition: all 0.3s ease;
+  border: 2px solid #22d3ee !important;
+  box-shadow: 0 0 25px rgba(34, 211, 238, 0.3) !important;
+  border-radius: 20px !important;
+  padding: 20px !important;
 }
 
 .panel:hover {
@@ -163,17 +160,17 @@ select {
 }
 
 .bar {
-  height: 18px;
-  background: #1f2937;
-  border-radius: 999px;
-  overflow: hidden;
+  height: 20px !important;
+  background: #1f2937 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  margin: 10px 0 !important;
 }
 
 .bar div {
-  height: 100%;
-  background: linear-gradient(90deg, #22d3ee, #a3e635);
-  border-radius: 999px;
-  transition: width 0.6s ease;
+  height: 100% !important;
+  background: linear-gradient(90deg, #22d3ee, #4ade80) !important;
+  transition: width 0.8s ease !important;
 }
 
 .prediction strong {
@@ -202,29 +199,26 @@ button:hover {
 }
 
 .card {
-  background: linear-gradient(145deg, #101827, #07111f);
-  border: 1px solid rgba(34, 211, 238, 0.45);
-  border-radius: 18px;
-  padding: 20px;
-  box-shadow: 0 0 22px rgba(34, 211, 238, 0.18);
-  transition: 0.25s ease;
+  background: linear-gradient(145deg, #0f172a, #020617) !important;
+  border: 2px solid #22d3ee !important;
+  border-radius: 20px !important;
+  padding: 20px !important;
+  box-shadow: 0 0 30px rgba(34, 211, 238, 0.4) !important;
+  transition: all 0.3s ease !important;
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 0 35px rgba(34, 211, 238, 0.35);
-}
-
-.card span {
-  display: block;
-  color: #94a3b8;
-  font-size: 14px;
-  margin-bottom: 8px;
+  transform: translateY(-5px) !important;
+  box-shadow: 0 0 40px rgba(34, 211, 238, 0.7) !important;
 }
 
 .card strong {
-  color: #22d3ee;
-  font-size: 28px;
+  color: #22d3ee !important;
+  font-size: 28px !important;
+}
+
+.card span {
+  color: #94a3b8 !important;
 }
 
 body {
