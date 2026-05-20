@@ -92,8 +92,8 @@ const rank2 = players[p2]?.rank || 100;
   const probA = Math.round((pB.rank / (pA.rank + pB.rank)) * 100);
   const probB = 100 - probA;
 
-  const demoOddsA = 1.80;
-  const demoOddsB = 2.10;
+  const demoOddsA = 2.00;
+const demoOddsB = 2.00;
 
   const valueA = probA - 100 / demoOddsA;
   const valueB = probB - 100 / demoOddsB;
@@ -105,6 +105,7 @@ const rank2 = players[p2]?.rank || 100;
   };
 })
 .filter(Boolean)
+.filter(pick => pick.value > 0)
 .sort((a, b) => b.value - a.value);
 
   const formData = (active.form || []).map((v, i) => ({
