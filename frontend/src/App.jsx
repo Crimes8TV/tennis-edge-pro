@@ -15,6 +15,12 @@ const [prediction, setPrediction] = useState(null);
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
   const [live, setLive] = useState(null);
+  const topMatches = Object.values(players)
+  .slice(0, 6)
+  .map((p, i, arr) =>
+    i < arr.length - 1 ? [p.name, arr[i + 1].name] : null
+  )
+  .filter(Boolean);
 
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
@@ -117,7 +123,16 @@ const rank2 = players[p2]?.rank || 100;
                 <p>{live.score}</p>
                 <p>Momentum: {live.momentum}</p>
               </section>
+             
             )}
+
+            <div className="topMatches">
+           <h4>🔥 Suggested Matches</h4>
+
+           {topMatches.map((m, i) => (
+           <p key={i}>{m[0]} vs {m[1]}</p>
+           ))}
+          </div>
 
             <Kpis data={active} />
 
@@ -182,6 +197,17 @@ const rank2 = players[p2]?.rank || 100;
 
             <Panel title="Prediction Engine">
 {prediction && (
+  <p className="bestPick">
+    🔥 Best Pick: {
+      prediction.prediction[prediction.player1] > prediction.prediction[prediction.player2]
+        ? prediction.player1
+        : prediction.player2
+    } ({Math.max(
+      prediction.prediction[prediction.player1],
+      prediction.prediction[prediction.player2]
+    )}%)
+  </p>
+)}
   <>
     <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
       <span>{prediction.player1}</span>
@@ -201,6 +227,16 @@ const rank2 = players[p2]?.rank || 100;
     <p className="edge">{prediction.edge}</p>
     {prediction.factors && (
   <div className="factorBox">
+    {players[p1] && players[p2] && (
+  <div className="compareBox">
+    <h4>Player Compare</h4>
+
+    <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
+    <p>Return: {players[p1].return} vs {players[p2].return}</p>
+    <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
+    <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
+  </div>
+)}
     <h4>Prediction Explain</h4>
 
     <FactorBar label="Ranking" value={70} />
