@@ -16,8 +16,24 @@ export default function App() {
 
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
-      .then(res => res.json())
-      .then(data => {
+  .then(res => {
+    if (!res.ok) {
+      throw new Error("API Fehler");
+    }
+    return res.json();
+  })
+  .then(data => {
+    console.log("PLAYERS DATA:", data); // DEBUG
+    const formatted = {};
+    data.forEach(p => formatted[p.name] = p);
+    setPlayers(formatted);
+    setPlayer(data[0].name);
+    setP1(data[0].name);
+    setP2(data[1].name);
+  })
+  .catch(err => {
+    console.error("FEHLER PLAYERS:", err);
+  });
         const formatted = {};
         data.forEach(p => formatted[p.name] = p);
         setPlayers(formatted);
