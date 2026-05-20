@@ -34,13 +34,7 @@ export default function App() {
   .catch(err => {
     console.error("FEHLER PLAYERS:", err);
   });
-        const formatted = {};
-        data.forEach(p => formatted[p.name] = p);
-        setPlayers(formatted);
-        setPlayer(data[0].name);
-        setP1(data[0].name);
-        setP2(data[1].name);
-      });
+       
   }, []);
 
   useEffect(() => {
