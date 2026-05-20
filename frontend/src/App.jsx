@@ -14,6 +14,8 @@ export default function App() {
 const [prediction, setPrediction] = useState(null);
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
+  const [odds1, setOdds1] = useState(1.70);
+const [odds2, setOdds2] = useState(2.20);
   const [live, setLive] = useState(null);
   const topMatches = Object.values(players)
   .slice(0, 6)
