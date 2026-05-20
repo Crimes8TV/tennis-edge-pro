@@ -252,18 +252,36 @@ const demoOddsB = 2.00;
             
   <div className="grid two">
   <input
-    className="searchInput"
-    value={playerSearch1}
-    onChange={(e) => setPlayerSearch1(e.target.value)}
-    placeholder="Spieler 1 suchen..."
-  />
+  className="searchInput"
+  value={playerSearch1}
+  onChange={(e) => {
+    const value = e.target.value;
+    setPlayerSearch1(value);
 
-  <input
-    className="searchInput"
-    value={playerSearch2}
-    onChange={(e) => setPlayerSearch2(e.target.value)}
-    placeholder="Spieler 2 suchen..."
-  />
+    const found = playerNames.find(name =>
+      name.toLowerCase().includes(value.toLowerCase())
+    );
+
+    if (found) setP1(found);
+  }}
+  placeholder="Spieler 1 suchen..."
+/>
+
+<input
+  className="searchInput"
+  value={playerSearch2}
+  onChange={(e) => {
+    const value = e.target.value;
+    setPlayerSearch2(value);
+
+    const found = playerNames.find(name =>
+      name.toLowerCase().includes(value.toLowerCase())
+    );
+
+    if (found) setP2(found);
+  }}
+  placeholder="Spieler 2 suchen..."
+/>
 </div>
             <div className="grid two">
               <select value={p1} onChange={e => setP1(e.target.value)}>
