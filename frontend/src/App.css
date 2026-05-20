@@ -380,3 +380,9 @@ body {
   color: #22d3ee;
   margin-bottom: 8px;
 }
+
+.proExplain {
+  margin-top: 12px;
+  color: #22d3ee;
+  font-weight: 600;
+}
