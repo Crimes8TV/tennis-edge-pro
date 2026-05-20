@@ -224,3 +224,27 @@ button:hover {
 body {
   background: #020617 !important;
 }
+
+/* 🔥 ACTIVE MENU */
+nav div.active {
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px solid #22d3ee;
+}
+
+/* 🔥 KPI CARDS */
+.card strong {
+  font-size: 32px;
+  letter-spacing: 1px;
+}
+
+/* 🔥 PANEL TITLES */
+.panel h3 {
+  color: #22d3ee;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+/* 🔥 BACKGROUND */
+body {
+  background: radial-gradient(circle at top, #020617, #000000 70%);
+}
