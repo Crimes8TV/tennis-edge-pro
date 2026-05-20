@@ -107,10 +107,37 @@ app.get("/api/player/:name", async (req, res) => {
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
 
-  const rating = (rank) => Math.max(50, 100 - rank * 0.4);
+  const rankPower = (rank) => Math.max(55, 105 - Number(rank) * 0.65);
 
-  const score1 = rating(Number(rank1)) + Math.random() * 10;
-  const score2 = rating(Number(rank2)) + Math.random() * 10;
+  const surfaceBoost = {
+    hard: 1.0,
+    clay: 1.08,
+    grass: 1.05
+  };
+
+  const form1 = 70 + Math.random() * 30;
+  const form2 = 70 + Math.random() * 30;
+
+  const clutch1 = 70 + Math.random() * 25;
+  const clutch2 = 70 + Math.random() * 25;
+
+  const momentum1 = 70 + Math.random() * 25;
+  const momentum2 = 70 + Math.random() * 25;
+
+  let score1 =
+    rankPower(rank1) * 0.45 +
+    form1 * 0.25 +
+    clutch1 * 0.15 +
+    momentum1 * 0.15;
+
+  let score2 =
+    rankPower(rank2) * 0.45 +
+    form2 * 0.25 +
+    clutch2 * 0.15 +
+    momentum2 * 0.15;
+
+  score1 *= surfaceBoost[surface] || 1;
+  score2 *= surfaceBoost[surface] || 1;
 
   const p1Win = Math.round((score1 / (score1 + score2)) * 100);
 
@@ -122,7 +149,14 @@ app.get("/api/predict", async (req, res) => {
       [p1]: p1Win,
       [p2]: 100 - p1Win
     },
-   confidence: Math.round(Math.abs(p1Win - 50) * 2),
+    confidence: Math.round(Math.abs(p1Win - 50) * 2),
+    factors: {
+      ranking: "45%",
+      form: "25%",
+      clutch: "15%",
+      momentum: "15%",
+      surface
+    },
     edge:
       p1Win > 60
         ? `${p1} klarer Favorit`
