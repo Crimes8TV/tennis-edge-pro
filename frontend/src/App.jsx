@@ -198,64 +198,65 @@ const rank2 = players[p2]?.rank || 100;
             </div>
 
             <Panel title="Prediction Engine">
-{prediction && (
-  <p className="bestPick">
-    🔥 Best Pick: {
-      prediction.prediction[prediction.player1] > prediction.prediction[prediction.player2]
-        ? prediction.player1
-        : prediction.player2
-    } ({Math.max(
-      prediction.prediction[prediction.player1],
-      prediction.prediction[prediction.player2]
-    )}%)
-  </p>
-)}
-  <>
-    <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
-      <span>{prediction.player1}</span>
-      <strong>{prediction.prediction[prediction.player1]}%</strong>
-    </div>
+  {prediction && (
+    <>
+      <p className="bestPick">
+        🔥 Best Pick: {
+          prediction.prediction[prediction.player1] > prediction.prediction[prediction.player2]
+            ? prediction.player1
+            : prediction.player2
+        } ({Math.max(
+          prediction.prediction[prediction.player1],
+          prediction.prediction[prediction.player2]
+        )}%)
+      </p>
 
-    <div className="bar">
-      <div style={{ width: prediction.prediction[prediction.player1] + "%" }} />
-    </div>
-
-    <div className="prediction muted">
-      <span>{prediction.player2}</span>
-      <strong>{prediction.prediction[prediction.player2]}%</strong>
-    </div>
-
-    <p>Confidence: {prediction.confidence}%</p>
-    <p className="edge">{prediction.edge}</p>
-    {prediction.factors && (
-  {prediction.factors && (
-  <div className="factorBox">
-    <h4>Prediction Explain</h4>
-
-    <FactorBar label="Ranking" value={70} />
-    <FactorBar label="Form" value={15} />
-    <FactorBar label="Clutch" value={8} />
-    <FactorBar label="Momentum" value={7} />
-
-    <p className="surfaceNote">
-      Surface: {prediction.factors.surface}
-    </p>
-
-    {players[p1] && players[p2] && (
-      <div className="compareBox">
-        <h4>Player Compare</h4>
-        <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
-        <p>Return: {players[p1].return} vs {players[p2].return}</p>
-        <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
-        <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
+      <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
+        <span>{prediction.player1}</span>
+        <strong>{prediction.prediction[prediction.player1]}%</strong>
       </div>
-    )}
-  </div>
-)}
-            </Panel>
-          </>
-        )}
 
+      <div className="bar">
+        <div style={{ width: prediction.prediction[prediction.player1] + "%" }} />
+      </div>
+
+      <div className="prediction muted">
+        <span>{prediction.player2}</span>
+        <strong>{prediction.prediction[prediction.player2]}%</strong>
+      </div>
+
+      <p>Confidence: {prediction.confidence}%</p>
+      <p className="edge">{prediction.edge}</p>
+
+      {prediction.factors && (
+        <div className="factorBox">
+          <h4>Prediction Explain</h4>
+
+          <FactorBar label="Ranking" value={70} />
+          <FactorBar label="Form" value={15} />
+          <FactorBar label="Clutch" value={8} />
+          <FactorBar label="Momentum" value={7} />
+
+          <p className="surfaceNote">
+            Surface: {prediction.factors.surface}
+          </p>
+
+          {players[p1] && players[p2] && (
+            <div className="compareBox">
+              <h4>Player Compare</h4>
+              <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
+              <p>Return: {players[p1].return} vs {players[p2].return}</p>
+              <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
+              <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )}
+  </Panel>
+  </>
+)}
         {tab === "surface" && (
           <>
             <Header title="Surface Lab" />
