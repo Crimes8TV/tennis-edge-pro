@@ -99,7 +99,12 @@ const rank2 = players[p2]?.rank || 100;
   if (playerNames.length === 0) {
     return <div className="app"><main><h2>Lade Backend-Daten...</h2></main></div>;
   }
-
+const topMatches = Object.values(players)
+  .sort((a, b) => a.rank - b.rank)
+  .slice(0, 8)
+  .filter((_, i) => i % 2 === 0)
+  .map((p, i, arr) => [p.name, arr[i + 1]?.name])
+  .filter(m => m[1]);
   return (
     <div className="app">
       <aside className="sidebar">
@@ -131,8 +136,7 @@ const rank2 = players[p2]?.rank || 100;
 
             <div className="topMatches">
            <h4>🔥 Suggested Matches</h4>
-           <p>TEST MATCHES</p>
-
+           
           {topMatches.map((m, i) => (
              <p
               key={i}
