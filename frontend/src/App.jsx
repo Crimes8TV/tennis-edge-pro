@@ -78,7 +78,7 @@ const rank2 = players[p2]?.rank || 100;
 
   const topMatches = Object.values(players)
   .sort((a, b) => a.rank - b.rank)
-  .slice(0, 8)
+  .slice(0, 50)
   .filter((_, i) => i % 2 === 0)
   .map((p, i, arr) => [p.name, arr[i + 1]?.name])
   .filter(m => m[1]);
