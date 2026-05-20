@@ -146,7 +146,7 @@ const rankDiff = Math.abs(rank1 - rank2);
 const rankingFactor = Math.min(70, 20 + rankDiff * 0.6);
 const formFactor = Math.max(10, 40 - rankDiff * 0.2);
 const clutchFactor = 10 + Math.random() * 10;
-const momentumFactor = 100 - rankingFactor - formFactor - clutchFactor;
+const momentumFactor = Math.max(10, 100 - rankingFactor - formFactor - clutchFactor);
 
   res.json({
     player1: p1,
