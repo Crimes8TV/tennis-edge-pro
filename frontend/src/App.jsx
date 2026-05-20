@@ -51,8 +51,11 @@ useEffect(() => {
 }, [player]);
 useEffect(() => {
   if (!p1 || !p2) return;
-const rank1 = players[p1]?.rank || 10;
-const rank2 = players[p2]?.rank || 20;
+const player1Data = players.find(p => p.name === p1);
+const player2Data = players.find(p => p.name === p2);
+
+const rank1 = player1Data?.rank || 10;
+const rank2 = player2Data?.rank || 100;
   fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=hard`)
     .then(res => res.json())
     .then(data => {
@@ -60,7 +63,7 @@ const rank2 = players[p2]?.rank || 20;
       setPrediction(data);
     })
     .catch(err => console.error(err));
-}, [p1, p2]);
+}, [p1, p2, players]);
   useEffect(() => {
     const interval = setInterval(() => {
       fetch("https://tennis-edge-backend.onrender.com/api/live")
