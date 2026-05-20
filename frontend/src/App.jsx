@@ -199,6 +199,16 @@ const rank2 = players[p2]?.rank || 100;
 
     <p>Confidence: {prediction.confidence}%</p>
     <p className="edge">{prediction.edge}</p>
+    {prediction.factors && (
+  <div className="factors">
+    <p><strong>Based on:</strong></p>
+    <p>Ranking ({prediction.factors.ranking})</p>
+    <p>Form ({prediction.factors.form})</p>
+    <p>Clutch ({prediction.factors.clutch})</p>
+    <p>Momentum ({prediction.factors.momentum})</p>
+    <p>Surface: {prediction.factors.surface}</p>
+  </div>
+)}
   </>
 )}
             </Panel>
