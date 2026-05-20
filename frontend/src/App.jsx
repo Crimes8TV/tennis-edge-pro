@@ -51,8 +51,9 @@ useEffect(() => {
 }, [player]);
 useEffect(() => {
   if (!p1 || !p2) return;
-
-  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=2&rank2=1&surface=hard`)
+const rank1 = players[p1]?.rank || 10;
+const rank2 = players[p2]?.rank || 20;
+  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=hard`)
     .then(res => res.json())
     .then(data => {
       console.log("PREDICTION:", data);
@@ -72,18 +73,6 @@ useEffect(() => {
 
   const active = players[player] || {};
   const playerNames = Object.keys(players);
-
-  const prediction = useMemo(() => {
-    if (!players[p1] || !players[p2]) return 50;
-
-    const a = players[p1];
-    const b = players[p2];
-
-    const scoreA = a.elo * .3 + a.serve * .2 + a.return * .2 + a.clutch * .15 + a.momentum * .15;
-    const scoreB = b.elo * .3 + b.serve * .2 + b.return * .2 + b.clutch * .15 + b.momentum * .15;
-
-    return Math.round((scoreA / (scoreA + scoreB)) * 100);
-  }, [players, p1, p2]);
 
   const formData = (active.form || []).map((v, i) => ({
     match: `M-${6 - i}`,
