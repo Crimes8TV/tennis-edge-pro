@@ -29,7 +29,21 @@ app.get("/api/players", async (req, res) => {
 
     const data = response.data.result;
 
-    const players = data.slice(0, 100).map((p, i) => ({
+    const players = (data || []).slice(0, 100).map((p, i) => ({
+  name: p.player || "Unknown",
+  rank: parseInt(p.place) || i + 1,
+  elo: Math.round(85 - (i * 0.2)), // besseres Ranking-System
+  serve: 70 + Math.random() * 25,
+  return: 70 + Math.random() * 25,
+  clutch: 70 + Math.random() * 25,
+  momentum: 70 + Math.random() * 25,
+  hard: 70 + Math.random() * 25,
+  clay: 70 + Math.random() * 25,
+  grass: 70 + Math.random() * 25,
+  form: Array.from({ length: 6 }, () =>
+    Math.floor(70 + Math.random() * 30)
+  )
+}));
       name: p.player,
       rank: parseInt(p.place),
       elo: 80 + Math.random() * 15,
