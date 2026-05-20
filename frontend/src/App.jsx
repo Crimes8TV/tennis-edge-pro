@@ -9,7 +9,9 @@ import "./App.css";
 export default function App() {
   const [tab, setTab] = useState("dashboard");
   const [players, setPlayers] = useState({});
-  const [player, setPlayer] = useState("");
+  const [player, setPlayer] = useState("")
+  const [playerStats, setPlayerStats] = useState(null);
+const [prediction, setPrediction] = useState(null);
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
   const [live, setLive] = useState(null);
@@ -36,7 +38,28 @@ export default function App() {
   });
        
   }, []);
+useEffect(() => {
+  if (!player) return;
 
+  fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(player)}`)
+    .then(res => res.json())
+    .then(data => {
+      console.log("PLAYER STATS:", data);
+      setPlayerStats(data);
+    })
+    .catch(err => console.error(err));
+}, [player]);
+useEffect(() => {
+  if (!p1 || !p2) return;
+
+  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=2&rank2=1&surface=hard`)
+    .then(res => res.json())
+    .then(data => {
+      console.log("PREDICTION:", data);
+      setPrediction(data);
+    })
+    .catch(err => console.error(err));
+}, [p1, p2]);
   useEffect(() => {
     const interval = setInterval(() => {
       fetch("https://tennis-edge-backend.onrender.com/api/live")
@@ -141,6 +164,18 @@ export default function App() {
               {playerNames.map(p => <option key={p}>{p}</option>)}
             </select>
             <Kpis data={active} />
+            {playerStats && (
+  <Panel title="Player Stats">
+    <p>Win Rate: {playerStats.stats.winRate}%</p>
+    <p>Serve: {playerStats.stats.serveRating}</p>
+    <p>Return: {playerStats.stats.returnRating}</p>
+    <p>Fitness: {playerStats.stats.fitness}</p>
+    <p>Hard: {playerStats.surfaces.hard}</p>
+    <p>Clay: {playerStats.surfaces.clay}</p>
+    <p>Grass: {playerStats.surfaces.grass}</p>
+    <p>Form: {playerStats.recentForm.join(" ")}</p>
+  </Panel>
+)}
           </>
         )}
 
@@ -157,9 +192,26 @@ export default function App() {
             </div>
 
             <Panel title="Prediction Engine">
-              <div className="prediction"><span>{p1}</span><strong>{prediction}%</strong></div>
-              <div className="bar"><div style={{ width: `${prediction}%` }} /></div>
-              <div className="prediction muted"><span>{p2}</span><strong>{100 - prediction}%</strong></div>
+{prediction && (
+  <>
+    <div className="prediction">
+      <span>{prediction.player1}</span>
+      <strong>{prediction.prediction[prediction.player1]}%</strong>
+    </div>
+
+    <div className="bar">
+      <div style={{ width: `${prediction.prediction[prediction.player1]}%` }} />
+    </div>
+
+    <div className="prediction muted">
+      <span>{prediction.player2}</span>
+      <strong>{prediction.prediction[prediction.player2]}%</strong>
+    </div>
+
+    <p>Confidence: {prediction.confidence}%</p>
+    <p>Edge: {prediction.edge}</p>
+  </>
+)}
             </Panel>
           </>
         )}
