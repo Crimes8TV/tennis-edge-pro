@@ -94,7 +94,63 @@ app.get("/api/live", async (req, res) => {
     res.status(500).json({ error: "Live Fehler" });
   }
 });
+// 🔥 PLAYER STATS
+app.get("/api/player/:name", async (req, res) => {
+  try {
+    const playerName = req.params.name;
 
+    res.json({
+      name: playerName,
+      stats: {
+        winRate: Math.floor(55 + Math.random() * 35),
+        serveRating: Math.floor(70 + Math.random() * 25),
+        returnRating: Math.floor(70 + Math.random() * 25),
+        breakPoints: Math.floor(40 + Math.random() * 45),
+        tieBreaks: Math.floor(45 + Math.random() * 40),
+        fitness: Math.floor(70 + Math.random() * 25)
+      },
+      surfaces: {
+        hard: Math.floor(70 + Math.random() * 25),
+        clay: Math.floor(70 + Math.random() * 25),
+        grass: Math.floor(70 + Math.random() * 25)
+      },
+      recentForm: Array.from({ length: 10 }, () =>
+        Math.random() > 0.35 ? "W" : "L"
+      )
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Player stats error" });
+  }
+});
+
+// 🔥 MATCH PREDICTION
+app.get("/api/predict", async (req, res) => {
+  const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
+
+  const rating = (rank) => Math.max(50, 100 - rank * 0.4);
+
+  const score1 = rating(Number(rank1)) + Math.random() * 10;
+  const score2 = rating(Number(rank2)) + Math.random() * 10;
+
+  const p1Win = Math.round((score1 / (score1 + score2)) * 100);
+
+  res.json({
+    player1: p1,
+    player2: p2,
+    surface,
+    prediction: {
+      [p1]: p1Win,
+      [p2]: 100 - p1Win
+    },
+    confidence: Math.abs(p1Win - 50) * 2,
+    edge:
+      p1Win > 60
+        ? `${p1} klarer Favorit`
+        : p1Win < 40
+        ? `${p2} klarer Favorit`
+        : "ausgeglichen"
+  });
+});
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
