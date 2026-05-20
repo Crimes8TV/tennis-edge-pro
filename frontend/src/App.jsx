@@ -165,17 +165,17 @@ useEffect(() => {
             </select>
             <Kpis data={active} />
             {playerStats && (
-  <Panel title="Player Stats">
-    <p>Win Rate: {playerStats.stats.winRate}%</p>
-    <p>Serve: {playerStats.stats.serveRating}</p>
-    <p>Return: {playerStats.stats.returnRating}</p>
-    <p>Fitness: {playerStats.stats.fitness}</p>
-    <p>Hard: {playerStats.surfaces.hard}</p>
-    <p>Clay: {playerStats.surfaces.clay}</p>
-    <p>Grass: {playerStats.surfaces.grass}</p>
-    <p>Form: {playerStats.recentForm.join(" ")}</p>
-  </Panel>
-)}
+              <Panel title="Player Stats">
+              <p>Win Rate: {playerStats.stats.winRate}%</p>
+              <p>Serve: {playerStats.stats.serveRating}</p>
+             <p>Return: {playerStats.stats.returnRating}</p>
+              <p>Fitness: {playerStats.stats.fitness}</p>
+             <p>Hard: {playerStats.surfaces.hard}</p>
+              <p>Clay: {playerStats.surfaces.clay}</p>
+             <p>Grass: {playerStats.surfaces.grass}</p>
+              <p>Form: {playerStats.recentForm.join(" ")}</p>
+              </Panel>
+              )}
           </>
         )}
 
@@ -200,7 +200,7 @@ useEffect(() => {
     </div>
 
     <div className="bar">
-      <div style={{ width: `${prediction.prediction[prediction.player1]}%` }} />
+      <div style={{ width: prediction.prediction[prediction.player1] + "%" }} />
     </div>
 
     <div className="prediction muted">
