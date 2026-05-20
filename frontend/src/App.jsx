@@ -131,9 +131,19 @@ const rank2 = players[p2]?.rank || 100;
            <h4>🔥 Suggested Matches</h4>
            <p>TEST MATCHES</p>
 
-           {topMatches.map((m, i) => (
-           <p key={i}>{m[0]} vs {m[1]}</p>
-           ))}
+          {topMatches.map((m, i) => (
+             <p
+              key={i}
+              className="matchItem"
+              onClick={() => {
+                setP1(m[0]);
+                setP2(m[1]);
+                setTab("predictor");
+              }}
+           >
+              {m[0]} vs {m[1]}
+          </p>
+          ))}
           </div>
 
             <Kpis data={active} />

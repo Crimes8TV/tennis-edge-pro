@@ -337,3 +337,13 @@ body {
   border-radius: 16px;
   border: 1px solid rgba(34, 211, 238, 0.3);
 }
+.matchItem {
+  cursor: pointer;
+  padding: 6px 0;
+  transition: 0.2s;
+}
+
+.matchItem:hover {
+  color: #22d3ee;
+  transform: translateX(4px);
+}
