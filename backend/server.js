@@ -11,47 +11,22 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const players = [
-  {
-    name: "Jannik Sinner",
-    rank: 1,
-    elo: 94,
-    serve: 91,
-    return: 87,
-    clutch: 84,
-    momentum: 89,
-    hard: 95,
-    clay: 86,
-    grass: 82,
-    form: [78, 80, 82, 85, 88, 89]
-  },
-  {
-    name: "Carlos Alcaraz",
-    rank: 2,
-    elo: 93,
-    serve: 85,
-    return: 92,
-    clutch: 89,
-    momentum: 91,
-    hard: 90,
-    clay: 96,
-    grass: 87,
-    form: [74, 79, 81, 84, 89, 91]
-  },
-  {
-    name: "Daniil Medvedev",
-    rank: 5,
-    elo: 88,
-    serve: 87,
-    return: 88,
-    clutch: 80,
-    momentum: 82,
-    hard: 93,
-    clay: 71,
-    grass: 79,
-    form: [70, 73, 76, 81, 80, 82]
-  }
-];
+
+const players = Array.from({ length: 1000 }, (_, i) => ({
+  name: `Player ${i + 1}`,
+  rank: i + 1,
+  elo: Math.floor(70 + Math.random() * 30),
+  serve: Math.floor(70 + Math.random() * 30),
+  return: Math.floor(70 + Math.random() * 30),
+  clutch: Math.floor(70 + Math.random() * 30),
+  momentum: Math.floor(70 + Math.random() * 30),
+  hard: Math.floor(70 + Math.random() * 30),
+  clay: Math.floor(70 + Math.random() * 30),
+  grass: Math.floor(70 + Math.random() * 30),
+  form: Array.from({ length: 6 }, () =>
+    Math.floor(70 + Math.random() * 30)
+  )
+}));
 
 app.get("/", (req, res) => {
   res.send("TennisEdge Pro API läuft");
