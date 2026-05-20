@@ -183,7 +183,7 @@ const rank2 = players[p2]?.rank || 20;
             <Panel title="Prediction Engine">
 {prediction && (
   <>
-    <div className="prediction">
+    <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
       <span>{prediction.player1}</span>
       <strong>{prediction.prediction[prediction.player1]}%</strong>
     </div>
@@ -198,7 +198,7 @@ const rank2 = players[p2]?.rank || 20;
     </div>
 
     <p>Confidence: {prediction.confidence}%</p>
-    <p>Edge: {prediction.edge}</p>
+    <p className="edge">{prediction.edge}</p>
   </>
 )}
             </Panel>
