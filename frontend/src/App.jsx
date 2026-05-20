@@ -15,7 +15,7 @@ export default function App() {
   const [live, setLive] = useState(null);
 
   useEffect(() => {
-    fetch("https://tennis-edge-backend.onrender.com")
+    fetch("https://tennis-edge-backend.onrender.com/api/players")
       .then(res => res.json())
       .then(data => {
         const formatted = {};
@@ -29,7 +29,7 @@ export default function App() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch("https://tennis-edge-backend.onrender.com")
+      fetch("https://tennis-edge-backend.onrender.com/api/live")
         .then(res => res.json())
         .then(data => setLive(data));
     }, 3000);
