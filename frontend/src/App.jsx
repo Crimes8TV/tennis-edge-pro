@@ -19,6 +19,7 @@ const [playerSearch2, setPlayerSearch2] = useState("");
   const [odds1, setOdds1] = useState(1.70);
 const [odds2, setOdds2] = useState(2.20);
   const [live, setLive] = useState(null);
+  const [surface, setSurface] = useState("hard");
  
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
@@ -57,14 +58,14 @@ useEffect(() => {
   if (!p1 || !p2) return;
 const rank1 = players[p1]?.rank || 10;
 const rank2 = players[p2]?.rank || 100;
-  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=hard`)
+  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=${surface}`)
     .then(res => res.json())
     .then(data => {
       console.log("PREDICTION:", data);
       setPrediction(data);
     })
     .catch(err => console.error(err));
-}, [p1, p2, players]);
+}, [p1, p2, players, surface]);
   useEffect(() => {
     const interval = setInterval(() => {
       fetch("https://tennis-edge-backend.onrender.com/api/live")
@@ -276,6 +277,16 @@ const demoOddsB = 2.00;
 ))}
               </select>
             </div>
+
+            <select
+  className="surfaceSelect"
+  value={surface}
+  onChange={(e) => setSurface(e.target.value)}
+>
+  <option value="hard">Hard</option>
+  <option value="clay">Clay</option>
+  <option value="grass">Grass</option>
+</select>
 
             <Panel title="Prediction Engine">
   {prediction && (
