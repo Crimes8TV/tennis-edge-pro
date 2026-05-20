@@ -239,6 +239,35 @@ const rank2 = players[p2]?.rank || 100;
 
       <p>Confidence: {prediction.confidence}%</p>
       <p className="edge">{prediction.edge}</p>
+      <div className="valueBox">
+  <h4>💰 Value Bet Check</h4>
+
+  <input
+    type="number"
+    step="0.01"
+    value={odds1}
+    onChange={(e) => setOdds1(Number(e.target.value))}
+    placeholder={`${prediction.player1} odds`}
+  />
+
+  <input
+    type="number"
+    step="0.01"
+    value={odds2}
+    onChange={(e) => setOdds2(Number(e.target.value))}
+    placeholder={`${prediction.player2} odds`}
+  />
+
+  <p>
+    {prediction.player1} Value:{" "}
+    {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%
+  </p>
+
+  <p>
+    {prediction.player2} Value:{" "}
+    {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%
+  </p>
+</div>
 
       {prediction.factors && (
         <div className="factorBox">
