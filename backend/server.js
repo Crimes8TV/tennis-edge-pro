@@ -107,7 +107,7 @@ app.get("/api/player/:name", async (req, res) => {
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
 
-  const rankPower = (rank) => Math.max(55, 105 - Number(rank) * 0.65);
+  const rankPower = (rank) => Math.max(30, 120 - Number(rank) * 1.1);
 
   const surfaceBoost = {
     hard: 1.0,
@@ -125,16 +125,16 @@ app.get("/api/predict", async (req, res) => {
   const momentum2 = 70 + Math.random() * 25;
 
   let score1 =
-    rankPower(rank1) * 0.45 +
-    form1 * 0.25 +
-    clutch1 * 0.15 +
-    momentum1 * 0.15;
+    rankPower(rank1) * 0.70 +
+    form1 * 0.15 +
+    clutch1 * 0.08 +
+    momentum1 * 0.07;
 
   let score2 =
-    rankPower(rank2) * 0.45 +
-    form2 * 0.25 +
-    clutch2 * 0.15 +
-    momentum2 * 0.15;
+    rankPower(rank2) * 0.70 +
+    form2 * 0.15 +
+    clutch2 * 0.08 +
+    momentum2 * 0.07;
 
   score1 *= surfaceBoost[surface] || 1;
   score2 *= surfaceBoost[surface] || 1;
