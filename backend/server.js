@@ -115,29 +115,33 @@ app.get("/api/predict", async (req, res) => {
     grass: 1.05
   };
 
-  const form1 = 70 + Math.random() * 30;
-  const form2 = 70 + Math.random() * 30;
+  const form1 = playersData[p1]?.form || 75;
+const form2 = playersData[p2]?.form || 75;
 
-  const clutch1 = 70 + Math.random() * 25;
-  const clutch2 = 70 + Math.random() * 25;
+const clutch1 = playersData[p1]?.clutch || 70;
+const clutch2 = playersData[p2]?.clutch || 70;
 
-  const momentum1 = 70 + Math.random() * 25;
-  const momentum2 = 70 + Math.random() * 25;
+  const momentum1 = playersData[p1]?.momentum || 75;
+const momentum2 = playersData[p2]?.momentum || 75;
 
   let score1 =
-    rankPower(rank1) * 0.70 +
-    form1 * 0.15 +
-    clutch1 * 0.08 +
-    momentum1 * 0.07;
+  rankPower(rank1) * 0.55 +
+  form1 * 0.20 +
+  clutch1 * 0.10 +
+  momentum1 * 0.15;
 
-  let score2 =
-    rankPower(rank2) * 0.70 +
-    form2 * 0.15 +
-    clutch2 * 0.08 +
-    momentum2 * 0.07;
+let score2 =
+  rankPower(rank2) * 0.55 +
+  form2 * 0.20 +
+  clutch2 * 0.10 +
+  momentum2 * 0.15;
 
-  score1 *= surfaceBoost[surface] || 1;
-  score2 *= surfaceBoost[surface] || 1;
+// 🔥 Surface Impact (bleibt)
+const surface1 = Number(req.query.surface1 || 0);
+const surface2 = Number(req.query.surface2 || 0);
+
+score1 += surface1 * 0.5;
+score2 += surface2 * 0.5;
 
   const p1Win = Math.round((score1 / (score1 + score2)) * 100);
 
@@ -174,11 +178,15 @@ explain:
     : `Das Match ist sehr ausgeglichen. Kleine Vorteile können durch Form, Momentum oder Surface entstehen.`,
 
     edge:
-      p1Win > 60
-        ? `${p1} klarer Favorit`
-        : p1Win < 40
-        ? `${p2} klarer Favorit`
-        : "ausgeglichen"
+  p1Win > 65
+    ? `${p1} klar überlegen`
+    : p1Win > 55
+    ? `${p1} leichter Vorteil`
+    : p1Win < 35
+    ? `${p2} klar überlegen`
+    : p1Win < 45
+    ? `${p2} leichter Vorteil`
+    : "sehr ausgeglichen"
   });
 });
 const PORT = process.env.PORT || 4000;
