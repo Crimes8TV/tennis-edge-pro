@@ -368,3 +368,15 @@ body {
   color: white;
   border: 1px solid #22d3ee;
 }
+
+.advantageBox {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.advantageBox h4 {
+  color: #22d3ee;
+  margin-bottom: 8px;
+}
