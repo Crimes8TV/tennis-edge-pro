@@ -17,13 +17,7 @@ const [prediction, setPrediction] = useState(null);
   const [odds1, setOdds1] = useState(1.70);
 const [odds2, setOdds2] = useState(2.20);
   const [live, setLive] = useState(null);
-  const topMatches = Object.values(players)
-  .slice(0, 6)
-  .map((p, i, arr) =>
-    i < arr.length - 1 ? [p.name, arr[i + 1].name] : null
-  )
-  .filter(Boolean);
-
+ 
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
   .then(res => {
@@ -135,7 +129,7 @@ const topMatches = Object.values(players)
             )}
 
             <div className="topMatches">
-           <h4>🔥 Suggested Matches</h4>
+           <h4>🔥 Suggested Matches CLEAN</h4>
            
           {topMatches.map((m, i) => (
              <p
