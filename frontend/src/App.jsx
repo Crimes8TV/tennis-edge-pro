@@ -14,7 +14,8 @@ export default function App() {
 const [prediction, setPrediction] = useState(null);
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
-  const [playerSearch, setPlayerSearch] = useState("");
+  const [playerSearch1, setPlayerSearch1] = useState("");
+const [playerSearch2, setPlayerSearch2] = useState("");
   const [odds1, setOdds1] = useState(1.70);
 const [odds2, setOdds2] = useState(2.20);
   const [live, setLive] = useState(null);
@@ -76,9 +77,15 @@ const rank2 = players[p2]?.rank || 100;
 
   const active = players[player] || {};
   const playerNames = Object.keys(players);
- const filteredPlayerNames = playerSearch
+ const filteredPlayerNames1 = playerSearch1
   ? playerNames.filter(name =>
-      name.toLowerCase().includes(playerSearch.toLowerCase())
+      name.toLowerCase().includes(playerSearch1.toLowerCase())
+    )
+  : playerNames;
+
+const filteredPlayerNames2 = playerSearch2
+  ? playerNames.filter(name =>
+      name.toLowerCase().includes(playerSearch2.toLowerCase())
     )
   : playerNames;
 
@@ -241,18 +248,32 @@ const demoOddsB = 2.00;
         {tab === "predictor" && (
           <>
             <Header title="Match Predictor" />
-            <input
-  className="searchInput"
-  value={playerSearch}
-  onChange={(e) => setPlayerSearch(e.target.value)}
-  placeholder="Spieler suchen..."
-/>
+            
+  <div className="grid two">
+  <input
+    className="searchInput"
+    value={playerSearch1}
+    onChange={(e) => setPlayerSearch1(e.target.value)}
+    placeholder="Spieler 1 suchen..."
+  />
+
+  <input
+    className="searchInput"
+    value={playerSearch2}
+    onChange={(e) => setPlayerSearch2(e.target.value)}
+    placeholder="Spieler 2 suchen..."
+  />
+</div>
             <div className="grid two">
               <select value={p1} onChange={e => setP1(e.target.value)}>
-                {filteredPlayerNames.map(p => <option key={p}>{p}</option>)}
+                {filteredPlayerNames1.map(p => (
+  <option key={p} value={p}>{p}</option>
+))}
               </select>
               <select value={p2} onChange={e => setP2(e.target.value)}>
-                {filteredPlayerNames.map(p => <option key={p}>{p}</option>)}
+                {filteredPlayerNames2.map(p => (
+  <option key={p} value={p}>{p}</option>
+))}
               </select>
             </div>
 
