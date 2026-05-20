@@ -112,6 +112,7 @@ const rank2 = players[p2]?.rank || 100;
       </aside>
 
       <main>
+        <p style={{color: "red"}}>DEBUG TEST</p>
         {true && (
           <>
             <Header title="Live Dashboard" />
