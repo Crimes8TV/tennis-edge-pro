@@ -53,21 +53,19 @@ app.get("/api/live", async (req, res) => {
       `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
     );
 
-    const match = response.data.result?.[0];
+    const matches = response.data.result || [];
 
-    if (!match) {
-      return res.json({
-        match: "Keine Live Matches",
-        score: "-",
-        momentum: 50
-      });
-    }
+    if (!matches.length) {
+  return res.json([]);
+}
 
-    res.json({
-      match: `${match.event_first_player} vs ${match.event_second_player}`,
-      score: match.event_final_result || "Live",
-      momentum: Math.floor(70 + Math.random() * 25)
-    });
+    const formatted = matches.map(m => ({
+  player1: m.event_first_player,
+  player2: m.event_second_player,
+  score: m.event_final_result || "-"
+}));
+
+res.json(formatted);
 
   } catch (err) {
     console.error("LIVE ERROR:", err.message);
