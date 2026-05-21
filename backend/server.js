@@ -65,14 +65,14 @@ app.get("/api/live", async (req, res) => {
     );
 
     
-const response = await axios.get(
+const liveResponse = await axios.get(
   `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
 );
 
 // 🔥 HIER
-console.log("RAW LIVE DATA:", response.data);
+console.log("RAW LIVE DATA:", liveResponse.data);
 
-    const matches = response.data.result || [];
+    const matches = liveResponse.data.result || [];
 
 const formatted = matches
   .filter(m => m.event_first_player && m.event_second_player)
