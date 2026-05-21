@@ -183,21 +183,25 @@ const demoOddsB = 2.00;
             )}
 
             <div className="topMatches">
-           <h4>🔥 Suggested Matches </h4>
+           <h4>🔥 Live Matches</h4>
            
-          {topMatches.map((m, i) => (
+          {liveMatches.length === 0 ? (
+  <p>Keine Live Matches</p>
+) : (
+  liveMatches.map((m, i) => (
              <p
-              key={i}
-              className="matchItem"
-              onClick={() => {
-                setP1(m[0]);
-                setP2(m[1]);
-                setTab("predictor");
-              }}
-           >
-              {m[0]} vs {m[1]}
-          </p>
-          ))}
+  key={i}
+  className="matchItem"
+  onClick={() => {
+    setP1(m.player1);
+    setP2(m.player2);
+    setTab("predictor");
+  }}
+>
+  {m.player1} vs {m.player2}
+</p>
+          ))
+          )}
           </div>
 
           <div className="valuePicks">
