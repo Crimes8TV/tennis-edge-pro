@@ -24,6 +24,7 @@ const [playerSearch2, setPlayerSearch2] = useState("");
   const [odds1, setOdds1] = useState(1.70);
 const [odds2, setOdds2] = useState(2.20);
   const [live, setLive] = useState(null);
+  const [liveMatches, setLiveMatches] = useState([]);
   const [surface, setSurface] = useState("hard");
  
   useEffect(() => {
@@ -82,7 +83,7 @@ console.log("SURFACE 2 VALUE:", players[p2]?.[surface]);
     const interval = setInterval(() => {
       fetch("https://tennis-edge-backend.onrender.com/api/live")
         .then(res => res.json())
-        .then(data => setLive(data));
+        .then(data => setLiveMatches(data));
     }, 3000);
 
     return () => clearInterval(interval);
