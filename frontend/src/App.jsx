@@ -40,9 +40,15 @@ const [odds2, setOdds2] = useState(2.20);
     const formatted = {};
     data.forEach(p => formatted[p.name] = p);
     setPlayers(formatted);
-    setPlayer(data[0].name);
-    setP1(data[0].name);
-    setP2(data[1].name);
+   if (data.length > 0) {
+  setPlayer(data[0].name);
+}
+
+if (data.length > 1) {
+  setP1(data[0].name);
+  setP2(data[1].name);
+}
+}
   })
   .catch(err => {
     console.error("FEHLER PLAYERS:", err);
