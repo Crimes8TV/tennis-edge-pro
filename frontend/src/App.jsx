@@ -43,18 +43,19 @@ export default function App() {
     return res.json();
   })
   .then(data => {
-    console.log("PLAYERS DATA:", data); // DEBUG
-    const formatted = {};
-    data.forEach(p => formatted[p.name] = p);
-    setPlayers(formatted);
-   if (data.length > 0) {
-  setPlayer(data[0].name);
-}
+  console.log("PLAYERS DATA:", data);
 
-if (data.length > 1) {
-  setP1(data[0].name);
-  setP2(data[1].name);
-}
+  const formatted = Array.isArray(data) ? data : [];
+  setPlayers(formatted);
+
+  if (formatted.length > 0) {
+    setPlayer(formatted[0].name);
+  }
+
+  if (formatted.length > 1) {
+    setP1(formatted[0].name);
+    setP2(formatted[1].name);
+  }
 })
 .catch(err => {
   console.error("FEHLER PLAYERS:", err);
