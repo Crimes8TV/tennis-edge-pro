@@ -26,6 +26,8 @@ app.get("/api/players", async (req, res) => {
   ? response.data.result
   : [];
 
+  console.log("PLAYER SAMPLE:", data[0]);
+
     if (data.length > 0) {
   console.log("FIRST PLAYER:", data[0]);
 } else {
@@ -34,7 +36,7 @@ app.get("/api/players", async (req, res) => {
   const players = data.map(p => {
   try {
     return {
-      name: p.player_name || p.player || p.name || "Unknown",
+          name: p.event_first_player || p.player_name || p.player || p.name || "Unknown",
       rank: parseInt(p.player_rank) || 999,
       elo: 85,
       serve: 70,
@@ -60,14 +62,9 @@ app.get("/api/players", async (req, res) => {
 // 🔥 LIVE MATCHES
 app.get("/api/live", async (req, res) => {
   try {
-    const response = await axios.get(
+   const liveResponse = await axios.get(
       `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
     );
-
-    
-const liveResponse = await axios.get(
-  `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
-);
 
 // 🔥 HIER
 console.log("RAW LIVE DATA:", liveResponse.data);
