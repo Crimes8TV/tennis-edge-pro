@@ -8,34 +8,32 @@ import "./App.css";
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-    const [players, setPlayers] = useState([]);
+
+  const [players, setPlayers] = useState([]);
   const [player, setPlayer] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
-const [prediction, setPrediction] = useState(null);
-const winner = null;
+  const [prediction, setPrediction] = useState(null);
 
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
 
-  const p1Data = players.find(p =>
-  p.name?.toLowerCase().includes(p1.toLowerCase())
-);
-
-const p2Data = players.find(p =>
-  p.name?.toLowerCase().includes(p2.toLowerCase())
-);
- 
-console.log("P1:", p1);
-console.log("PLAYERS:", players);
-
   const [playerSearch1, setPlayerSearch1] = useState("");
-const [playerSearch2, setPlayerSearch2] = useState("");
+  const [playerSearch2, setPlayerSearch2] = useState("");
+
   const [odds1, setOdds1] = useState(1.70);
-const [odds2, setOdds2] = useState(2.20);
+  const [odds2, setOdds2] = useState(2.20);
+
   const [live, setLive] = useState(null);
   const [liveMatches, setLiveMatches] = useState([]);
   const [surface, setSurface] = useState("hard");
- 
+
+  const p1Data = players.find(p =>
+    p.name?.toLowerCase().includes(p1.toLowerCase())
+  );
+
+  const p2Data = players.find(p =>
+    p.name?.toLowerCase().includes(p2.toLowerCase())
+  );
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
   .then(res => {
