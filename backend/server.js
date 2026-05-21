@@ -19,25 +19,20 @@ const API_KEY = process.env.TENNIS_API_KEY;
 app.get("/api/players", async (req, res) => {
   try {
     const response = await axios.get(
-      `https://api.api-tennis.com/tennis/?method=get_standings&event_type=ATP&APIkey=${API_KEY}`
+      "https://tennis-api-atp-wta-itf.p.rapidapi.com/tennis/v2/atp/rankings",
+      {
+        headers: {
+          "X-RapidAPI-Key": process.env.RAPID_API_KEY,
+          "X-RapidAPI-Host": process.env.RAPID_API_HOST
+        }
+      }
     );
 
-    const data = Array.isArray(response.data.result)
-  ? response.data.result
-  : [];
+    const data = response.data.results || [];
 
-  console.log("PLAYER SAMPLE:", data[0]);
-
-    if (data.length > 0) {
-  console.log("FIRST PLAYER:", data[0]);
-} else {
-  console.log("NO PLAYER DATA");
-}
-  const players = data.map(p => {
-  try {
-    return {
-          name: p.event_first_player || p.player_name || p.player || p.name || "Unknown",
-      rank: parseInt(p.player_rank) || 999,
+    const players = data.map(p => ({
+      name: p.player || p.name,
+      rank: p.rank || 999,
       elo: 85,
       serve: 70,
       return: 75,
@@ -47,60 +42,41 @@ app.get("/api/players", async (req, res) => {
       clay: 75,
       grass: 70,
       form: [80, 82, 78, 85, 87]
-    };
-  } catch (e) {
-    return null;
-  }
-}).filter(Boolean);
-
-if (!players.length) {
-  return res.json([
-    { name: "Jannik Sinner", rank: 1, elo: 95, serve: 88, return: 92, clutch: 90, momentum: 92, hard: 90, clay: 86, grass: 84, form: [90,92,94,93,95] },
-    { name: "Carlos Alcaraz", rank: 2, elo: 94, serve: 86, return: 91, clutch: 91, momentum: 90, hard: 88, clay: 94, grass: 82, form: [88,91,90,93,94] },
-    { name: "Novak Djokovic", rank: 5, elo: 92, serve: 87, return: 93, clutch: 95, momentum: 85, hard: 91, clay: 84, grass: 90, form: [85,87,89,88,90] },
-    { name: "Alexander Zverev", rank: 4, elo: 89, serve: 91, return: 84, clutch: 82, momentum: 86, hard: 87, clay: 88, grass: 78, form: [84,86,85,88,89] }
-  ]);
-}
+    }));
 
     res.json(players);
 
   } catch (err) {
-    console.error("API ERROR:", err.message);
-    res.status(500).json({ error: "API Fehler" });
+    console.error("RAPID PLAYERS ERROR:", err.message);
+    res.status(500).json({ error: "RapidAPI Fehler" });
   }
 });
 // 🔥 LIVE MATCHES
 app.get("/api/live", async (req, res) => {
   try {
-   const liveResponse = await axios.get(
-      `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
+    const response = await axios.get(
+      "https://tennis-api-atp-wta-itf.p.rapidapi.com/tennis/v2/atp/live",
+      {
+        headers: {
+          "X-RapidAPI-Key": process.env.RAPID_API_KEY,
+          "X-RapidAPI-Host": process.env.RAPID_API_HOST
+        }
+      }
     );
 
-// 🔥 HIER
-console.log("RAW LIVE DATA:", liveResponse.data);
+    const matches = response.data.results || [];
 
-    const matches = liveResponse.data.result || [];
+    const formatted = matches.map(m => ({
+      player1: m.home_player,
+      player2: m.away_player,
+      score: m.score || "-"
+    }));
 
-const formatted = matches
-  .filter(m => m.event_first_player && m.event_second_player)
-  .map(m => ({
-    player1: m.event_first_player,
-    player2: m.event_second_player,
-    score: m.event_final_result || "-"
-  }));
-
-if (!formatted.length) {
-  return res.json([
-    { player1: "Jannik Sinner", player2: "Carlos Alcaraz", score: "-" },
-    { player1: "Novak Djokovic", player2: "Alexander Zverev", score: "-" }
-  ]);
-}
-
-res.json(formatted);
+    res.json(formatted);
 
   } catch (err) {
-    console.error("LIVE ERROR:", err.message);
-    res.status(500).json({ error: "Live Fehler" });
+    console.error("RAPID LIVE ERROR:", err.message);
+    res.status(500).json({ error: "RapidAPI Fehler" });
   }
 });
 // 🔥 PLAYER STATS
