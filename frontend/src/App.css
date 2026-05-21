@@ -409,8 +409,8 @@ body {
   border: 1px solid #22d3ee;
 }
 
-{prediction.elo && (
-      <p className="eloBox">
-        ⚡ Elo: {prediction.elo[prediction.player1]} vs {prediction.elo[prediction.player2]}
-      </p>
-    )}
+.eloBox {
+  margin: 8px 0;
+  color: #facc15;
+  font-weight: 700;
+}
