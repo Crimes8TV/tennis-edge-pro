@@ -355,16 +355,19 @@ const demoOddsB = 2.00;
   </div>
 )}
 
-      <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
+      <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
         <span>{prediction.player1}</span>
         <strong>{prediction.prediction[prediction.player1]}%</strong>
       </div>
 
       <div className="bar">
-        <div style={{ width: prediction.prediction[prediction.player1] + "%" }} />
-      </div>
+  <div
+    className={winner === prediction.player1 ? "barFill winBar" : "barFill"}
+    style={{ width: prediction.prediction[prediction.player1] + "%" }}
+  />
+</div>
 
-      <div className="prediction muted">
+      <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>"bar"
         <span>{prediction.player2}</span>
         <strong>{prediction.prediction[prediction.player2]}%</strong>
       </div>

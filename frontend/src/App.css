@@ -478,4 +478,38 @@ body {
   color: #4ade80;
   font-weight: 800;
   text-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
+
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid #4ade80;
+  border-radius: 10px;
+  padding: 10px;
+  transform: scale(1.02);
+}
+
+.prediction.muted {
+  opacity: 0.6;
+}
+
+.bar {
+  height: 12px;
+  background: #1e293b;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.barFill {
+  height: 100%;
+  background: #64748b;
+  transition: width 0.4s ease;
+}
+
+.winBar {
+  background: linear-gradient(90deg, #22d3ee, #4ade80);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
+}
+
+.winnerName {
+  color: #4ade80;
+  font-weight: 900;
 }
