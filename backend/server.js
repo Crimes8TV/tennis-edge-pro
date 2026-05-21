@@ -53,17 +53,23 @@ app.get("/api/live", async (req, res) => {
       `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
     );
 
+    
+const response = await axios.get(
+  `https://api.api-tennis.com/tennis/?method=get_livescore&APIkey=${API_KEY}`
+);
+
+// 🔥 HIER
+console.log("RAW LIVE DATA:", response.data);
+
     const matches = response.data.result || [];
 
-    if (!matches.length) {
-  return res.json([]);
-}
-
-    const formatted = matches.map(m => ({
-  player1: m.event_first_player,
-  player2: m.event_second_player,
-  score: m.event_final_result || "-"
-}));
+const formatted = matches
+  .filter(m => m.event_first_player && m.event_second_player)
+  .map(m => ({
+    player1: m.event_first_player,
+    player2: m.event_second_player,
+    score: m.event_final_result || "-"
+  }));
 
 res.json(formatted);
 
