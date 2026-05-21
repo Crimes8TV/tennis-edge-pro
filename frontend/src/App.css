@@ -421,3 +421,28 @@ body {
   font-weight: 700;
   text-align: center;
 }
+
+.eloBarBox {
+  margin: 12px 0 18px;
+}
+
+.eloNames,
+.eloValues {
+  display: flex;
+  justify-content: space-between;
+  color: #facc15;
+  font-weight: 700;
+}
+
+.eloBar {
+  height: 10px;
+  background: #1e293b;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.eloFill {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #4ade80);
+}
