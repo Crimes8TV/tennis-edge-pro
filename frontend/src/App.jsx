@@ -327,11 +327,38 @@ const demoOddsB = 2.00;
         )}%)
       </p>
 
+     <p>DEBUG ELO: {JSON.stringify(prediction.elo)}</p>
+
 {prediction?.elo && (
       <p className="eloBox">
         ⚡ Elo: {prediction.elo[prediction.player1]} vs {prediction.elo[prediction.player2]}
       </p>
     )}
+
+    <div className="eloBarBox">
+  <div className="eloNames">
+    <span>{prediction.player1}</span>
+    <span>{prediction.player2}</span>
+  </div>
+
+  <div className="eloBar">
+    <div
+      className="eloFill"
+      style={{
+        width:
+          (prediction.elo[prediction.player1] /
+            (prediction.elo[prediction.player1] + prediction.elo[prediction.player2])) *
+            100 +
+          "%"
+      }}
+    />
+  </div>
+
+  <div className="eloValues">
+    <span>{prediction.elo[prediction.player1]}</span>
+    <span>{prediction.elo[prediction.player2]}</span>
+  </div>
+</div>
 
       <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
         <span>{prediction.player1}</span>
