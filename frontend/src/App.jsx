@@ -329,7 +329,6 @@ const demoOddsB = 2.00;
 
      {prediction?.elo && (
   <div className="eloBarBox">
-
     <div className="eloBar">
       <div
         className="eloFill"
@@ -344,33 +343,12 @@ const demoOddsB = 2.00;
       />
     </div>
 
+    <div className="eloValues">
+      <span>{prediction.elo[prediction.player1]}</span>
+      <span>{prediction.elo[prediction.player2]}</span>
+    </div>
   </div>
 )}
-
-    <div className="eloBarBox">
-  <div className="eloNames">
-    <span>{prediction.player1}</span>
-    <span>{prediction.player2}</span>
-  </div>
-
-  <div className="eloBar">
-    <div
-      className="eloFill"
-      style={{
-        width:
-          (prediction.elo[prediction.player1] /
-            (prediction.elo[prediction.player1] + prediction.elo[prediction.player2])) *
-            100 +
-          "%"
-      }}
-    />
-  </div>
-
-  <div className="eloValues">
-    <span>{prediction.elo[prediction.player1]}</span>
-    <span>{prediction.elo[prediction.player2]}</span>
-  </div>
-</div>
 
       <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
         <span>{prediction.player1}</span>
