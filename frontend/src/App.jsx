@@ -8,17 +8,25 @@ import "./App.css";
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-  const [players, setPlayers] = useState({});
+  const [players, setPlayers] = useState([]);
   const [player, setPlayer] = useState("")
   const [playerStats, setPlayerStats] = useState(null);
 const [prediction, setPrediction] = useState(null);
-const winner =
+const winner = null;
+
+
   prediction?.prediction?.[prediction?.player1] >
   prediction?.prediction?.[prediction?.player2]
     ? prediction?.player1
     : prediction?.player2 || null;
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
+  const p1Data = players.find(p => p.name === p1);
+const p2Data = players.find(p => p.name === p2);
+
+if (!p1Data || !p2Data) {
+  return <p>Spielerdaten fehlen. Bitte andere Spieler auswählen.</p>;
+}
   const [playerSearch1, setPlayerSearch1] = useState("");
 const [playerSearch2, setPlayerSearch2] = useState("");
   const [odds1, setOdds1] = useState(1.70);
@@ -68,16 +76,16 @@ useEffect(() => {
 }, [player]);
 useEffect(() => {
   if (!p1 || !p2) return;
-const rank1 = players[p1]?.rank || 10;
-const rank2 = players[p2]?.rank || 100;
+const rank1 = p1Data?.rank || 10;
+const rank2 = p2Data?.rank || 100;
 
-console.log("PLAYER 1 DATA:", players[p1]);
-console.log("PLAYER 2 DATA:", players[p2]);
+console.log("PLAYER 1 DATA:", p1Data);
+console.log("PLAYER 2 DATA:", p2Data);
 console.log("SURFACE:", surface);
-console.log("SURFACE 1 VALUE:", players[p1]?.[surface]);
-console.log("SURFACE 2 VALUE:", players[p2]?.[surface]);
+console.log("SURFACE 1 VALUE:", p1Data?.[surface]);
+console.log("SURFACE 2 VALUE:", p2Data?.[surface]);
 
-  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=${surface}&surface1=${players[p1]?.[surface] || 0}&surface2=${players[p2]?.[surface] || 0}`)
+  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
     .then(res => res.json())
     .then(data => {
       console.log("PREDICTION:", data);
@@ -451,19 +459,19 @@ const demoOddsB = 2.00;
 
     <div className="advantageBox">
       <h4>Matchup Edge</h4>
-      <p>Ranking Edge: {players[p1].rank < players[p2].rank ? p1 : p2}</p>
-      <p>Serve Edge: {players[p1].serve > players[p2].serve ? p1 : p2}</p>
-      <p>Return Edge: {players[p1].return > players[p2].return ? p1 : p2}</p>
-      <p>Momentum Edge: {players[p1].momentum > players[p2].momentum ? p1 : p2}</p>
+      <p>Ranking Edge: {p1Data.rank < p2Data.rank ? p1 : p2}</p>
+      <p>Serve Edge: {p1Data.serve > p2Data.serve ? p1 : p2}</p>
+      <p>Return Edge: {p1Data.return > p2Data.return ? p1 : p2}</p>
+      <p>Momentum Edge: {p1Data.momentum > p2Data.momentum ? p1 : p2}</p>
     </div>
 
-    {players[p1] && players[p2] && (
+    {p1Data && p2Data && (
       <div className="compareBox">
         <h4>Player Compare</h4>
-        <p>Serve: {players[p1].serve} vs {players[p2].serve}</p>
-        <p>Return: {players[p1].return} vs {players[p2].return}</p>
-        <p>Clutch: {players[p1].clutch} vs {players[p2].clutch}</p>
-        <p>Momentum: {players[p1].momentum} vs {players[p2].momentum}</p>
+        <p>Serve: {p1Data.serve} vs {p2Data.serve}</p>
+        <p>Return: {p1Data.return} vs {p2Data.return}</p>
+        <p>Clutch: {p1Data.clutch} vs {p2Data.clutch}</p>
+        <p>Momentum: {p1Data.momentum} vs {p2Data.momentum}</p>
       </div>
     )}
   </div>
