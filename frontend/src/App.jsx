@@ -327,13 +327,25 @@ const demoOddsB = 2.00;
         )}%)
       </p>
 
-     <p>DEBUG ELO: {JSON.stringify(prediction.elo)}</p>
+     {prediction?.elo && (
+  <div className="eloBarBox">
 
-{prediction?.elo && (
-      <p className="eloBox">
-        ⚡ Elo: {prediction.elo[prediction.player1]} vs {prediction.elo[prediction.player2]}
-      </p>
-    )}
+    <div className="eloBar">
+      <div
+        className="eloFill"
+        style={{
+          width: (() => {
+            const e1 = prediction.elo?.[prediction.player1] || 0;
+            const e2 = prediction.elo?.[prediction.player2] || 0;
+            const total = e1 + e2 || 1;
+            return (e1 / total) * 100 + "%";
+          })()
+        }}
+      />
+    </div>
+
+  </div>
+)}
 
     <div className="eloBarBox">
   <div className="eloNames">

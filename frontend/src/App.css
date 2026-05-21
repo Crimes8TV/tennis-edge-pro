@@ -446,3 +446,23 @@ body {
   height: 100%;
   background: linear-gradient(90deg, #22d3ee, #4ade80);
 }
+
+{prediction?.elo && (
+  <div className="eloBarBox">
+
+    <div className="eloBar">
+      <div
+        className="eloFill"
+        style={{
+          width: (() => {
+            const e1 = prediction.elo?.[prediction.player1] || 0;
+            const e2 = prediction.elo?.[prediction.player2] || 0;
+            const total = e1 + e2 || 1;
+            return (e1 / total) * 100 + "%";
+          })()
+        }}
+      />
+    </div>
+
+  </div>
+)}
