@@ -48,13 +48,13 @@ if (data.length > 1) {
   setP1(data[0].name);
   setP2(data[1].name);
 }
-}
-  })
-  .catch(err => {
-    console.error("FEHLER PLAYERS:", err);
-  });
-       
-  }, []);
+})
+.catch(err => {
+  console.error("FEHLER PLAYERS:", err);
+});
+
+}, []);
+
 useEffect(() => {
   if (!player) return;
 

@@ -53,7 +53,7 @@ app.get("/api/players", async (req, res) => {
   }
 }).filter(Boolean);
 
-if (!players.length || players.length < 10) {
+if (!players.length) {
   return res.json([
     { name: "Jannik Sinner", rank: 1, elo: 95, serve: 88, return: 92, clutch: 90, momentum: 92, hard: 90, clay: 86, grass: 84, form: [90,92,94,93,95] },
     { name: "Carlos Alcaraz", rank: 2, elo: 94, serve: 86, return: 91, clutch: 91, momentum: 90, hard: 88, clay: 94, grass: 82, form: [88,91,90,93,94] },
@@ -63,6 +63,7 @@ if (!players.length || players.length < 10) {
 }
 
     res.json(players);
+
   } catch (err) {
     console.error("API ERROR:", err.message);
     res.status(500).json({ error: "API Fehler" });
