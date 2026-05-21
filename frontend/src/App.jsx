@@ -356,7 +356,10 @@ const demoOddsB = 2.00;
 )}
 
       <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
-        <span>{prediction.player1}</span>
+        
+<span className={winner === prediction.player1 ? "winnerName" : ""}>
+  {prediction.player1}
+</span>
         <strong>{prediction.prediction[prediction.player1]}%</strong>
       </div>
 
@@ -367,12 +370,22 @@ const demoOddsB = 2.00;
   />
 </div>
 
-      <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>"bar"
-        <span>{prediction.player2}</span>
+      <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>
+        <span className={winner === prediction.player2 ? "winnerName" : ""}>
+  {prediction.player2}
+</span>
         <strong>{prediction.prediction[prediction.player2]}%</strong>
       </div>
 
-      <p>Confidence: {prediction.confidence}%</p>
+      <p className={`confidence ${
+  prediction.confidence > 10
+    ? "high"
+    : prediction.confidence > 5
+    ? "mid"
+    : "low"
+}`}>
+  Confidence: {prediction.confidence}%
+</p>
       <p className="edge">{prediction.edge}</p>
       {prediction.explain && (
   <p className="proExplain">
