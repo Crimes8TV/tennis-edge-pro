@@ -19,7 +19,7 @@ const API_KEY = process.env.TENNIS_API_KEY;
 app.get("/api/players", async (req, res) => {
   try {
     const response = await axios.get(
-      "https://tennis-api-atp-wta-itf.p.rapidapi.com/tennis/v2/atp/rankings",
+      "https://tennis-api-atp-wta-itf.p.rapidapi.com/tennis/v2/atp/ranking/singles/",
       {
         headers: {
           "X-RapidAPI-Key": process.env.RAPID_API_KEY,
@@ -28,12 +28,12 @@ app.get("/api/players", async (req, res) => {
       }
     );
 
-    const data = response.data.results || [];
-
     console.log("RAPID RAW:", response.data);
 
+    const data = response.data?.results || response.data || [];
+
     const players = data.map(p => ({
-      name: p.player || p.name,
+      name: p.player || p.name || p.player_name || "Unknown",
       rank: p.rank || 999,
       elo: 85,
       serve: 70,
@@ -49,15 +49,13 @@ app.get("/api/players", async (req, res) => {
     res.json(players);
 
   } catch (err) {
-  console.error("RAPID PLAYERS ERROR:", err.response?.status, err.response?.data || err.message);
+    console.error("RAPID PLAYERS ERROR:", err.response?.status, err.response?.data || err.message);
 
-  return res.json([
-    { name: "Jannik Sinner", rank: 1, elo: 95, serve: 88, return: 92, clutch: 90, momentum: 92, hard: 90, clay: 86, grass: 84, form: [90,92,94,93,95] },
-    { name: "Carlos Alcaraz", rank: 2, elo: 94, serve: 86, return: 91, clutch: 91, momentum: 90, hard: 88, clay: 94, grass: 82, form: [88,91,90,93,94] },
-    { name: "Novak Djokovic", rank: 5, elo: 92, serve: 87, return: 93, clutch: 95, momentum: 85, hard: 91, clay: 84, grass: 90, form: [85,87,89,88,90] },
-    { name: "Alexander Zverev", rank: 4, elo: 89, serve: 91, return: 84, clutch: 82, momentum: 86, hard: 87, clay: 88, grass: 78, form: [84,86,85,88,89] }
-  ]);
-}
+    return res.json([
+      { name: "Jannik Sinner", rank: 1, elo: 95, serve: 88, return: 92, clutch: 90, momentum: 92, hard: 90, clay: 86, grass: 84, form: [90,92,94,93,95] },
+      { name: "Carlos Alcaraz", rank: 2, elo: 94, serve: 86, return: 91, clutch: 91, momentum: 90, hard: 88, clay: 94, grass: 82, form: [88,91,90,93,94] }
+    ]);
+  }
 });
 // 🔥 LIVE MATCHES
 app.get("/api/live", async (req, res) => {
