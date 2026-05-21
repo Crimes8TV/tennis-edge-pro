@@ -447,22 +447,29 @@ body {
   background: linear-gradient(90deg, #22d3ee, #4ade80);
 }
 
-{prediction?.elo && (
-  <div className="eloBarBox">
+.eloBar {
+  position: relative;
+  height: 18px; /* größer */
+  background: #0f172a;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 12px 0;
+  border: 1px solid #334155;
+}
 
-    <div className="eloBar">
-      <div
-        className="eloFill"
-        style={{
-          width: (() => {
-            const e1 = prediction.elo?.[prediction.player1] || 0;
-            const e2 = prediction.elo?.[prediction.player2] || 0;
-            const total = e1 + e2 || 1;
-            return (e1 / total) * 100 + "%";
-          })()
-        }}
-      />
-    </div>
+.eloFill {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #4ade80);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6); /* Glow Effekt */
+  transition: width 0.4s ease;
+}
 
-  </div>
-)}
+.eloBar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  background: #64748b;
+}
