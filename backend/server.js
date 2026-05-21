@@ -115,14 +115,17 @@ app.get("/api/predict", async (req, res) => {
     grass: 1.05
   };
 
-  const form1 = playersData[p1]?.form || 75;
-const form2 = playersData[p2]?.form || 75;
+  const player1 = playersData.find(p => p.name === p1);
+const player2 = playersData.find(p => p.name === p2);
 
-const clutch1 = playersData[p1]?.clutch || 70;
-const clutch2 = playersData[p2]?.clutch || 70;
+const form1 = player1?.form || 75;
+const form2 = player2?.form || 75;
 
-  const momentum1 = playersData[p1]?.momentum || 75;
-const momentum2 = playersData[p2]?.momentum || 75;
+const clutch1 = player1?.clutch || 70;
+const clutch2 = player2?.clutch || 70;
+
+const momentum1 = player1?.momentum || 75;
+const momentum2 = player2?.momentum || 75;
 
   let score1 =
   rankPower(rank1) * 0.55 +
