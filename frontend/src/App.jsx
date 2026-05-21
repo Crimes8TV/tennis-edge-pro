@@ -8,25 +8,26 @@ import "./App.css";
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-  const [players, setPlayers] = useState([]);
-  const [player, setPlayer] = useState("")
+    const [players, setPlayers] = useState([]);
+  const [player, setPlayer] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
 const [prediction, setPrediction] = useState(null);
 const winner = null;
 
-
-  prediction?.prediction?.[prediction?.player1] >
-  prediction?.prediction?.[prediction?.player2]
-    ? prediction?.player1
-    : prediction?.player2 || null;
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
-  const p1Data = players.find(p => p.name === p1);
-const p2Data = players.find(p => p.name === p2);
 
-if (!p1Data || !p2Data) {
-  return <p>Spielerdaten fehlen. Bitte andere Spieler auswählen.</p>;
-}
+  const p1Data = players.find(p =>
+  p.name?.toLowerCase().includes(p1.toLowerCase())
+);
+
+const p2Data = players.find(p =>
+  p.name?.toLowerCase().includes(p2.toLowerCase())
+);
+ 
+console.log("P1:", p1);
+console.log("PLAYERS:", players);
+
   const [playerSearch1, setPlayerSearch1] = useState("");
 const [playerSearch2, setPlayerSearch2] = useState("");
   const [odds1, setOdds1] = useState(1.70);
@@ -341,6 +342,14 @@ const demoOddsB = 2.00;
   <option value="clay">Clay</option>
   <option value="grass">Grass</option>
 </select>
+
+{!p1Data || !p2Data ? (
+  <p>Bitte zwei Spieler auswählen.</p>
+) : (
+  <button onClick={predictMatch}>
+    Prediction berechnen
+  </button>
+)}
 
             <Panel title="Prediction Engine">
   {prediction && (
