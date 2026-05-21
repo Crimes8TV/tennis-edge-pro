@@ -118,6 +118,17 @@ const momentum2 = Number(req.query.momentum2 || 75);
 
   const rankPower = (rank) => Math.max(30, 120 - Number(rank) * 1.1);
 
+  // 🔥 ELO FUNCTION
+const eloFromRank = (rank) => {
+  return Math.max(1500, 2400 - Number(rank) * 6);
+};
+
+const elo1 = eloFromRank(rank1);
+const elo2 = eloFromRank(rank2);
+
+const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+const expected2 = 1 - expected1;
+
   const surfaceBoost = {
     hard: 1.0,
     clay: 1.08,
@@ -126,13 +137,13 @@ const momentum2 = Number(req.query.momentum2 || 75);
 
 
   let score1 =
-  rankPower(rank1) * 0.55 +
+  expected1 * 100 * 0.55 +
   form1 * 0.20 +
   clutch1 * 0.10 +
   momentum1 * 0.15;
 
 let score2 =
-  rankPower(rank2) * 0.55 +
+  expected2 * 100 * 0.55 +
   form2 * 0.20 +
   clutch2 * 0.10 +
   momentum2 * 0.15;
@@ -157,6 +168,11 @@ const momentumFactor = Math.max(10, 100 - rankingFactor - formFactor - clutchFac
     player1: p1,
     player2: p2,
     surface,
+
+    elo: {
+  [p1]: Math.round(elo1),
+  [p2]: Math.round(elo2)
+},
     prediction: {
       [p1]: p1Win,
       [p2]: 100 - p1Win
