@@ -12,6 +12,11 @@ export default function App() {
   const [player, setPlayer] = useState("")
   const [playerStats, setPlayerStats] = useState(null);
 const [prediction, setPrediction] = useState(null);
+const winner =
+  prediction?.prediction?.[prediction?.player1] >
+  prediction?.prediction?.[prediction?.player2]
+    ? prediction?.player1
+    : prediction?.player2 || null;
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
   const [playerSearch1, setPlayerSearch1] = useState("");

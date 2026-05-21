@@ -473,3 +473,9 @@ body {
   width: 2px;
   background: #64748b;
 }
+
+.prediction.win {
+  color: #4ade80;
+  font-weight: 800;
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
+}
