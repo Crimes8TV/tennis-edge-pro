@@ -28,9 +28,11 @@ app.get("/api/players", async (req, res) => {
       }
     );
 
-    console.log("RAPID RAW:", response.data);
+    const raw = response.data;
 
-    const data = response.data?.results || response.data || [];
+const data = Array.isArray(raw)
+  ? raw
+  : raw.data || raw.results || [];
 
     const players = data.map(p => ({
       name: p.player || p.name || p.player_name || "Unknown",
