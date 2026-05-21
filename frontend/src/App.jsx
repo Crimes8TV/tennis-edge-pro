@@ -193,10 +193,15 @@ const demoOddsB = 2.00;
   key={i}
   className="matchItem"
   onClick={() => {
-    setP1(m.player1);
-    setP2(m.player2);
-    setTab("predictor");
-  }}
+  if (!players[m.player1] || !players[m.player2]) {
+    alert("Für dieses Live Match fehlen noch Player-Daten im System.");
+    return;
+  }
+
+  setP1(m.player1);
+  setP2(m.player2);
+  setTab("predictor");
+}}
 >
   {m.player1} vs {m.player2}
 </p>
