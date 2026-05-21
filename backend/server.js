@@ -30,6 +30,8 @@ app.get("/api/players", async (req, res) => {
 
     const data = response.data.results || [];
 
+    console.log("RAPID RAW:", response.data);
+
     const players = data.map(p => ({
       name: p.player || p.name,
       rank: p.rank || 999,
