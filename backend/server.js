@@ -22,24 +22,34 @@ app.get("/api/players", async (req, res) => {
       `https://api.api-tennis.com/tennis/?method=get_standings&event_type=ATP&APIkey=${API_KEY}`
     );
 
-    const data = response.data.result || [];
+    const data = Array.isArray(response.data.result)
+  ? response.data.result
+  : [];
 
-    console.log("FIRST PLAYER:", data[0]);
-    const players = data.map((p, i) => ({
+    if (data.length > 0) {
+  console.log("FIRST PLAYER:", data[0]);
+} else {
+  console.log("NO PLAYER DATA");
+}
+  const players = data.map(p => {
+  try {
+    return {
       name: p.player_name || p.player || p.name || "Unknown",
-      rank: parseInt(p.place) || i + 1,
-      elo: Math.round(85 - i * 0.2),
-      serve: Math.floor(70 + Math.random() * 25),
-      return: Math.floor(70 + Math.random() * 25),
-      clutch: Math.floor(70 + Math.random() * 25),
-      momentum: Math.floor(70 + Math.random() * 25),
-      hard: Math.floor(70 + Math.random() * 25),
-      clay: Math.floor(70 + Math.random() * 25),
-      grass: Math.floor(70 + Math.random() * 25),
-      form: Array.from({ length: 6 }, () =>
-        Math.floor(70 + Math.random() * 30)
-      )
-    }));
+      rank: parseInt(p.player_rank) || 999,
+      elo: 85,
+      serve: 70,
+      return: 75,
+      clutch: 80,
+      momentum: 85,
+      hard: 80,
+      clay: 75,
+      grass: 70,
+      form: [80, 82, 78, 85, 87]
+    };
+  } catch (e) {
+    return null;
+  }
+}).filter(Boolean);
 
     res.json(players);
   } catch (err) {
