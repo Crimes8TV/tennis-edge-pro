@@ -414,3 +414,10 @@ body {
   color: #facc15;
   font-weight: 700;
 }
+
+.eloBox {
+  margin: 10px 0;
+  color: #facc15;
+  font-weight: 700;
+  text-align: center;
+}

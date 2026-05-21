@@ -327,6 +327,12 @@ const demoOddsB = 2.00;
         )}%)
       </p>
 
+{prediction?.elo && (
+      <p className="eloBox">
+        ⚡ Elo: {prediction.elo[prediction.player1]} vs {prediction.elo[prediction.player2]}
+      </p>
+    )}
+
       <div className={`prediction ${prediction.prediction[prediction.player1] > 50 ? "win" : ""}`}>
         <span>{prediction.player1}</span>
         <strong>{prediction.prediction[prediction.player1]}%</strong>
