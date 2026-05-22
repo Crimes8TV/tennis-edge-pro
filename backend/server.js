@@ -909,21 +909,21 @@ app.get("/api/tournament-predictions", async (req, res) => {
         }
       });
 
-      // Turniersieg-Wahrscheinlichkeit via Elo-Rating
-      // Methode: Jeder Spieler hat Siegchance proportional zu seinem Elo^2
-      // (quadratisch weil stärkere Spieler überproportional bessere Chancen haben)
+      // Turniersieg-Wahrscheinlichkeit
+      // Realistischer Ansatz: Rang-basierte Exponentialfunktion
+      // #1 hat exponentiell mehr Chance als #10, #10 mehr als #50
       const top8 = playerList.slice(0, Math.min(8, playerList.length));
-      const eloSquaredSum = top8.reduce((sum, p) => sum + Math.pow(p.elo, 2), 0) || 1;
-      const winProbs = top8.map(p => ({
-        ...p,
-        winProb: Math.round((Math.pow(p.elo, 2) / eloSquaredSum) * 100)
-      })).sort((a, b) => b.winProb - a.winProb);
       
-      // Normalisieren damit alles 100% ergibt
-      const totalWinProb = winProbs.reduce((sum, p) => sum + p.winProb, 0) || 1;
-      winProbs.forEach(p => {
-        p.winProb = Math.round((p.winProb / totalWinProb) * 100);
-      });
+      // Score = e^(-rank * 0.15) → stärkere Differenzierung
+      const scores = top8.map(p => ({
+        ...p,
+        score: Math.exp(-p.rank * 0.08)
+      }));
+      const totalScore = scores.reduce((sum, p) => sum + p.score, 0) || 1;
+      const winProbs = scores.map(p => ({
+        ...p,
+        winProb: Math.max(1, Math.round((p.score / totalScore) * 100))
+      })).sort((a, b) => b.winProb - a.winProb);
 
       return {
         name: tourn.name,
