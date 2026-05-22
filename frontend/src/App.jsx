@@ -3,7 +3,7 @@ import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
-import { Activity, Trophy, Search, Zap, TrendingUp, Calendar } from "lucide-react";
+import { Activity, Trophy, Search, Zap, TrendingUp, Calendar, Star } from "lucide-react";
 import "./App.css";
 
 function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
@@ -173,6 +173,9 @@ export default function App() {
   const [h2hData, setH2hData] = useState(null);
   const [h2hLoading, setH2hLoading] = useState(false);
   const [matchDetail, setMatchDetail] = useState(null);
+  const [tournamentPreds, setTournamentPreds] = useState([]);
+  const [tournamentPredsLoading, setTournamentPredsLoading] = useState(false);
+  const [expandedTournament, setExpandedTournament] = useState(null);
   const [matchDetailLoading, setMatchDetailLoading] = useState(false);
   const [selectedMatchKey, setSelectedMatchKey] = useState(null);
   const [prediction, setPrediction] = useState(null);
@@ -268,6 +271,16 @@ export default function App() {
       .then(data => setPlayerNews(data))
       .catch(err => console.error(err));
   }, [player]);
+
+  useEffect(() => {
+    if (tab === "tournamentpred" && tournamentPreds.length === 0 && !tournamentPredsLoading) {
+      setTournamentPredsLoading(true);
+      fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions")
+        .then(r => r.json())
+        .then(d => { setTournamentPreds(Array.isArray(d) ? d : []); setTournamentPredsLoading(false); })
+        .catch(() => setTournamentPredsLoading(false));
+    }
+  }, [tab]);
 
   const openMatchDetail = (m) => {
     if (!m.matchKey) return;
@@ -377,6 +390,7 @@ export default function App() {
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
         <button onClick={() => setTab("h2h")}><Trophy /> H2H Intelligence</button>
+        <button onClick={() => setTab("tournamentpred")}><Star /> Turnier Prediction</button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
       </aside>
 
@@ -1126,6 +1140,129 @@ export default function App() {
                   );
                 })()}
               </>
+            )}
+          </>
+        )}
+
+        {tab === "tournamentpred" && (
+          <>
+            <Header title="Turnier Prediction" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
+              ATP Turniere · Nächste 2 Wochen · {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}
+            </p>
+
+            {tournamentPredsLoading ? (
+              <p style={{color:"#94a3b8"}}>⏳ Lade Turnier-Daten...</p>
+            ) : tournamentPreds.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px 0"}}>
+                <p style={{color:"#94a3b8",marginBottom:"16px"}}>Noch keine Turnierdaten für die nächsten 2 Wochen verfügbar.</p>
+                <button className="predictBtn" style={{width:"auto",padding:"12px 32px"}}
+                  onClick={() => {
+                    setTournamentPredsLoading(true);
+                    fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions")
+                      .then(r => r.json())
+                      .then(d => { setTournamentPreds(Array.isArray(d) ? d : []); setTournamentPredsLoading(false); })
+                      .catch(() => setTournamentPredsLoading(false));
+                  }}>
+                  🔄 Turnierdaten laden
+                </button>
+              </div>
+            ) : (
+              tournamentPreds.map((tourn, ti) => {
+                const isExpanded = expandedTournament === ti;
+                const isATP = tourn.type?.includes("ATP");
+                return (
+                  <div key={ti} style={{ marginBottom: "16px", background: "#0f172a", borderRadius: "16px", overflow: "hidden", border: `1px solid ${isATP ? "rgba(34,211,238,0.2)" : "rgba(250,204,21,0.2)"}` }}>
+                    {/* Turnier Header */}
+                    <div style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px" }}
+                      onClick={() => setExpandedTournament(isExpanded ? null : ti)}>
+                      <span style={{ fontSize: "13px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "16px", fontWeight: 800, color: isATP ? "#22d3ee" : "#facc15" }}>🏆 {tourn.name}</span>
+                          <span className={`matchCardBadge ${isATP ? "atp" : "challenger"}`}>{tourn.type}</span>
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#475569" }}>
+                          {tourn.dateStart} · {tourn.playerCount} Spieler im Draw
+                        </div>
+                      </div>
+                      {tourn.favorite && (
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "2px" }}>Favorit</div>
+                          <div style={{ fontSize: "14px", fontWeight: 700, color: "#4ade80" }}>{tourn.favorite.name}</div>
+                          <div style={{ fontSize: "11px", color: "#475569" }}>#{tourn.favorite.rank}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Turnier Details */}
+                    {isExpanded && (
+                      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "16px 20px" }}>
+                        
+                        {/* Gewinn-Wahrscheinlichkeiten */}
+                        {tourn.winProbs?.length > 0 && (
+                          <div style={{ marginBottom: "20px" }}>
+                            <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>🏅 Turniersieg-Wahrscheinlichkeit</h4>
+                            {tourn.winProbs.map((p, i) => (
+                              <div key={i} style={{ marginBottom: "10px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                                  <span style={{ color: i === 0 ? "#4ade80" : "#cbd5e1" }}>
+                                    {i === 0 && "⭐ "}{p.name}
+                                  </span>
+                                  <span style={{ color: "#475569", fontSize: "11px" }}>#{p.rank}</span>
+                                  <strong style={{ color: i === 0 ? "#4ade80" : "#94a3b8" }}>{p.winProb}%</strong>
+                                </div>
+                                <div style={{ height: "6px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
+                                  <div style={{ width: `${Math.min(100, p.winProb * 3)}%`, height: "100%", background: i === 0 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : "#334155", borderRadius: "999px" }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Runden-Predictions */}
+                        {tourn.rounds?.length > 0 && (
+                          <div>
+                            <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>📋 Runden-Predictions</h4>
+                            {tourn.rounds.map((r, ri) => (
+                              <div key={ri} style={{ marginBottom: "16px" }}>
+                                <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>{r.round}</div>
+                                {r.matches.map((m, mi) => (
+                                  <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: "6px", background: "rgba(255,255,255,0.03)", borderRadius: "10px", cursor: "pointer" }}
+                                    onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                        <span style={{ fontSize: "13px", color: m.prediction === m.player1 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player1 ? 700 : 400 }}>{m.player1}</span>
+                                        <span style={{ color: "#475569", fontSize: "11px" }}>#{m.rank1}</span>
+                                      </div>
+                                      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "4px" }}>
+                                        <span style={{ fontSize: "13px", color: m.prediction === m.player2 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player2 ? 700 : 400 }}>{m.player2}</span>
+                                        <span style={{ color: "#475569", fontSize: "11px" }}>#{m.rank2}</span>
+                                      </div>
+                                    </div>
+                                    <div style={{ textAlign: "right", minWidth: "80px" }}>
+                                      <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "2px" }}>Pick</div>
+                                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#4ade80" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
+                                      <div style={{ fontSize: "11px", color: "#64748b" }}>{m.prob}%</div>
+                                    </div>
+                                    {m.date && <div style={{ fontSize: "11px", color: "#475569", marginLeft: "8px" }}>🕐 {m.time || m.date}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {!tourn.drawSet && (
+                          <p style={{ color: "#475569", fontSize: "13px", textAlign: "center", padding: "16px 0" }}>
+                            ⏳ Draw noch nicht vollständig — Predictions werden aktualisiert sobald alle Spieler feststehen.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </>
         )}
