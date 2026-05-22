@@ -27,13 +27,16 @@ export default function App() {
   const [liveMatches, setLiveMatches] = useState([]);
   const [surface, setSurface] = useState("hard");
 
-  const p1Data = players.find(p =>
-    p.name?.toLowerCase().includes(p1.toLowerCase())
-  );
+  const getPlayerName = (p) =>
+  typeof p.name === "string" ? p.name : p.name?.name || "";
 
-  const p2Data = players.find(p =>
-    p.name?.toLowerCase().includes(p2.toLowerCase())
-  );
+const p1Data = safePlayers.find(p =>
+  getPlayerName(p).toLowerCase().includes(p1.toLowerCase())
+);
+
+const p2Data = safePlayers.find(p =>
+  getPlayerName(p).toLowerCase().includes(p2.toLowerCase())
+);
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
   .then(res => {
