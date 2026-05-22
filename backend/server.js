@@ -194,11 +194,21 @@ app.get("/api/h2h", async (req, res) => {
       else if (match.event_winner === "Second Player") p2Wins++;
     });
 
-    // Selbst-Matches filtern
+    // Selbst-Matches und ungültige Einträge filtern
     const filterSelfMatches = (matches) => matches.filter(m => {
-      const p1Last = (m.event_first_player || "").toLowerCase().split(" ").pop();
-      const p2Last = (m.event_second_player || "").toLowerCase().split(" ").pop();
-      return p1Last !== p2Last && m.event_first_player !== m.event_second_player;
+      const p1 = (m.event_first_player || "").toLowerCase().trim();
+      const p2 = (m.event_second_player || "").toLowerCase().trim();
+      if (!p1 || !p2) return false;
+      if (p1 === p2) return false;
+      // Nachnamen vergleichen
+      const p1Last = p1.split(" ").pop();
+      const p2Last = p2.split(" ").pop();
+      if (p1Last === p2Last) return false;
+      // Initialen-Match: "B. Gojo" vs "B. Gojo"
+      const p1Init = p1.split(" ")[0].replace(".", "");
+      const p2Init = p2.split(" ")[0].replace(".", "");
+      if (p1Init === p2Init && p1Last === p2Last) return false;
+      return true;
     }).slice(0, 5);
 
     res.json({
