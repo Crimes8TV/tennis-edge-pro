@@ -849,8 +849,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
     // ── Alle Fixtures nach Turnier + Disziplin gruppieren ─────────────────────
     const allFixtures = [
-      ...singles.map(m => ({ ...m, _disc: "Singles" })),
-      ...doubles.map(m => ({ ...m, _disc: "Doubles" }))
+      ...singles.map(m => ({ ...m, _disc: "Singles", event_type_key: 265 })),
+      ...doubles.map(m => ({ ...m, _disc: "Doubles", event_type_key: 267 }))
     ];
 
     const tournMap = {};
@@ -859,14 +859,18 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (!roundName) return; // Qualifikation + unbekannte Runden ignorieren
 
       const disc  = m._disc;
-      const tKey  = `${m.tournament_name || "Unbekannt"}|||${disc}`;
+      // FIX: event_type_key einbeziehen damit ATP (265) und Challenger (281)
+      // mit gleichem Turniernamen (z.B. "Geneva") getrennt bleiben
+      const etKey = String(m.event_type_key || "unknown");
+      const tKey  = `${m.tournament_name || "Unbekannt"}|||${disc}|||${etKey}`;
 
       if (!tournMap[tKey]) {
         tournMap[tKey] = {
           name: m.tournament_name || "Unbekannt",
           disc,
+          eventTypeKey: etKey,
           dateStart: m.event_date || dateStart,
-          matches: []           // alle Hauptfeld-Matches
+          matches: []
         };
       }
       // Frühestes Datum als Turnierbeginn
@@ -1025,7 +1029,9 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
       return {
         name: tourn.name,
-        type: tourn.disc === "Doubles" ? "ATP Doubles" : "ATP Singles",
+        type: tourn.disc === "Doubles"
+          ? (tourn.eventTypeKey === "267" ? "ATP Doubles" : "Challenger Doubles")
+          : (tourn.eventTypeKey === "265" ? "ATP Singles" : "Challenger Singles"),
         dateStart: tourn.dateStart,
         playerCount: allPlayers.length,
         favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
