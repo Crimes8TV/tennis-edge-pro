@@ -809,5 +809,132 @@ app.get("/api/news/:player", async (req, res) => {
   }
 });
 
+
+// ─── TURNIER PREDICTIONS ──────────────────────────────────────────────────────
+app.get("/api/tournament-predictions", async (req, res) => {
+  try {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(today.getDate() + 1);
+    const end = new Date(today);
+    end.setDate(today.getDate() + 14);
+
+    const dateStart = start.toISOString().split("T")[0];
+    const dateEnd = end.toISOString().split("T")[0];
+
+    // ATP Singles (265) + ATP Doubles (267)
+    const [singlesRes, doublesRes, standingsRes] = await Promise.allSettled([
+      apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 265 }),
+      apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 267 }),
+      apiGet({ method: "get_standings", event_type: "ATP" })
+    ]);
+
+    const singles = singlesRes.status === "fulfilled" ? singlesRes.value.data?.result || [] : [];
+    const doubles = doublesRes.status === "fulfilled" ? doublesRes.value.data?.result || [] : [];
+    const standings = standingsRes.status === "fulfilled" ? standingsRes.value.data?.result || [] : [];
+
+    const allFixtures = [
+      ...singles.map(m => ({ ...m, _type: "ATP Singles" })),
+      ...doubles.map(m => ({ ...m, _type: "ATP Doubles" }))
+    ];
+
+    // Nach Turnier gruppieren
+    const tournaments = {};
+    allFixtures.forEach(m => {
+      const key = m.tournament_name || "Unbekannt";
+      if (!tournaments[key]) {
+        tournaments[key] = {
+          name: key,
+          type: m._type,
+          matches: [],
+          players: new Set(),
+          dateStart: m.event_date || dateStart,
+        };
+      }
+      tournaments[key].matches.push(m);
+      if (m.event_first_player) tournaments[key].players.add(m.event_first_player);
+      if (m.event_second_player) tournaments[key].players.add(m.event_second_player);
+    });
+
+    const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
+
+    const getRank = (name) => {
+      const lastName = (name || "").toLowerCase().split(" ").pop();
+      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
+      return found ? parseInt(found.place) || 100 : 100;
+    };
+
+    const getFullName = (shortName) => {
+      const lastName = (shortName || "").trim().split(" ").pop().toLowerCase();
+      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
+      return found ? found.player : shortName;
+    };
+
+    // Für jedes Turnier: Favoriten berechnen
+    const result = Object.values(tournaments).map(tourn => {
+      const playerList = [...tourn.players].map(p => {
+        const fullName = getFullName(p);
+        const rank = getRank(p);
+        const elo = eloFromRank(rank);
+        return { name: fullName, shortName: p, rank, elo };
+      }).sort((a, b) => a.rank - b.rank);
+
+      // Top-Favorit: höchster Elo
+      const favorite = playerList[0] || null;
+
+      // Runden-Predictions aus vorhandenen Matches
+      const rounds = {};
+      tourn.matches.forEach(m => {
+        const round = m.tournament_round || m.event_round || "Round 1";
+        if (!rounds[round]) rounds[round] = [];
+        const p1 = getFullName(m.event_first_player);
+        const p2 = getFullName(m.event_second_player);
+        const r1 = getRank(m.event_first_player);
+        const r2 = getRank(m.event_second_player);
+        const elo1 = eloFromRank(r1);
+        const elo2 = eloFromRank(r2);
+        const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
+
+        if (p1 && p2) {
+          rounds[round].push({
+            player1: p1,
+            player2: p2,
+            rank1: r1,
+            rank2: r2,
+            prediction: prob1 > 50 ? p1 : p2,
+            prob: Math.max(prob1, 100 - prob1),
+            date: m.event_date || "",
+            time: m.event_time || ""
+          });
+        }
+      });
+
+      // Turnier-Gewinn-Wahrscheinlichkeit (vereinfacht: Elo-basiert)
+      const totalElo = playerList.reduce((sum, p) => sum + p.elo, 0) || 1;
+      const winProbs = playerList.slice(0, 8).map(p => ({
+        ...p,
+        winProb: Math.round((p.elo / totalElo) * 100 * playerList.length / 8)
+      })).sort((a, b) => b.winProb - a.winProb);
+
+      return {
+        name: tourn.name,
+        type: tourn.type,
+        dateStart: tourn.dateStart,
+        playerCount: playerList.length,
+        favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
+        winProbs: winProbs.slice(0, 5),
+        rounds: Object.entries(rounds).map(([round, matches]) => ({ round, matches }))
+          .sort((a, b) => a.round.localeCompare(b.round)),
+        drawSet: playerList.length > 0
+      };
+    }).sort((a, b) => a.dateStart.localeCompare(b.dateStart));
+
+    res.json(result);
+  } catch (err) {
+    console.error("TOURNAMENT PREDICTIONS ERROR:", err.message);
+    res.status(500).json({ error: "Fehler beim Laden der Turnier-Predictions" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
