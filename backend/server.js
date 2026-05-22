@@ -840,14 +840,17 @@ app.get("/api/tournament-predictions", async (req, res) => {
       ...doubles.map(m => ({ ...m, _type: "ATP Doubles" }))
     ];
 
-    // Nach Turnier gruppieren
+    // Nach Turnier + Disziplin gruppieren (Singles und Doubles getrennt)
     const tournaments = {};
     allFixtures.forEach(m => {
-      const key = m.tournament_name || "Unbekannt";
+      const discipline = m._type?.includes("Doubles") ? "Doubles" : "Singles";
+      const key = `${m.tournament_name || "Unbekannt"}|||${discipline}`;
       if (!tournaments[key]) {
+        const discipline = m._type?.includes("Doubles") ? "Doubles" : "Singles";
         tournaments[key] = {
-          name: key,
+          name: m.tournament_name || "Unbekannt",
           type: m._type,
+          discipline,
           matches: [],
           players: new Set(),
           eliminated: new Set(),
@@ -903,13 +906,22 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const isQual = roundLower.includes("qual") || roundLower.includes("pre-");
         const section = isQual ? "Qualifikation" : "Hauptfeld";
 
-        // Singles oder Doubles?
-        const discipline = tourn.type?.includes("Doubles") ? "Doubles" : "Singles";
+        // Singles oder Doubles aus Event-Type oder Round-Name
+        const eventType = (m.event_type_type || m._type || tourn.type || "").toLowerCase();
+        const discipline = eventType.includes("double") || roundLower.includes("double") ? "Doubles" : "Singles";
 
-        // Bereinigter Rundenname (ohne Turniernamen-Prefix)
-        const cleanRound = roundName.replace(/^[^-]+-\s*/i, "").trim() || roundName;
+        // Qualifikation aus Round-Name verfeinern
+        const isQualRefined = isQual || roundLower.includes("qualification") || roundLower.includes("qualifying");
+        const sectionFinal = isQualRefined ? "Qualifikation" : "Hauptfeld";
 
-        const key = `${section}|||${discipline}|||${cleanRound}`;
+        // Bereinigter Rundenname (ohne Turniernamen-Prefix "ATP GENEVA - ")
+        const cleanRound = roundName
+          .replace(/^ATP\s+\w+\s*-\s*/i, "")
+          .replace(/^[A-Z\s]+\s*-\s*/i, "")
+          .trim() || roundName;
+
+        const key = `${sectionFinal}|||${discipline}|||${cleanRound}`;
+        if (!rounds[key]) rounds[key] = { section: sectionFinal, discipline, round: cleanRound, matches: [] };
         if (!rounds[key]) rounds[key] = { section, discipline, round: cleanRound, matches: [] };
 
         const p1 = getFullName(m.event_first_player);
