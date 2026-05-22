@@ -288,7 +288,7 @@ export default function App() {
               <div>
                 <div className="dashSectionHeader">
                   {fixtures.some(m => m.live)
-                    ? <><span className="liveDot" />Live Matches</>
+                    ? <><span className="liveDot" />{fixtures.filter(m=>m.live).length} Live · Heute {new Date().toLocaleDateString("de-DE")}</>
                     : <>📅 Heute — {new Date().toLocaleDateString("de-DE")}</>
                   }
                 </div>
