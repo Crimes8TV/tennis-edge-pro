@@ -982,12 +982,12 @@ app.get("/api/tournament-predictions", async (req, res) => {
       // Realistischer Ansatz: Rang-basierte Exponentialfunktion
       // #1 hat exponentiell mehr Chance als #10, #10 mehr als #50
       // Ausgeschiedene Spieler aus der Berechnung entfernen
-      // Nur Hauptfeld-Spieler (Rang < 200) berücksichtigen
-      const mainDrawPlayers = playerList.filter(p => p.rank <= 200);
-      const eligiblePlayers = mainDrawPlayers.length > 0 ? mainDrawPlayers : playerList;
+      // Nur echte Hauptfeld-Spieler (Rang ≤ 150) berücksichtigen
+      const mainDrawPlayers = playerList.filter(p => p.rank <= 150);
+      const eligiblePlayers = mainDrawPlayers.length > 0 ? mainDrawPlayers : playerList.filter(p => p.rank <= 300);
       const eliminatedNames = new Set([...tourn.eliminated].map(p => getFullName(p).toLowerCase()));
       const activePlayers = eligiblePlayers.filter(p => !eliminatedNames.has(p.name.toLowerCase()));
-      const stillIn = activePlayers.length > 0 ? activePlayers : eligiblePlayers;
+      const stillIn = activePlayers.length > 0 ? activePlayers : eligiblePlayers.slice(0, 8);
       const top8 = stillIn.slice(0, Math.min(8, stillIn.length));
       const eliminatedCount = eligiblePlayers.length - stillIn.length;
       
@@ -1039,13 +1039,17 @@ app.get("/api/tournament-predictions", async (req, res) => {
             };
             const max = maxMatches[r.round] || 999;
             
-            // Für spätere Runden: nur Spieler unter Rang 200 (echtes Hauptfeld)
-            const rankLimit = { "Semi-Finals": 200, "Final": 200, "Quarter-Finals": 200 }[r.round] || 9999;
+            // Rang-Limits pro Runde: je später die Runde, desto besser die Spieler
+            const rankLimits = {
+              "Final": 80, "Semi-Finals": 100, "Quarter-Finals": 120,
+              "1/8-Finals": 150, "1/16-Finals": 200
+            };
+            const rankLimit = rankLimits[r.round] || 300;
             
             // Deduplizieren
             const seen = new Set();
             const filtered = r.matches.filter(m => {
-              // Rang-Filter für spätere Runden
+              // Mindestens ein Spieler muss unter dem Rang-Limit liegen
               if (m.rank1 > rankLimit && m.rank2 > rankLimit) return false;
               const key = [m.player1, m.player2].sort().join("|||");
               if (seen.has(key)) return false;
