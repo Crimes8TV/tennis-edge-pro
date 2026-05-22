@@ -916,7 +916,17 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
         // Bereinigter Rundenname - alles vor dem letzten " - " entfernen
         const dashIdx = roundName.lastIndexOf(" - ");
-        const cleanRound = dashIdx !== -1 ? roundName.substring(dashIdx + 3).trim() : roundName.trim();
+        let cleanRound = dashIdx !== -1 ? roundName.substring(dashIdx + 3).trim() : roundName.trim();
+        
+        // Normalisieren
+        const cl = cleanRound.toLowerCase();
+        if (cl === "final" || cl === "finals") cleanRound = "Final";
+        else if (cl.includes("semi")) cleanRound = "Semi-Finals";
+        else if (cl.includes("quarter")) cleanRound = "Quarter-Finals";
+        else if (cl.includes("1/8")) cleanRound = "1/8-Finals";
+        else if (cl.includes("1/16")) cleanRound = "1/16-Finals";
+        else if (cl.includes("1/32")) cleanRound = "1/32-Finals";
+        else if (cl.includes("1/64")) cleanRound = "1/64-Finals";
 
         const key = `${sectionFinal}|||${discipline}|||${cleanRound}`;
         if (!rounds[key]) rounds[key] = { section: sectionFinal, discipline, round: cleanRound, matches: [] };
@@ -966,17 +976,19 @@ app.get("/api/tournament-predictions", async (req, res) => {
       })).sort((a, b) => b.winProb - a.winProb);
 
       // Runden in korrekter Turnier-Reihenfolge sortieren
-      const roundOrder = [
-        "1/64", "1/64-finals", "1/32", "1/32-finals",
-        "1/16", "1/16-finals", "round of 64", "round of 32", "round of 16",
-        "1/8", "1/8-finals", "quarter", "quarter-finals", "quarterfinal",
-        "semi", "semi-finals", "semifinal",
-        "final", "finals"
-      ];
+      // Exakte Runden-Reihenfolge mit Priorität
       const getRoundIndex = (r) => {
-        const lower = r.toLowerCase();
-        const idx = roundOrder.findIndex(o => lower.includes(o));
-        return idx === -1 ? 99 : idx;
+        const lower = r.toLowerCase().trim();
+        if (lower.includes("1/64")) return 1;
+        if (lower.includes("1/32")) return 2;
+        if (lower.includes("1/16")) return 3;
+        if (lower.includes("round of 32") || lower === "r32") return 4;
+        if (lower.includes("round of 16") || lower === "r16") return 5;
+        if (lower.includes("1/8") || lower.includes("round of 8")) return 6;
+        if (lower.includes("quarter")) return 7;
+        if (lower.includes("semi")) return 8;
+        if (lower === "final" || lower === "finals" || lower.includes("final")) return 9;
+        return 99;
       };
 
       return {
