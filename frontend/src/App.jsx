@@ -189,7 +189,7 @@ export default function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <h1>TennisEdge Pro</h1>
+        <h1>TennisEdge&nbsp;Pro</h1>
         <p>Advanced Tennis Analytics</p>
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
