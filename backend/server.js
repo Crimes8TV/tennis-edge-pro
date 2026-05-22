@@ -482,7 +482,7 @@ app.get("/api/valuepicks", async (req, res) => {
 });
 
 
-// ─── HEUTIGE FIXTURES (geplante Matches) ─────────────────────────────────────
+// ─── HEUTIGE FIXTURES + LIVE STATUS ──────────────────────────────────────────
 app.get("/api/fixtures/today", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
@@ -493,35 +493,65 @@ app.get("/api/fixtures/today", async (req, res) => {
       { key: 282, label: "Challenger Doubles" }
     ];
 
-    const results = await Promise.allSettled(
-      eventTypes.map(et =>
-        apiGet({
-          method: "get_fixtures",
-          date_start: today,
-          date_stop: today,
-          event_type_key: et.key
-        }).then(r => (r.data?.result || []).map(m => ({ ...m, _category: et.label })))
+    // Fixtures + Live parallel laden
+    const [fixtureResults, liveResults] = await Promise.all([
+      Promise.allSettled(
+        eventTypes.map(et =>
+          apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: et.key })
+            .then(r => (r.data?.result || []).map(m => ({ ...m, _category: et.label })))
+        )
+      ),
+      Promise.allSettled(
+        eventTypes.map(et =>
+          apiGet({ method: "get_livescore", event_type_key: et.key })
+            .then(r => (r.data?.result || []).map(m => ({ ...m, _category: et.label })))
+        )
       )
-    );
+    ]);
 
-    const allMatches = results
+    const allFixtures = fixtureResults
       .filter(r => r.status === "fulfilled")
       .flatMap(r => r.value);
 
-    const formatted = allMatches
-      .filter(m => m.event_status !== "Finished")
-      .map(m => ({
+    const allLive = liveResults
+      .filter(r => r.status === "fulfilled")
+      .flatMap(r => r.value);
+
+    // Live-Matches als Map für schnellen Lookup
+    const liveMap = new Map();
+    allLive.forEach(m => {
+      const key = `${m.event_first_player}|${m.event_second_player}`;
+      liveMap.set(key, m);
+    });
+
+    const formatted = allFixtures.map(m => {
+      const key = `${m.event_first_player}|${m.event_second_player}`;
+      const liveMatch = liveMap.get(key);
+      const isLive = !!liveMatch || m.event_live === "1" || m.event_live === 1;
+      const isFinished = m.event_status === "Finished" || m.event_status === "After Extra Time";
+
+      return {
         player1: m.event_first_player,
         player2: m.event_second_player,
-        score: m.event_final_result || "-",
-        status: m.event_status || "Geplant",
+        score: liveMatch?.event_final_result || m.event_final_result || "-",
+        gameScore: liveMatch?.event_game_result || "-",
+        status: isLive ? (liveMatch?.event_status || "Live") : isFinished ? "Beendet" : m.event_status || "Geplant",
         tournament: m.tournament_name || "",
         category: m._category || "",
         time: m.event_time || "",
-        live: m.event_live === "1" || m.event_live === 1,
+        live: isLive,
+        finished: isFinished,
         matchKey: m.event_key
-      }))
-      .sort((a, b) => (a.time > b.time ? 1 : -1));
+      };
+    })
+    .sort((a, b) => {
+      // Sortierung: Live zuerst, dann geplant nach Zeit, dann beendet
+      if (a.live && !b.live) return -1;
+      if (!a.live && b.live) return 1;
+      if (a.finished && !b.finished) return 1;
+      if (!a.finished && b.finished) return -1;
+      return a.time > b.time ? 1 : -1;
+    });
 
     res.json(formatted);
   } catch (err) {
