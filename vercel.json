@@ -4,7 +4,7 @@
     {
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "build" }
+      "config": { "distDir": "dist" }
     },
     {
       "src": "api/**/*.js",
@@ -23,9 +23,6 @@
     { "src": "/api/news/(.*)", "dest": "/api/news.js" },
     { "src": "/api/match/(.*)", "dest": "/api/match.js" },
     { "src": "/api/debug-tournament", "dest": "/api/debug-tournament.js" },
-    { "src": "/(.*)", "dest": "/frontend/build/index.html" }
-  ],
-  "env": {
-    "API_TENNIS_KEY": "@api_tennis_key"
-  }
+    { "src": "/(.*)", "dest": "/frontend/dist/index.html" }
+  ]
 }
