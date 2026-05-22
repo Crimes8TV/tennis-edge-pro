@@ -3,7 +3,7 @@ import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
-import { Activity, Trophy, Search, Zap, TrendingUp } from "lucide-react";
+import { Activity, Trophy, Search, Zap, TrendingUp, Calendar } from "lucide-react";
 import "./App.css";
 
 function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
@@ -233,6 +233,7 @@ export default function App() {
         <h1>TennisEdge&nbsp;Pro</h1>
         <p>Advanced Tennis Analytics</p>
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
+        <button onClick={() => setTab("matches")}><Calendar /> Matches</button>
         <button onClick={() => setTab("valuepicks")}><TrendingUp /> Value Picks</button>
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
@@ -265,7 +266,7 @@ export default function App() {
                       </div>
                     ))}
                     {liveMatches.length > 5 && (
-                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>+{liveMatches.length - 5} weitere →</p>
+                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{liveMatches.length - 5} weitere → alle anzeigen</p>
                     )}
                   </div>
                 ) : fixturesLoading ? (
@@ -289,7 +290,7 @@ export default function App() {
                       </div>
                     ))}
                     {fixtures.length > 5 && (
-                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>+{fixtures.length - 5} weitere → alle anzeigen</p>
+                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length - 5} weitere → alle anzeigen</p>
                     )}
                   </div>
                 )}
@@ -340,20 +341,49 @@ export default function App() {
           </>
         )}
 
-                {tab === "valuepicks" && (
+                {tab === "matches" && (
           <>
-            <Header title="Value Picks" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE")}</p>
+            <Header title="Matches" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
+              {liveMatches.length > 0
+                ? `🔴 ${liveMatches.length} Live Matches`
+                : `📅 Heute — ${new Date().toLocaleDateString("de-DE")} · ${fixtures.length} Matches`
+              }
+            </p>
 
-            {/* Alle heutigen Matches */}
-            <Panel title={`📅 Alle Matches heute (${fixtures.length})`}>
+            {liveMatches.length > 0 && (
+              <div style={{marginBottom:"32px"}}>
+                <div className="dashSectionHeader"><span className="liveDot"/>Live jetzt</div>
+                <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
+                  {liveMatches.map((m, i) => (
+                    <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                        <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
+                        <span style={{fontSize:"11px",color:"#f87171",fontWeight:700}}>{m.status}</span>
+                      </div>
+                      <div className="matchCardPlayers">
+                        <span>{m.player1}</span>
+                        <span className="matchCardScore">{m.score !== "-" ? m.score : "vs"}</span>
+                        <span>{m.player2}</span>
+                      </div>
+                      <div className="matchCardMeta">{m.tournament}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <div className="dashSectionHeader">📅 Alle Matches heute</div>
               {fixturesLoading ? (
-                <p style={{color:"#94a3b8"}}>⏳ Lade...</p>
+                <p style={{color:"#94a3b8"}}>⏳ Lade Matches...</p>
+              ) : fixtures.length === 0 ? (
+                <p style={{color:"#94a3b8"}}>Keine Matches heute gefunden.</p>
               ) : (
                 <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
                   {fixtures.map((m, i) => (
                     <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
                         <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
                         {m.time && <span style={{fontSize:"12px",color:"#94a3b8"}}>🕐 {m.time}</span>}
                       </div>
@@ -367,9 +397,16 @@ export default function App() {
                   ))}
                 </div>
               )}
-            </Panel>
+            </div>
+          </>
+        )}
 
-            <div style={{marginTop:"24px"}}>
+                {tab === "valuepicks" && (
+          <>
+            <Header title="Value Picks" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE")}</p>
+
+            <div>
               <div className="dashSectionHeader">💰 Value Picks heute</div>
               {valuePicksLoading ? (
                 <p style={{color:"#94a3b8"}}>⏳ Berechne...</p>
