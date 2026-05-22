@@ -940,6 +940,20 @@ app.get("/api/tournament-predictions", async (req, res) => {
         winProb: Math.max(1, Math.round((p.score / totalScore) * 100))
       })).sort((a, b) => b.winProb - a.winProb);
 
+      // Runden in korrekter Turnier-Reihenfolge sortieren
+      const roundOrder = [
+        "1/64", "1/64-finals", "1/32", "1/32-finals",
+        "1/16", "1/16-finals", "round of 64", "round of 32", "round of 16",
+        "1/8", "1/8-finals", "quarter", "quarter-finals", "quarterfinal",
+        "semi", "semi-finals", "semifinal",
+        "final", "finals"
+      ];
+      const getRoundIndex = (r) => {
+        const lower = r.toLowerCase();
+        const idx = roundOrder.findIndex(o => lower.includes(o));
+        return idx === -1 ? 99 : idx;
+      };
+
       return {
         name: tourn.name,
         type: tourn.type,
@@ -948,7 +962,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
         favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
         winProbs: winProbs.slice(0, 5),
         rounds: Object.entries(rounds).map(([round, matches]) => ({ round, matches }))
-          .sort((a, b) => a.round.localeCompare(b.round)),
+          .sort((a, b) => getRoundIndex(a.round) - getRoundIndex(b.round)),
         drawSet: playerList.length > 0,
         eliminatedCount,
         activePlayerCount: stillIn.length,
