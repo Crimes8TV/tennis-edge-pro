@@ -318,24 +318,7 @@ export default function App() {
                     : <>📅 Heute — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})}</>
                   }
                 </div>
-                {fixtures.some(m => m.live) ? (
-                  <div className="matchCardGrid">
-                    {liveMatches.slice(0, 5).map((m, i) => (
-                      <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                        <div className="matchCardBadge atp">{m.category}</div>
-                        <div className="matchCardPlayers">
-                          <span>{m.player1}</span>
-                          <span className="matchCardScore">{m.score !== "-" ? m.score : "vs"}</span>
-                          <span>{m.player2}</span>
-                        </div>
-                        <div className="matchCardMeta">{m.tournament} · <span style={{color:"#f87171"}}>{m.status}</span></div>
-                      </div>
-                    ))}
-                    {liveMatches.length > 5 && (
-                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{liveMatches.length - 5} weitere → alle anzeigen</p>
-                    )}
-                  </div>
-                ) : fixturesLoading ? (
+                {fixturesLoading ? (
                   <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Lade Matches...</p>
                 ) : fixtures.length === 0 ? (
                   <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>Keine Matches heute.</p>
