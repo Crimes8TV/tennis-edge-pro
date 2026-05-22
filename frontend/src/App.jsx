@@ -3,7 +3,7 @@ import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
-import { Activity, Trophy, Search, Zap } from "lucide-react";
+import { Activity, Trophy, Search, Zap, TrendingUp } from "lucide-react";
 import "./App.css";
 
 function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
@@ -233,6 +233,7 @@ export default function App() {
         <h1>TennisEdge&nbsp;Pro</h1>
         <p>Advanced Tennis Analytics</p>
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
+        <button onClick={() => setTab("valuepicks")}><TrendingUp /> Value Picks</button>
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
         <button onClick={() => setTab("h2h")}><Trophy /> H2H Intelligence</button>
@@ -784,6 +785,76 @@ export default function App() {
         )}
 
 
+
+        {tab === "valuepicks" && (
+          <>
+            <Header title="Value Picks" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE")}</p>
+
+            {/* Alle heutigen Matches */}
+            <Panel title={`📅 Alle Matches heute (${fixtures.length})`}>
+              {fixturesLoading ? (
+                <p style={{color:"#94a3b8"}}>⏳ Lade...</p>
+              ) : (
+                <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
+                  {fixtures.map((m, i) => (
+                    <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"6px"}}>
+                        <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
+                        {m.time && <span style={{fontSize:"12px",color:"#94a3b8"}}>🕐 {m.time}</span>}
+                      </div>
+                      <div className="matchCardPlayers">
+                        <span>{m.player1}</span>
+                        <span className="matchCardVs">vs</span>
+                        <span>{m.player2}</span>
+                      </div>
+                      <div className="matchCardMeta">{m.tournament}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            <div style={{marginTop:"24px"}}>
+              <div className="dashSectionHeader">💰 Value Picks heute</div>
+              {valuePicksLoading ? (
+                <p style={{color:"#94a3b8"}}>⏳ Berechne...</p>
+              ) : valuePicks.length === 0 ? (
+                <p style={{color:"#94a3b8"}}>Keine Value Picks heute.</p>
+              ) : (
+                valuePicks.map((pick, i) => (
+                  <div key={i} className="valuePickRow" onClick={() => { setP1(pick.match.split(" vs ")[0]); setP2(pick.match.split(" vs ")[1]); setTab("predictor"); }}>
+                    <div className="valuePickTop">
+                      <span className="valuePickRank">#{i + 1}</span>
+                      <span className="valuePickMatch">{pick.match}</span>
+                      <span className="valuePickEdge">+{pick.edge}% Edge</span>
+                    </div>
+                    <div className="valuePickBottom">
+                      <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
+                      {pick.bestOdds && <span className="valuePickOdds">Quote: {pick.bestOdds}</span>}
+                      {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
+                    </div>
+                    <div className="valuePickProbBar">
+                      <div className="valuePickProbItem">
+                        <span className="valuePickProbLabel">Unser Modell</span>
+                        <div className="valuePickProbTrack"><div className="valuePickProbFill ourFill" style={{width:`${pick.ourProb}%`}} /></div>
+                        <span className="valuePickProbValue our">{pick.ourProb}%</span>
+                      </div>
+                      {pick.impliedProb && (
+                        <div className="valuePickProbItem">
+                          <span className="valuePickProbLabel">Buchmacher</span>
+                          <div className="valuePickProbTrack"><div className="valuePickProbFill bookFill" style={{width:`${pick.impliedProb}%`}} /></div>
+                          <span className="valuePickProbValue book">{pick.impliedProb}%</span>
+                        </div>
+                      )}
+                    </div>
+                    {pick.tournament && <div className="valuePickTournament">{pick.tournament}</div>}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
 
         {tab === "h2h" && (
           <>
