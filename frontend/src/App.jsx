@@ -3,7 +3,7 @@ import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
-import { Activity, BarChart3, Trophy, Search, Zap } from "lucide-react";
+import { Activity, Trophy, Search, Zap } from "lucide-react";
 import "./App.css";
 
 function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
@@ -81,6 +81,8 @@ export default function App() {
   const [players, setPlayers] = useState([]);
   const [player, setPlayer] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
+  const [comparePlayer, setComparePlayer] = useState("");
+  const [compareStats, setCompareStats] = useState(null);
   const [prediction, setPrediction] = useState(null);
 
   const [p1, setP1] = useState("");
@@ -98,6 +100,7 @@ export default function App() {
 
   const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
   const active = safePlayers.find(p => getPlayerName(p) === player) || {};
+  const compareActive = safePlayers.find(p => getPlayerName(p) === comparePlayer) || {};
   const p1Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p1.toLowerCase());
   const p2Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p2.toLowerCase());
 
@@ -129,6 +132,15 @@ export default function App() {
       .then(data => setPlayerStats(data))
       .catch(err => console.error(err));
   }, [player]);
+
+
+  useEffect(() => {
+    if (!comparePlayer) return;
+    fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(comparePlayer)}`)
+      .then(res => res.json())
+      .then(data => setCompareStats(data))
+      .catch(err => console.error(err));
+  }, [comparePlayer]);
 
   const predictMatch = () => {
     if (!p1 || !p2 || !p1Data || !p2Data) return;
@@ -194,7 +206,6 @@ export default function App() {
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
-        <button onClick={() => setTab("surface")}><BarChart3 /> Surface Lab</button>
         <button onClick={() => setTab("h2h")}><Trophy /> H2H Intelligence</button>
       </aside>
 
@@ -248,19 +259,137 @@ export default function App() {
         {tab === "player" && (
           <>
             <Header title="Player Analyzer" />
-            <select value={player} onChange={e => setPlayer(e.target.value)}>
-              {playerNames.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <Kpis data={active} />
-            {playerStats && (
-              <Panel title="Player Stats">
-                <p>Win Rate: {playerStats.stats?.winRate}%</p>
-                <p>Titles: {playerStats.stats?.titles}</p>
-                <p>Rank: #{playerStats.stats?.rank}</p>
-                <p>Points: {playerStats.stats?.points}</p>
-                <p>Hard: {playerStats.surfaces?.hard}%</p>
-                <p>Clay: {playerStats.surfaces?.clay}%</p>
-                <p>Grass: {playerStats.surfaces?.grass}%</p>
+
+            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
+              <PlayerAutocomplete
+                label="Spieler 1 suchen..."
+                playerNum={1}
+                value={player}
+                onChange={setPlayer}
+                players={playerNames}
+              />
+              <PlayerAutocomplete
+                label="Spieler 2 vergleichen..."
+                playerNum={2}
+                value={comparePlayer}
+                onChange={setComparePlayer}
+                players={playerNames}
+              />
+            </div>
+
+            <div className="grid two" style={{ marginBottom: "24px" }}>
+              <Kpis data={active} />
+              <Kpis data={compareActive} />
+            </div>
+
+            <div className="grid two">
+              {playerStats && (
+                <Panel title={`📊 ${player}`}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ color: "#94a3b8" }}>Win Rate</span>
+                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.winRate}%</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ color: "#94a3b8" }}>Titles</span>
+                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.titles}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                    <span style={{ color: "#94a3b8" }}>Ranking Points</span>
+                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.points}</strong>
+                  </div>
+
+                  <h4 style={{ color: "#22d3ee", marginBottom: "12px" }}>Belag Win-%</h4>
+                  {[
+                    { label: "🏟️ Hard", value: playerStats.surfaces?.hard },
+                    { label: "🧱 Clay", value: playerStats.surfaces?.clay },
+                    { label: "🌿 Grass", value: playerStats.surfaces?.grass },
+                  ].map(s => (
+                    <div key={s.label} style={{ marginBottom: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                        <span style={{ color: "#cbd5e1" }}>{s.label}</span>
+                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>
+                          {s.value !== "-" ? `${s.value}%` : "–"}
+                        </strong>
+                      </div>
+                      <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
+                        <div style={{
+                          width: `${s.value !== "-" ? s.value : 0}%`,
+                          height: "100%",
+                          background: s.value >= 60 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : s.value >= 45 ? "#facc15" : "#f87171",
+                          borderRadius: "999px"
+                        }} />
+                      </div>
+                    </div>
+                  ))}
+                </Panel>
+              )}
+
+              {compareStats && (
+                <Panel title={`📊 ${comparePlayer}`}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ color: "#94a3b8" }}>Win Rate</span>
+                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.winRate}%</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ color: "#94a3b8" }}>Titles</span>
+                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.titles}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                    <span style={{ color: "#94a3b8" }}>Ranking Points</span>
+                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.points}</strong>
+                  </div>
+
+                  <h4 style={{ color: "#22d3ee", marginBottom: "12px" }}>Belag Win-%</h4>
+                  {[
+                    { label: "🏟️ Hard", value: compareStats.surfaces?.hard },
+                    { label: "🧱 Clay", value: compareStats.surfaces?.clay },
+                    { label: "🌿 Grass", value: compareStats.surfaces?.grass },
+                  ].map(s => (
+                    <div key={s.label} style={{ marginBottom: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                        <span style={{ color: "#cbd5e1" }}>{s.label}</span>
+                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>
+                          {s.value !== "-" ? `${s.value}%` : "–"}
+                        </strong>
+                      </div>
+                      <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
+                        <div style={{
+                          width: `${s.value !== "-" ? s.value : 0}%`,
+                          height: "100%",
+                          background: s.value >= 60 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : s.value >= 45 ? "#facc15" : "#f87171",
+                          borderRadius: "999px"
+                        }} />
+                      </div>
+                    </div>
+                  ))}
+                </Panel>
+              )}
+            </div>
+
+            {playerStats && compareStats && (
+              <Panel title="⚔️ Direktvergleich Belag">
+                {[
+                  { label: "🏟️ Hard Court", v1: playerStats.surfaces?.hard, v2: compareStats.surfaces?.hard },
+                  { label: "🧱 Clay Court", v1: playerStats.surfaces?.clay, v2: compareStats.surfaces?.clay },
+                  { label: "🌿 Grass Court", v1: playerStats.surfaces?.grass, v2: compareStats.surfaces?.grass },
+                ].map(s => {
+                  const v1 = s.v1 !== "-" ? s.v1 : 0;
+                  const v2 = s.v2 !== "-" ? s.v2 : 0;
+                  const total = v1 + v2 || 1;
+                  return (
+                    <div key={s.label} style={{ marginBottom: "16px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "6px" }}>
+                        <strong style={{ color: v1 >= v2 ? "#4ade80" : "#94a3b8" }}>{player}: {v1}%</strong>
+                        <span style={{ color: "#94a3b8" }}>{s.label}</span>
+                        <strong style={{ color: v2 > v1 ? "#4ade80" : "#94a3b8" }}>{comparePlayer}: {v2}%</strong>
+                      </div>
+                      <div style={{ display: "flex", height: "10px", borderRadius: "999px", overflow: "hidden" }}>
+                        <div style={{ width: `${Math.round(v1 / total * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
+                        <div style={{ flex: 1, background: "#f472b6" }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </Panel>
             )}
           </>
@@ -379,25 +508,7 @@ export default function App() {
           </>
         )}
 
-        {tab === "surface" && (
-          <>
-            <Header title="Surface Lab" />
-            <Panel title="Belag-Stärken">
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={[
-                  { name: "Hard", value: active.hard || 0 },
-                  { name: "Clay", value: active.clay || 0 },
-                  { name: "Grass", value: active.grass || 0 },
-                ]}>
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#22d3ee" radius={[12, 12, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Panel>
-          </>
-        )}
+
 
         {tab === "h2h" && (
           <>
