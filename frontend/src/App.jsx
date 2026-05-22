@@ -885,7 +885,6 @@ export default function App() {
                       </div>
                     );
                   })()}
-                  </div>
 
                   {/* Quick Actions */}
                   <div style={{ display: "flex", gap: "12px" }}>
