@@ -274,13 +274,20 @@ export default function App() {
       .catch(err => console.error(err));
   }, [player]);
 
+  const loadTournamentPreds = () => {
+    setTournamentPredsLoading(true);
+    fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions")
+      .then(r => r.json())
+      .then(d => { setTournamentPreds(Array.isArray(d) ? d : []); setTournamentPredsLoading(false); })
+      .catch(() => setTournamentPredsLoading(false));
+  };
+
   useEffect(() => {
-    if (tab === "tournamentpred" && tournamentPreds.length === 0 && !tournamentPredsLoading) {
-      setTournamentPredsLoading(true);
-      fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions")
-        .then(r => r.json())
-        .then(d => { setTournamentPreds(Array.isArray(d) ? d : []); setTournamentPredsLoading(false); })
-        .catch(() => setTournamentPredsLoading(false));
+    if (tab === "tournamentpred") {
+      if (tournamentPreds.length === 0) loadTournamentPreds();
+      // Auto-Refresh alle 5 Minuten wenn Tab offen
+      const interval = setInterval(loadTournamentPreds, 5 * 60 * 1000);
+      return () => clearInterval(interval);
     }
   }, [tab]);
 
@@ -1149,9 +1156,15 @@ export default function App() {
         {tab === "tournamentpred" && (
           <>
             <Header title="Turnier Prediction" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              ATP Turniere · Nächste 2 Wochen · {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}
-            </p>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"-16px",marginBottom:"24px"}}>
+              <p style={{color:"#94a3b8",margin:0}}>
+                ATP Turniere · Aktuell + Nächste 2 Wochen · {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}
+              </p>
+              <button onClick={loadTournamentPreds} disabled={tournamentPredsLoading}
+                style={{background:"rgba(34,211,238,0.1)",border:"1px solid rgba(34,211,238,0.3)",color:"#22d3ee",padding:"6px 14px",borderRadius:"8px",cursor:"pointer",fontSize:"12px",fontWeight:600}}>
+                {tournamentPredsLoading ? "⏳ Lädt..." : "🔄 Aktualisieren"}
+              </button>
+            </div>
 
             {tournamentPredsLoading ? (
               <p style={{color:"#94a3b8"}}>⏳ Lade Turnier-Daten...</p>
@@ -1159,13 +1172,7 @@ export default function App() {
               <div style={{textAlign:"center",padding:"40px 0"}}>
                 <p style={{color:"#94a3b8",marginBottom:"16px"}}>Noch keine Turnierdaten für die nächsten 2 Wochen verfügbar.</p>
                 <button className="predictBtn" style={{width:"auto",padding:"12px 32px"}}
-                  onClick={() => {
-                    setTournamentPredsLoading(true);
-                    fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions")
-                      .then(r => r.json())
-                      .then(d => { setTournamentPreds(Array.isArray(d) ? d : []); setTournamentPredsLoading(false); })
-                      .catch(() => setTournamentPredsLoading(false));
-                  }}>
+                  onClick={loadTournamentPreds}>
                   🔄 Turnierdaten laden
                 </button>
               </div>
@@ -1184,8 +1191,18 @@ export default function App() {
                           <span style={{ fontSize: "16px", fontWeight: 800, color: isATP ? "#22d3ee" : "#facc15" }}>🏆 {tourn.name}</span>
                           <span className={`matchCardBadge ${isATP ? "atp" : "challenger"}`}>{tourn.type}</span>
                         </div>
-                        <div style={{ fontSize: "12px", color: "#475569" }}>
-                          {tourn.dateStart} · {tourn.playerCount} Spieler im Draw
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#475569", flexWrap: "wrap" }}>
+                          <span>{tourn.dateStart}</span>
+                          <span>·</span>
+                          {tourn.hasStarted ? (
+                            <>
+                              <span style={{ color: "#4ade80", fontWeight: 600 }}>🎾 Läuft — {tourn.activePlayerCount} Spieler noch dabei</span>
+                              {tourn.eliminatedCount > 0 && <span style={{ color: "#f87171" }}>({tourn.eliminatedCount} ausgeschieden)</span>}
+                            </>
+                          ) : (
+                            <span>{tourn.playerCount} Spieler im Draw</span>
+                          )}
+                          {tourn.isLive && <span style={{ color: "#f87171", fontWeight: 700 }}>🔴 Live</span>}
                         </div>
                       </div>
                       {tourn.favorite && (
