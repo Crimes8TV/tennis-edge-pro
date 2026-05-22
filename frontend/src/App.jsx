@@ -1,10 +1,113 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
 import { Activity, BarChart3, Trophy, Search, Zap } from "lucide-react";
 import "./App.css";
+
+function PlayerAutocomplete({ label, value, onChange, players }) {
+  const [query, setQuery] = useState(value || "");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    setQuery(value || "");
+  }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = query
+    ? players.filter(p => p.toLowerCase().includes(query.toLowerCase())).slice(0, 50)
+    : players.slice(0, 50);
+
+  const handleSelect = (name) => {
+    setQuery(name);
+    onChange(name);
+    setOpen(false);
+  };
+
+  const handleChange = (e) => {
+    setQuery(e.target.value);
+    setOpen(true);
+    const exact = players.find(p => p.toLowerCase() === e.target.value.toLowerCase());
+    if (exact) onChange(exact);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div style={{ position: "relative" }}>
+        <Search
+          size={14}
+          style={{
+            position: "absolute",
+            left: "10px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "var(--color-text-secondary)",
+            pointerEvents: "none"
+          }}
+        />
+        <input
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => setOpen(true)}
+          placeholder={label}
+          style={{
+            width: "100%",
+            paddingLeft: "30px",
+            boxSizing: "border-box"
+          }}
+        />
+      </div>
+
+      {open && filtered.length > 0 && (
+        <ul style={{
+          position: "absolute",
+          top: "calc(100% + 4px)",
+          left: 0,
+          right: 0,
+          background: "var(--color-background-primary)",
+          border: "0.5px solid var(--color-border-secondary)",
+          borderRadius: "var(--border-radius-md)",
+          maxHeight: "220px",
+          overflowY: "auto",
+          zIndex: 100,
+          margin: 0,
+          padding: 0,
+          listStyle: "none",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+        }}>
+          {filtered.map(name => (
+            <li
+              key={name}
+              onMouseDown={() => handleSelect(name)}
+              style={{
+                padding: "8px 12px",
+                cursor: "pointer",
+                fontSize: "14px",
+                color: "var(--color-text-primary)",
+                background: name === value ? "var(--color-background-secondary)" : "transparent",
+                borderBottom: "0.5px solid var(--color-border-tertiary)"
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--color-background-secondary)"}
+              onMouseLeave={e => e.currentTarget.style.background = name === value ? "var(--color-background-secondary)" : "transparent"}
+            >
+              {name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
@@ -15,8 +118,6 @@ export default function App() {
 
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
-  const [playerSearch1, setPlayerSearch1] = useState("");
-  const [playerSearch2, setPlayerSearch2] = useState("");
 
   const [odds1, setOdds1] = useState(1.7);
   const [odds2, setOdds2] = useState(2.2);
@@ -30,15 +131,14 @@ export default function App() {
 
   const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
 
-  const active =
-    safePlayers.find(p => getPlayerName(p) === player) || {};
+  const active = safePlayers.find(p => getPlayerName(p) === player) || {};
 
   const p1Data = safePlayers.find(p =>
-    getPlayerName(p).toLowerCase().includes(p1.toLowerCase())
+    getPlayerName(p).toLowerCase() === p1.toLowerCase()
   );
 
   const p2Data = safePlayers.find(p =>
-    getPlayerName(p).toLowerCase().includes(p2.toLowerCase())
+    getPlayerName(p).toLowerCase() === p2.toLowerCase()
   );
 
   const winner =
@@ -56,11 +156,7 @@ export default function App() {
       .then(data => {
         const formatted = Array.isArray(data) ? data : [];
         setPlayers(formatted);
-
-        if (formatted.length > 0) {
-          setPlayer(getPlayerName(formatted[0]));
-        }
-
+        if (formatted.length > 0) setPlayer(getPlayerName(formatted[0]));
         if (formatted.length > 1) {
           setP1(getPlayerName(formatted[0]));
           setP2(getPlayerName(formatted[1]));
@@ -71,7 +167,6 @@ export default function App() {
 
   useEffect(() => {
     if (!player) return;
-
     fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(player)}`)
       .then(res => res.json())
       .then(data => setPlayerStats(data))
@@ -80,7 +175,6 @@ export default function App() {
 
   const predictMatch = () => {
     if (!p1 || !p2 || !p1Data || !p2Data) return;
-
     fetch(
       `https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`
     )
@@ -96,25 +190,11 @@ export default function App() {
         .then(data => setLiveMatches(Array.isArray(data) ? data : []))
         .catch(err => console.error(err));
     }, 3000);
-
     return () => clearInterval(interval);
   }, []);
 
-  const filteredPlayerNames1 = playerSearch1
-    ? playerNames.filter(name =>
-        name.toLowerCase().includes(playerSearch1.toLowerCase())
-      )
-    : playerNames;
-
-  const filteredPlayerNames2 = playerSearch2
-    ? playerNames.filter(name =>
-        name.toLowerCase().includes(playerSearch2.toLowerCase())
-      )
-    : playerNames;
-
   const topMatches = [...safePlayers]
     .sort((a, b) => (a.rank || 999) - (b.rank || 999))
-    .slice(0, 50)
     .filter((_, i) => i % 2 === 0)
     .map((p, i, arr) => [getPlayerName(p), getPlayerName(arr[i + 1] || {})])
     .filter(m => m[0] && m[1]);
@@ -124,13 +204,10 @@ export default function App() {
       const pA = safePlayers.find(p => getPlayerName(p) === a);
       const pB = safePlayers.find(p => getPlayerName(p) === b);
       if (!pA || !pB) return null;
-
       const probA = Math.round(((pB.rank || 100) / ((pA.rank || 100) + (pB.rank || 100))) * 100);
       const probB = 100 - probA;
-
       const valueA = probA - 50;
       const valueB = probB - 50;
-
       return {
         match: `${a} vs ${b}`,
         pick: valueA > valueB ? a : b,
@@ -176,23 +253,17 @@ export default function App() {
         {tab === "dashboard" && (
           <>
             <Header title="Live Dashboard" />
-
             <div className="topMatches">
               <h4>🔥 Live Matches</h4>
-
               {liveMatches.length === 0 ? (
                 <p>Keine Live Matches</p>
               ) : (
                 liveMatches.map((m, i) => (
-                  <p
-                    key={i}
-                    className="matchItem"
-                    onClick={() => {
-                      setP1(m.player1);
-                      setP2(m.player2);
-                      setTab("predictor");
-                    }}
-                  >
+                  <p key={i} className="matchItem" onClick={() => {
+                    setP1(m.player1);
+                    setP2(m.player2);
+                    setTab("predictor");
+                  }}>
                     {m.player1} vs {m.player2}
                   </p>
                 ))
@@ -202,9 +273,7 @@ export default function App() {
             <div className="valuePicks">
               <h4>💰 Auto Value Picks</h4>
               {autoValuePicks.map((pick, i) => (
-                <p key={i}>
-                  #{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)
-                </p>
+                <p key={i}>#{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)</p>
               ))}
             </div>
 
@@ -263,48 +332,19 @@ export default function App() {
           <>
             <Header title="Match Predictor" />
 
-            <div className="grid two">
-              <input
-                className="searchInput"
-                value={playerSearch1}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setPlayerSearch1(value);
-                  const found = playerNames.find(name =>
-                    name.toLowerCase().includes(value.toLowerCase())
-                  );
-                  if (found) setP1(found);
-                }}
-                placeholder="Spieler 1 suchen..."
+            <div className="grid two" style={{ marginBottom: "1rem" }}>
+              <PlayerAutocomplete
+                label="Spieler 1 suchen..."
+                value={p1}
+                onChange={setP1}
+                players={playerNames}
               />
-
-              <input
-                className="searchInput"
-                value={playerSearch2}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setPlayerSearch2(value);
-                  const found = playerNames.find(name =>
-                    name.toLowerCase().includes(value.toLowerCase())
-                  );
-                  if (found) setP2(found);
-                }}
-                placeholder="Spieler 2 suchen..."
+              <PlayerAutocomplete
+                label="Spieler 2 suchen..."
+                value={p2}
+                onChange={setP2}
+                players={playerNames}
               />
-            </div>
-
-            <div className="grid two">
-              <select value={p1} onChange={e => setP1(e.target.value)}>
-                {filteredPlayerNames1.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-
-              <select value={p2} onChange={e => setP2(e.target.value)}>
-                {filteredPlayerNames2.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
             </div>
 
             <select
@@ -320,9 +360,7 @@ export default function App() {
             {!p1Data || !p2Data ? (
               <p>Bitte zwei Spieler auswählen.</p>
             ) : (
-              <button onClick={predictMatch}>
-                Prediction berechnen
-              </button>
+              <button onClick={predictMatch}>Prediction berechnen</button>
             )}
 
             <Panel title="Prediction Engine">
@@ -356,10 +394,7 @@ export default function App() {
                     <strong>{prediction.prediction?.[prediction.player2]}%</strong>
                   </div>
 
-                  <p className="confidence">
-                    Confidence: {prediction.confidence}%
-                  </p>
-
+                  <p className="confidence">Confidence: {prediction.confidence}%</p>
                   <p className="edge">{prediction.edge}</p>
 
                   {prediction.explain && (
@@ -368,28 +403,10 @@ export default function App() {
 
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
-
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={odds1}
-                      onChange={(e) => setOdds1(Number(e.target.value))}
-                    />
-
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={odds2}
-                      onChange={(e) => setOdds2(Number(e.target.value))}
-                    />
-
-                    <p>
-                      {prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%
-                    </p>
-
-                    <p>
-                      {prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%
-                    </p>
+                    <input type="number" step="0.01" value={odds1} onChange={(e) => setOdds1(Number(e.target.value))} />
+                    <input type="number" step="0.01" value={odds2} onChange={(e) => setOdds2(Number(e.target.value))} />
+                    <p>{prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%</p>
+                    <p>{prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%</p>
                   </div>
 
                   {p1Data && p2Data && (
