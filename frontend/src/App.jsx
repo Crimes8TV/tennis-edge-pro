@@ -91,6 +91,8 @@ export default function App() {
   const [odds1, setOdds1] = useState(1.7);
   const [odds2, setOdds2] = useState(2.2);
   const [liveMatches, setLiveMatches] = useState([]);
+  const [valuePicks, setValuePicks] = useState([]);
+  const [valuePicksLoading, setValuePicksLoading] = useState(true);
   const [surface, setSurface] = useState("hard");
 
   const safePlayers = Array.isArray(players) ? players : [];
@@ -162,26 +164,15 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  const topMatches = [...safePlayers]
-    .sort((a, b) => (a.rank || 999) - (b.rank || 999))
-    .filter((_, i) => i % 2 === 0)
-    .map((p, i, arr) => [getPlayerName(p), getPlayerName(arr[i + 1] || {})])
-    .filter(m => m[0] && m[1]);
+  useEffect(() => {
+    setValuePicksLoading(true);
+    fetch("https://tennis-edge-backend.onrender.com/api/valuepicks")
+      .then(res => res.json())
+      .then(data => { setValuePicks(Array.isArray(data) ? data : []); setValuePicksLoading(false); })
+      .catch(err => { console.error(err); setValuePicksLoading(false); });
+  }, []);
 
-  const autoValuePicks = topMatches
-    .map(([a, b]) => {
-      const pA = safePlayers.find(p => getPlayerName(p) === a);
-      const pB = safePlayers.find(p => getPlayerName(p) === b);
-      if (!pA || !pB) return null;
-      const probA = Math.round(((pB.rank || 100) / ((pA.rank || 100) + (pB.rank || 100))) * 100);
-      const probB = 100 - probA;
-      const valueA = probA - 50;
-      const valueB = probB - 50;
-      return { match: `${a} vs ${b}`, pick: valueA > valueB ? a : b, value: Math.max(valueA, valueB) };
-    })
-    .filter(Boolean)
-    .filter(pick => pick.value > 0)
-    .sort((a, b) => b.value - a.value);
+
 
   const formData = (active.form || []).map((v, i) => ({ match: `M-${6 - i}`, form: v }));
 
@@ -226,10 +217,37 @@ export default function App() {
               )}
             </div>
             <div className="valuePicks">
-              <h4>💰 Auto Value Picks</h4>
-              {autoValuePicks.map((pick, i) => (
-                <p key={i}>#{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)</p>
-              ))}
+              <h4>💰 Value Picks heute — {new Date().toLocaleDateString("de-DE")}</h4>
+              {valuePicksLoading ? (
+                <p style={{ color: "#94a3b8", fontSize: "14px" }}>⏳ Lade heutige Matches...</p>
+              ) : valuePicks.length === 0 ? (
+                <p style={{ color: "#94a3b8", fontSize: "14px" }}>Keine Matches heute gefunden.</p>
+              ) : (
+                valuePicks.map((pick, i) => (
+                  <div
+                    key={i}
+                    className="valuePickRow"
+                    onClick={() => { setP1(pick.match.split(" vs ")[0]); setP2(pick.match.split(" vs ")[1]); setTab("predictor"); }}
+                  >
+                    <div className="valuePickTop">
+                      <span className="valuePickRank">#{i + 1}</span>
+                      <span className="valuePickMatch">{pick.match}</span>
+                      <span className="valuePickEdge">+{pick.edge}% Edge</span>
+                    </div>
+                    <div className="valuePickBottom">
+                      <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
+                      <span className="valuePickProb">Prob: {pick.ourProb}%</span>
+                      {pick.bestOdds && (
+                        <span className="valuePickOdds">Quote: {pick.bestOdds} ({pick.bookmaker})</span>
+                      )}
+                      {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
+                    </div>
+                    {pick.tournament && (
+                      <div className="valuePickTournament">{pick.tournament}</div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
             <Kpis data={active} />
             <div className="grid two">
