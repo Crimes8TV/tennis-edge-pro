@@ -345,13 +345,32 @@ export default function App() {
                     <p>{prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%</p>
                     <p>{prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%</p>
                   </div>
-                  {p1Data && p2Data && (
+                  {prediction.playerStats && (
                     <div className="compareBox">
                       <h4>Player Compare</h4>
-                      <p>Serve: {p1Data.serve} vs {p2Data.serve}</p>
-                      <p>Return: {p1Data.return} vs {p2Data.return}</p>
-                      <p>Clutch: {p1Data.clutch} vs {p2Data.clutch}</p>
-                      <p>Momentum: {p1Data.momentum} vs {p2Data.momentum}</p>
+                      {[
+                        { label: "Serve",    k: "serve" },
+                        { label: "Return",   k: "return" },
+                        { label: "Clutch",   k: "clutch" },
+                        { label: "Momentum", k: "momentum" },
+                      ].map(({ label, k }) => {
+                        const v1 = prediction.playerStats[prediction.player1]?.[k] || 0;
+                        const v2 = prediction.playerStats[prediction.player2]?.[k] || 0;
+                        const better1 = v1 > v2;
+                        return (
+                          <div key={k} style={{ marginBottom: "10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                              <span style={{ color: better1 ? "#4ade80" : "#94a3b8", fontWeight: better1 ? 700 : 400 }}>{v1}</span>
+                              <span style={{ color: "#94a3b8" }}>{label}</span>
+                              <span style={{ color: !better1 ? "#4ade80" : "#94a3b8", fontWeight: !better1 ? 700 : 400 }}>{v2}</span>
+                            </div>
+                            <div style={{ display: "flex", height: "6px", borderRadius: "999px", overflow: "hidden", background: "#1e293b" }}>
+                              <div style={{ width: `${Math.round(v1 / (v1 + v2) * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
+                              <div style={{ flex: 1, background: "#f472b6" }} />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>
