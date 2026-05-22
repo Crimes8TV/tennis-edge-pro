@@ -19,12 +19,21 @@ body {
 
 .sidebar h1 {
   color: #22d3ee;
-  margin: 0;
+  margin: 0 0 4px 0;
+  font-size: 22px;
+  font-weight: 800;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  text-shadow: 0 0 20px rgba(34,211,238,0.5);
 }
 
 .sidebar p {
   color: #94a3b8;
-  margin-bottom: 32px;
+  margin: 0 0 32px 0;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .sidebar button {
