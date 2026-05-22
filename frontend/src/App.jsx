@@ -236,11 +236,28 @@ export default function App() {
                     </div>
                     <div className="valuePickBottom">
                       <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
-                      <span className="valuePickProb">Prob: {pick.ourProb}%</span>
                       {pick.bestOdds && (
-                        <span className="valuePickOdds">Quote: {pick.bestOdds} ({pick.bookmaker})</span>
+                        <span className="valuePickOdds">Quote: {pick.bestOdds}</span>
                       )}
                       {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
+                    </div>
+                    <div className="valuePickProbBar">
+                      <div className="valuePickProbItem">
+                        <span className="valuePickProbLabel">Unsere Einschätzung</span>
+                        <div className="valuePickProbTrack">
+                          <div className="valuePickProbFill ourFill" style={{ width: `${pick.ourProb}%` }} />
+                        </div>
+                        <span className="valuePickProbValue our">{pick.ourProb}%</span>
+                      </div>
+                      {pick.impliedProb && (
+                        <div className="valuePickProbItem">
+                          <span className="valuePickProbLabel">Buchmacher</span>
+                          <div className="valuePickProbTrack">
+                            <div className="valuePickProbFill bookFill" style={{ width: `${pick.impliedProb}%` }} />
+                          </div>
+                          <span className="valuePickProbValue book">{pick.impliedProb}%</span>
+                        </div>
+                      )}
                     </div>
                     {pick.tournament && (
                       <div className="valuePickTournament">{pick.tournament}</div>
