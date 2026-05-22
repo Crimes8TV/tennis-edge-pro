@@ -531,13 +531,47 @@ app.get("/api/fixtures/today", async (req, res) => {
       const isFinished = m.event_status === "Finished" || m.event_status === "After Extra Time";
 
       const src = liveMatch || m;
-      // Individuelle Set-Scores extrahieren (API fields: score_first, score_second etc.)
+      // Set-Scores aus allen möglichen API-Feldern extrahieren
       const setScores = [];
-      for (let i = 1; i <= 5; i++) {
-        const p1s = src[`score_first_${i}`] ?? src[`scores_home_${i}`];
-        const p2s = src[`score_second_${i}`] ?? src[`scores_away_${i}`];
-        if (p1s !== undefined && p1s !== null && p1s !== "") {
-          setScores.push({ p1: String(p1s), p2: String(p2s ?? "-") });
+      
+      // Methode 1: scores Array
+      if (Array.isArray(src.scores)) {
+        src.scores.forEach(s => {
+          if (s.score) {
+            const parts = s.score.split("-");
+            if (parts.length === 2) setScores.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+          }
+        });
+      }
+      
+      // Methode 2: score_home_1, score_away_1 etc.
+      if (setScores.length === 0) {
+        for (let i = 1; i <= 5; i++) {
+          const fields = [
+            [src[`score_home_${i}`], src[`score_away_${i}`]],
+            [src[`score_first_${i}`], src[`score_second_${i}`]],
+            [src[`home_score_${i}`], src[`away_score_${i}`]],
+            [src[`set_${i}_home`], src[`set_${i}_away`]],
+          ];
+          for (const [p1s, p2s] of fields) {
+            if (p1s !== undefined && p1s !== null && p1s !== "") {
+              setScores.push({ p1: String(p1s), p2: String(p2s ?? "-") });
+              break;
+            }
+          }
+        }
+      }
+      
+      // Methode 3: score string "6-4, 3-2" parsen
+      if (setScores.length === 0) {
+        const scoreStr = src.event_final_result || "";
+        if (scoreStr.includes(",")) {
+          scoreStr.split(",").forEach(s => {
+            const parts = s.trim().split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              setScores.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+            }
+          });
         }
       }
 
