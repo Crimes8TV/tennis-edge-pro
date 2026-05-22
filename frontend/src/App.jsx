@@ -166,6 +166,8 @@ export default function App() {
   const [playerStats, setPlayerStats] = useState(null);
   const [comparePlayer, setComparePlayer] = useState("");
   const [compareStats, setCompareStats] = useState(null);
+  const [playerNews, setPlayerNews] = useState({});
+  const [compareNews, setCompareNews] = useState({});
   const [h2hP1, setH2hP1] = useState("");
   const [h2hP2, setH2hP2] = useState("");
   const [h2hData, setH2hData] = useState(null);
@@ -253,7 +255,19 @@ export default function App() {
       .then(res => res.json())
       .then(data => setCompareStats(data))
       .catch(err => console.error(err));
+    fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(comparePlayer)}`)
+      .then(res => res.json())
+      .then(data => setCompareNews(data))
+      .catch(err => console.error(err));
   }, [comparePlayer]);
+
+  useEffect(() => {
+    if (!player) return;
+    fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player)}`)
+      .then(res => res.json())
+      .then(data => setPlayerNews(data))
+      .catch(err => console.error(err));
+  }, [player]);
 
   const openMatchDetail = (m) => {
     if (!m.matchKey) return;
@@ -723,6 +737,40 @@ export default function App() {
                 </Panel>
               )}
             </div>
+            {/* News Panels */}
+            {(playerNews.length > 0 || compareNews.length > 0) && (
+              <div className="grid two" style={{ marginTop: "20px" }}>
+                {playerNews.length > 0 && (
+                  <Panel title={`📰 News: ${player}`}>
+                    {playerNews.map((n, i) => (
+                      <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "block", textDecoration: "none", padding: "10px 0", borderBottom: i < playerNews.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                        <div style={{ fontSize: "13px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", lineHeight: 1.4 }}>{n.title}</div>
+                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "#475569" }}>
+                          {n.source && <span>{n.source}</span>}
+                          {n.pubDate && <span>{n.pubDate}</span>}
+                        </div>
+                      </a>
+                    ))}
+                  </Panel>
+                )}
+                {compareNews.length > 0 && (
+                  <Panel title={`📰 News: ${comparePlayer}`}>
+                    {compareNews.map((n, i) => (
+                      <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "block", textDecoration: "none", padding: "10px 0", borderBottom: i < compareNews.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                        <div style={{ fontSize: "13px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", lineHeight: 1.4 }}>{n.title}</div>
+                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "#475569" }}>
+                          {n.source && <span>{n.source}</span>}
+                          {n.pubDate && <span>{n.pubDate}</span>}
+                        </div>
+                      </a>
+                    ))}
+                  </Panel>
+                )}
+              </div>
+            )}
+
             {playerStats && compareStats && (
               <Panel title="⚔️ Direktvergleich Belag">
                 {[
