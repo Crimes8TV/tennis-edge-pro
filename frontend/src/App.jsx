@@ -279,6 +279,18 @@ export default function App() {
       .catch(err => { console.error(err); setH2hLoading(false); });
   };
 
+  // Auto-predict when players change via value pick click
+  useEffect(() => {
+    if (tab === "predictor" && p1Data && p2Data && !prediction) {
+      setTimeout(() => {
+        fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
+          .then(res => res.json())
+          .then(data => setPrediction(data))
+          .catch(err => console.error(err));
+      }, 100);
+    }
+  }, [tab, p1, p2]);
+
   const predictMatch = () => {
     if (!p1 || !p2 || !p1Data || !p2Data) return;
     fetch(
@@ -815,7 +827,7 @@ export default function App() {
                   )}
 
                   {/* Handicap-Empfehlung */}
-                  {prediction.handicap && prediction.handicap.line > 0 && (
+                  {prediction.handicap && (
                     <div style={{ margin: "0 0 16px", padding: "16px", borderRadius: "14px", background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.25)" }}>
                       <h4 style={{ color: "#facc15", margin: "0 0 12px", fontSize: "14px" }}>📊 Handicap-Empfehlung</h4>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
