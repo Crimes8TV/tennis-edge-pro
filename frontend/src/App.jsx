@@ -282,28 +282,7 @@ export default function App() {
                 ))
               )}
             </div>
-            <Kpis data={active} />
-            <div className="grid two">
-              <Panel title="Formkurve">
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={formData}>
-                    <XAxis dataKey="match" />
-                    <YAxis domain={[60, 100]} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="form" stroke="#22d3ee" strokeWidth={4} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Panel>
-              <Panel title="Performance Radar">
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="stat" />
-                    <Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.35} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </Panel>
-            </div>
+
           </>
         )}
 
@@ -326,11 +305,6 @@ export default function App() {
                 onChange={setComparePlayer}
                 players={playerNames}
               />
-            </div>
-
-            <div className="grid two" style={{ marginBottom: "24px" }}>
-              <Kpis data={active} />
-              <Kpis data={compareActive} />
             </div>
 
             <div className="grid two">
@@ -372,6 +346,32 @@ export default function App() {
                       </div>
                     </div>
                   ))}
+
+                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Formkurve</h4>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={formData}>
+                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="form" stroke="#22d3ee" strokeWidth={3} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+
+                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Performance Radar</h4>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <RadarChart data={[
+                      { stat: "Serve", value: active.serve || 0 },
+                      { stat: "Return", value: active.return || 0 },
+                      { stat: "Clutch", value: active.clutch || 0 },
+                      { stat: "Momentum", value: active.momentum || 0 },
+                      { stat: "Hard", value: active.hard || 0 },
+                      { stat: "Clay", value: active.clay || 0 },
+                    ]}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                      <Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.3} />
+                    </RadarChart>
+                  </ResponsiveContainer>
                 </Panel>
               )}
 
@@ -413,6 +413,32 @@ export default function App() {
                       </div>
                     </div>
                   ))}
+
+                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Formkurve</h4>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={formData}>
+                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} />
+                      <YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="form" stroke="#f472b6" strokeWidth={3} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+
+                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Performance Radar</h4>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <RadarChart data={[
+                      { stat: "Serve", value: compareActive.serve || 0 },
+                      { stat: "Return", value: compareActive.return || 0 },
+                      { stat: "Clutch", value: compareActive.clutch || 0 },
+                      { stat: "Momentum", value: compareActive.momentum || 0 },
+                      { stat: "Hard", value: compareActive.hard || 0 },
+                      { stat: "Clay", value: compareActive.clay || 0 },
+                    ]}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                      <Radar dataKey="value" stroke="#f472b6" fill="#f472b6" fillOpacity={0.3} />
+                    </RadarChart>
+                  </ResponsiveContainer>
                 </Panel>
               )}
             </div>
