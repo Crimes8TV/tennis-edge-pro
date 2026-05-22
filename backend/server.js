@@ -763,5 +763,51 @@ app.get("/api/match/:matchKey", async (req, res) => {
   }
 });
 
+
+// ─── PLAYER NEWS ──────────────────────────────────────────────────────────────
+app.get("/api/news/:player", async (req, res) => {
+  try {
+    const playerName = decodeURIComponent(req.params.player);
+    
+    // Google News RSS Feed - kein API Key nötig
+    const query = encodeURIComponent(`${playerName} tennis`);
+    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=de&gl=DE&ceid=DE:de`;
+    
+    const response = await axios.get(rssUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 5000
+    });
+
+    const xml = response.data;
+    
+    // RSS XML parsen
+    const items = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    
+    while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
+      const item = match[1];
+      const title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/))?.[1] || "";
+      const link = (item.match(/<link>(.*?)<\/link>/) || [])?.[1] || "";
+      const pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])?.[1] || "";
+      const source = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])?.[1] || "";
+      
+      if (title) {
+        items.push({
+          title: title.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
+          link,
+          pubDate: pubDate ? new Date(pubDate).toLocaleDateString("de-DE") : "",
+          source
+        });
+      }
+    }
+
+    res.json(items);
+  } catch (err) {
+    console.error("NEWS ERROR:", err.message);
+    res.json([]);
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
