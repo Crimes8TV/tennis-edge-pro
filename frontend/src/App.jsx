@@ -614,7 +614,17 @@ export default function App() {
                 { value: "clay", icon: "🧱", label: "Clay" },
                 { value: "grass", icon: "🌿", label: "Grass" }
               ].map(s => (
-                <button key={s.value} className={`surfaceBtn ${surface === s.value ? "active" : ""}`} onClick={() => setSurface(s.value)}>
+                <button key={s.value} className={`surfaceBtn ${surface === s.value ? "active" : ""}`} onClick={() => {
+                  setSurface(s.value);
+                  if (prediction && p1Data && p2Data) {
+                    setTimeout(() => {
+                      fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${s.value}&surface1=${p1Data?.[s.value] || 0}&surface2=${p2Data?.[s.value] || 0}`)
+                        .then(res => res.json())
+                        .then(data => setPrediction(data))
+                        .catch(err => console.error(err));
+                    }, 50);
+                  }
+                }}>
                   <span className="surfaceIcon">{s.icon}</span>
                   <span className="surfaceLabel">{s.label}</span>
                 </button>
