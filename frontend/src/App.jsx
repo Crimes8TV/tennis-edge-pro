@@ -853,41 +853,38 @@ export default function App() {
                   )}
 
                   {/* Score Board */}
-                  <div style={{ background: "#0f172a", borderRadius: "16px", padding: "24px", marginBottom: "20px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "8px 16px", alignItems: "center" }}>
-                      {/* Header */}
-                      <div />
-                      {matchDetail.sets.map((_, i) => (
-                        <div key={i} style={{ textAlign: "center", fontSize: "11px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>
-                      ))}
-                      {matchDetail.live && <div style={{ textAlign: "center", fontSize: "11px", color: "#f87171", fontWeight: 700 }}>Game</div>}
-
-                      {/* Player 1 */}
-                      <div style={{ fontSize: "16px", fontWeight: 700, color: "#e2e8f0" }}>{matchDetail.player1}</div>
-                      {matchDetail.sets.map((s, i) => (
-                        <div key={i} style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#64748b" }}>{s.p1 || "-"}</div>
-                      ))}
-                      {matchDetail.live && (
-                        <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: "#facc15" }}>
-                          {matchDetail.gameScore?.split("-")[0] || "-"}
+                  {(() => {
+                    const sets = matchDetail.sets || [];
+                    const showGame = matchDetail.live && matchDetail.gameScore && matchDetail.gameScore !== "-";
+                    const gp = showGame ? matchDetail.gameScore.split("-").map(s => s.trim()) : [];
+                    const colW = "56px";
+                    const rowStyle = { display: "flex", alignItems: "center", padding: "14px 24px" };
+                    const nameStyle = { flex: 1, minWidth: 0, fontSize: "16px", fontWeight: 700, color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+                    const numStyle = (color) => ({ width: colW, flexShrink: 0, textAlign: "center", fontSize: "22px", fontWeight: 900, color });
+                    return (
+                      <div style={{ background: "#0f172a", borderRadius: "16px", overflow: "hidden", marginBottom: "20px" }}>
+                        <div style={{ ...rowStyle, background: "#0a0f1e", padding: "8px 24px" }}>
+                          <div style={{ flex: 1, minWidth: 0 }} />
+                          {sets.map((s, i) => <div key={i} style={{ width: colW, flexShrink: 0, textAlign: "center", fontSize: "11px", color: "#64748b", fontWeight: 700 }}>{s.isTotalSets ? "Sätze" : `S${i+1}`}</div>)}
+                          {showGame && <div style={{ width: colW, flexShrink: 0, textAlign: "center", fontSize: "11px", color: "#f87171", fontWeight: 700 }}>GAME</div>}
                         </div>
-                      )}
-
-                      {/* Player 2 */}
-                      <div style={{ fontSize: "16px", fontWeight: 700, color: "#e2e8f0" }}>{matchDetail.player2}</div>
-                      {matchDetail.sets.map((s, i) => (
-                        <div key={i} style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#64748b" }}>{s.p2 || "-"}</div>
-                      ))}
-                      {matchDetail.live && (
-                        <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: "#facc15" }}>
-                          {matchDetail.gameScore?.split("-")[1] || "-"}
+                        <div style={{ ...rowStyle, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                          <div style={nameStyle}>{matchDetail.server === 1 && <span style={{ color: "#facc15", fontSize: "10px", marginRight: "6px" }}>●</span>}{matchDetail.player1}</div>
+                          {sets.map((s, i) => <div key={i} style={numStyle(parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#475569")}>{s.p1}</div>)}
+                          {showGame && <div style={numStyle("#facc15")}>{gp[0] || "0"}</div>}
                         </div>
-                      )}
-                    </div>
-
-                    <div style={{ marginTop: "16px", textAlign: "center", fontSize: "13px", color: matchDetail.live ? "#f87171" : "#64748b", fontWeight: 600 }}>
-                      {matchDetail.status}
-                    </div>
+                        <div style={rowStyle}>
+                          <div style={nameStyle}>{matchDetail.server === 2 && <span style={{ color: "#facc15", fontSize: "10px", marginRight: "6px" }}>●</span>}{matchDetail.player2}</div>
+                          {sets.map((s, i) => <div key={i} style={numStyle(parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#475569")}>{s.p2}</div>)}
+                          {showGame && <div style={numStyle("#facc15")}>{gp[1] || "0"}</div>}
+                        </div>
+                        <div style={{ ...rowStyle, background: "#0a0f1e", padding: "8px 24px" }}>
+                          {matchDetail.live && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block", marginRight: "8px" }} />}
+                          <span style={{ fontSize: "12px", color: matchDetail.live ? "#f87171" : "#64748b", fontWeight: 600 }}>{matchDetail.status}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   </div>
 
                   {/* Quick Actions */}
