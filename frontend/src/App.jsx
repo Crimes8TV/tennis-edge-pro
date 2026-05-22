@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
@@ -8,7 +8,6 @@ import "./App.css";
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-
   const [players, setPlayers] = useState([]);
   const [player, setPlayer] = useState("");
   const [playerStats, setPlayerStats] = useState(null);
@@ -16,141 +15,131 @@ export default function App() {
 
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
-
   const [playerSearch1, setPlayerSearch1] = useState("");
   const [playerSearch2, setPlayerSearch2] = useState("");
 
-  const [odds1, setOdds1] = useState(1.70);
-  const [odds2, setOdds2] = useState(2.20);
-
-  const [live, setLive] = useState(null);
+  const [odds1, setOdds1] = useState(1.7);
+  const [odds2, setOdds2] = useState(2.2);
   const [liveMatches, setLiveMatches] = useState([]);
   const [surface, setSurface] = useState("hard");
 
+  const safePlayers = Array.isArray(players) ? players : [];
+
   const getPlayerName = (p) =>
-  typeof p.name === "string" ? p.name : p.name?.name || "";
+    typeof p.name === "string" ? p.name : p.name?.name || "";
 
-const p1Data = safePlayers.find(p =>
-  getPlayerName(p).toLowerCase().includes(p1.toLowerCase())
-);
+  const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
 
-const p2Data = safePlayers.find(p =>
-  getPlayerName(p).toLowerCase().includes(p2.toLowerCase())
-);
+  const active =
+    safePlayers.find(p => getPlayerName(p) === player) || {};
+
+  const p1Data = safePlayers.find(p =>
+    getPlayerName(p).toLowerCase().includes(p1.toLowerCase())
+  );
+
+  const p2Data = safePlayers.find(p =>
+    getPlayerName(p).toLowerCase().includes(p2.toLowerCase())
+  );
+
+  const winner =
+    prediction?.prediction?.[prediction?.player1] >
+    prediction?.prediction?.[prediction?.player2]
+      ? prediction?.player1
+      : prediction?.player2;
+
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
-  .then(res => {
-    if (!res.ok) {
-      throw new Error("API Fehler");
-    }
-    return res.json();
-  })
-  .then(data => {
-  console.log("PLAYERS DATA:", data);
+      .then(res => {
+        if (!res.ok) throw new Error("API Fehler");
+        return res.json();
+      })
+      .then(data => {
+        const formatted = Array.isArray(data) ? data : [];
+        setPlayers(formatted);
 
-  const formatted = Array.isArray(data) ? data : [];
-  setPlayers(formatted);
+        if (formatted.length > 0) {
+          setPlayer(getPlayerName(formatted[0]));
+        }
 
-  if (formatted.length > 0) {
-    setPlayer(formatted[0].name);
-  }
+        if (formatted.length > 1) {
+          setP1(getPlayerName(formatted[0]));
+          setP2(getPlayerName(formatted[1]));
+        }
+      })
+      .catch(err => console.error("FEHLER PLAYERS:", err));
+  }, []);
 
-  if (formatted.length > 1) {
-    setP1(formatted[0].name);
-    setP2(formatted[1].name);
-  }
-})
-.catch(err => {
-  console.error("FEHLER PLAYERS:", err);
-});
+  useEffect(() => {
+    if (!player) return;
 
-}, []);
+    fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(player)}`)
+      .then(res => res.json())
+      .then(data => setPlayerStats(data))
+      .catch(err => console.error(err));
+  }, [player]);
 
-useEffect(() => {
-  if (!player) return;
+  const predictMatch = () => {
+    if (!p1 || !p2 || !p1Data || !p2Data) return;
 
-  fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(player)}`)
-    .then(res => res.json())
-    .then(data => {
-      console.log("PLAYER STATS:", data);
-      setPlayerStats(data);
-    })
-    .catch(err => console.error(err));
-}, [player]);
-useEffect(() => {
-  if (!p1 || !p2) return;
-const rank1 = p1Data?.rank || 10;
-const rank2 = p2Data?.rank || 100;
+    fetch(
+      `https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`
+    )
+      .then(res => res.json())
+      .then(data => setPrediction(data))
+      .catch(err => console.error(err));
+  };
 
-console.log("PLAYER 1 DATA:", p1Data);
-console.log("PLAYER 2 DATA:", p2Data);
-console.log("SURFACE:", surface);
-console.log("SURFACE 1 VALUE:", p1Data?.[surface]);
-console.log("SURFACE 2 VALUE:", p2Data?.[surface]);
-
-  fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${rank1}&rank2=${rank2}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
-    .then(res => res.json())
-    .then(data => {
-      console.log("PREDICTION:", data);
-      setPrediction(data);
-    })
-    .catch(err => console.error(err));
-}, [p1, p2, players, surface]);
   useEffect(() => {
     const interval = setInterval(() => {
       fetch("https://tennis-edge-backend.onrender.com/api/live")
         .then(res => res.json())
-        .then(data => setLiveMatches(data));
+        .then(data => setLiveMatches(Array.isArray(data) ? data : []))
+        .catch(err => console.error(err));
     }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
-  const active = players[player] || {};
-  const playerNames = Object.keys(players);
- const filteredPlayerNames1 = playerSearch1
-  ? playerNames.filter(name =>
-      name.toLowerCase().includes(playerSearch1.toLowerCase())
-    )
-  : playerNames;
+  const filteredPlayerNames1 = playerSearch1
+    ? playerNames.filter(name =>
+        name.toLowerCase().includes(playerSearch1.toLowerCase())
+      )
+    : playerNames;
 
-const filteredPlayerNames2 = playerSearch2
-  ? playerNames.filter(name =>
-      name.toLowerCase().includes(playerSearch2.toLowerCase())
-    )
-  : playerNames;
+  const filteredPlayerNames2 = playerSearch2
+    ? playerNames.filter(name =>
+        name.toLowerCase().includes(playerSearch2.toLowerCase())
+      )
+    : playerNames;
 
-  const topMatches = Object.values(players)
-  .sort((a, b) => a.rank - b.rank)
-  .slice(0, 50)
-  .filter((_, i) => i % 2 === 0)
-  .map((p, i, arr) => [p.name, arr[i + 1]?.name])
-  .filter(m => m[1]);
+  const topMatches = [...safePlayers]
+    .sort((a, b) => (a.rank || 999) - (b.rank || 999))
+    .slice(0, 50)
+    .filter((_, i) => i % 2 === 0)
+    .map((p, i, arr) => [getPlayerName(p), getPlayerName(arr[i + 1] || {})])
+    .filter(m => m[0] && m[1]);
 
-  const autoValuePicks = topMatches.map(([a, b]) => {
-  const pA = players[a];
-  const pB = players[b];
+  const autoValuePicks = topMatches
+    .map(([a, b]) => {
+      const pA = safePlayers.find(p => getPlayerName(p) === a);
+      const pB = safePlayers.find(p => getPlayerName(p) === b);
+      if (!pA || !pB) return null;
 
-  if (!pA || !pB) return null;
+      const probA = Math.round(((pB.rank || 100) / ((pA.rank || 100) + (pB.rank || 100))) * 100);
+      const probB = 100 - probA;
 
-  const probA = Math.round((pB.rank / (pA.rank + pB.rank)) * 100);
-  const probB = 100 - probA;
+      const valueA = probA - 50;
+      const valueB = probB - 50;
 
-  const demoOddsA = 2.00;
-const demoOddsB = 2.00;
-
-  const valueA = probA - 100 / demoOddsA;
-  const valueB = probB - 100 / demoOddsB;
-
-  return {
-    match: `${a} vs ${b}`,
-    pick: valueA > valueB ? a : b,
-    value: Math.max(valueA, valueB),
-  };
-})
-.filter(Boolean)
-.filter(pick => pick.value > 0)
-.sort((a, b) => b.value - a.value);
+      return {
+        match: `${a} vs ${b}`,
+        pick: valueA > valueB ? a : b,
+        value: Math.max(valueA, valueB),
+      };
+    })
+    .filter(Boolean)
+    .filter(pick => pick.value > 0)
+    .sort((a, b) => b.value - a.value);
 
   const formData = (active.form || []).map((v, i) => ({
     match: `M-${6 - i}`,
@@ -184,57 +173,40 @@ const demoOddsB = 2.00;
       </aside>
 
       <main>
-        
-        {true && (
+        {tab === "dashboard" && (
           <>
             <Header title="Live Dashboard" />
 
-            {live && (
-              <section className="panel">
-                <h3>Live Match</h3>
-                <p>{live.match}</p>
-                <p>{live.score}</p>
-                <p>Momentum: {live.momentum}</p>
-              </section>
-             
-            )}
-
             <div className="topMatches">
-           <h4>🔥 Live Matches</h4>
-           
-          {liveMatches.length === 0 ? (
-  <p>Keine Live Matches</p>
-) : (
-  liveMatches.map((m, i) => (
-             <p
-  key={i}
-  className="matchItem"
-  onClick={() => {
-  if (!players[m.player1] || !players[m.player2]) {
-    alert("Für dieses Live Match fehlen noch Player-Daten im System.");
-    return;
-  }
+              <h4>🔥 Live Matches</h4>
 
-  setP1(m.player1);
-  setP2(m.player2);
-  setTab("predictor");
-}}
->
-  {m.player1} vs {m.player2}
-</p>
-          ))
-          )}
-          </div>
+              {liveMatches.length === 0 ? (
+                <p>Keine Live Matches</p>
+              ) : (
+                liveMatches.map((m, i) => (
+                  <p
+                    key={i}
+                    className="matchItem"
+                    onClick={() => {
+                      setP1(m.player1);
+                      setP2(m.player2);
+                      setTab("predictor");
+                    }}
+                  >
+                    {m.player1} vs {m.player2}
+                  </p>
+                ))
+              )}
+            </div>
 
-          <div className="valuePicks">
-  <h4>💰 Auto Value Picks</h4>
-
-  {autoValuePicks.map((pick, i) => (
-    <p key={i}>
-      #{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)
-    </p>
-  ))}
-</div>
+            <div className="valuePicks">
+              <h4>💰 Auto Value Picks</h4>
+              {autoValuePicks.map((pick, i) => (
+                <p key={i}>
+                  #{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)
+                </p>
+              ))}
+            </div>
 
             <Kpis data={active} />
 
@@ -267,232 +239,174 @@ const demoOddsB = 2.00;
           <>
             <Header title="Player Analyzer" />
             <select value={player} onChange={e => setPlayer(e.target.value)}>
-              {playerNames.map(p => <option key={p}>{p}</option>)}
+              {playerNames.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
+
             <Kpis data={active} />
+
             {playerStats && (
               <Panel title="Player Stats">
-              <p>Win Rate: {playerStats.stats.winRate}%</p>
-              <p>Serve: {playerStats.stats.serveRating}</p>
-             <p>Return: {playerStats.stats.returnRating}</p>
-              <p>Fitness: {playerStats.stats.fitness}</p>
-             <p>Hard: {playerStats.surfaces.hard}</p>
-              <p>Clay: {playerStats.surfaces.clay}</p>
-             <p>Grass: {playerStats.surfaces.grass}</p>
-              <p>Form: {playerStats.recentForm.join(" ")}</p>
+                <p>Win Rate: {playerStats.stats?.winRate}%</p>
+                <p>Serve: {playerStats.stats?.serveRating}</p>
+                <p>Return: {playerStats.stats?.returnRating}</p>
+                <p>Fitness: {playerStats.stats?.fitness}</p>
+                <p>Hard: {playerStats.surfaces?.hard}</p>
+                <p>Clay: {playerStats.surfaces?.clay}</p>
+                <p>Grass: {playerStats.surfaces?.grass}</p>
+                <p>Form: {playerStats.recentForm?.join(" ")}</p>
               </Panel>
-              )}
+            )}
           </>
         )}
 
         {tab === "predictor" && (
           <>
             <Header title="Match Predictor" />
-            
-  <div className="grid two">
-  <input
-  className="searchInput"
-  value={playerSearch1}
-  onChange={(e) => {
-    const value = e.target.value;
-    setPlayerSearch1(value);
 
-    const found = playerNames.find(name =>
-      name.toLowerCase().includes(value.toLowerCase())
-    );
+            <div className="grid two">
+              <input
+                className="searchInput"
+                value={playerSearch1}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPlayerSearch1(value);
+                  const found = playerNames.find(name =>
+                    name.toLowerCase().includes(value.toLowerCase())
+                  );
+                  if (found) setP1(found);
+                }}
+                placeholder="Spieler 1 suchen..."
+              />
 
-    if (found) setP1(found);
-  }}
-  placeholder="Spieler 1 suchen..."
-/>
+              <input
+                className="searchInput"
+                value={playerSearch2}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPlayerSearch2(value);
+                  const found = playerNames.find(name =>
+                    name.toLowerCase().includes(value.toLowerCase())
+                  );
+                  if (found) setP2(found);
+                }}
+                placeholder="Spieler 2 suchen..."
+              />
+            </div>
 
-<input
-  className="searchInput"
-  value={playerSearch2}
-  onChange={(e) => {
-    const value = e.target.value;
-    setPlayerSearch2(value);
-
-    const found = playerNames.find(name =>
-      name.toLowerCase().includes(value.toLowerCase())
-    );
-
-    if (found) setP2(found);
-  }}
-  placeholder="Spieler 2 suchen..."
-/>
-</div>
             <div className="grid two">
               <select value={p1} onChange={e => setP1(e.target.value)}>
                 {filteredPlayerNames1.map(p => (
-  <option key={p} value={p}>{p}</option>
-))}
+                  <option key={p} value={p}>{p}</option>
+                ))}
               </select>
+
               <select value={p2} onChange={e => setP2(e.target.value)}>
                 {filteredPlayerNames2.map(p => (
-  <option key={p} value={p}>{p}</option>
-))}
+                  <option key={p} value={p}>{p}</option>
+                ))}
               </select>
             </div>
 
             <select
-  className="surfaceSelect"
-  value={surface}
-  onChange={(e) => setSurface(e.target.value)}
->
-  <option value="hard">Hard</option>
-  <option value="clay">Clay</option>
-  <option value="grass">Grass</option>
-</select>
+              className="surfaceSelect"
+              value={surface}
+              onChange={(e) => setSurface(e.target.value)}
+            >
+              <option value="hard">Hard</option>
+              <option value="clay">Clay</option>
+              <option value="grass">Grass</option>
+            </select>
 
-{!p1Data || !p2Data ? (
-  <p>Bitte zwei Spieler auswählen.</p>
-) : (
-  <button onClick={predictMatch}>
-    Prediction berechnen
-  </button>
-)}
+            {!p1Data || !p2Data ? (
+              <p>Bitte zwei Spieler auswählen.</p>
+            ) : (
+              <button onClick={predictMatch}>
+                Prediction berechnen
+              </button>
+            )}
 
             <Panel title="Prediction Engine">
-  {prediction && (
-    <>
-      <p className="bestPick">
-        🔥 Best Pick: {
-          prediction.prediction[prediction.player1] > prediction.prediction[prediction.player2]
-            ? prediction.player1
-            : prediction.player2
-        } ({Math.max(
-          prediction.prediction[prediction.player1],
-          prediction.prediction[prediction.player2]
-        )}%)
-      </p>
+              {prediction && (
+                <>
+                  <p className="bestPick">
+                    🔥 Best Pick: {winner} ({Math.max(
+                      prediction.prediction?.[prediction.player1] || 0,
+                      prediction.prediction?.[prediction.player2] || 0
+                    )}%)
+                  </p>
 
-     {prediction?.elo && (
-  <div className="eloBarBox">
-    <div className="eloBar">
-      <div
-        className="eloFill"
-        style={{
-          width: (() => {
-            const e1 = prediction.elo?.[prediction.player1] || 0;
-            const e2 = prediction.elo?.[prediction.player2] || 0;
-            const total = e1 + e2 || 1;
-            return (e1 / total) * 100 + "%";
-          })()
-        }}
-      />
-    </div>
+                  <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
+                    <span className={winner === prediction.player1 ? "winnerName" : ""}>
+                      {prediction.player1}
+                    </span>
+                    <strong>{prediction.prediction?.[prediction.player1]}%</strong>
+                  </div>
 
-    <div className="eloValues">
-      <span>{prediction.elo[prediction.player1]}</span>
-      <span>{prediction.elo[prediction.player2]}</span>
-    </div>
-  </div>
-)}
+                  <div className="bar">
+                    <div
+                      className={winner === prediction.player1 ? "barFill winBar" : "barFill"}
+                      style={{ width: (prediction.prediction?.[prediction.player1] || 0) + "%" }}
+                    />
+                  </div>
 
-      <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
-        
-<span className={winner === prediction.player1 ? "winnerName" : ""}>
-  {prediction.player1}
-</span>
-        <strong>{prediction.prediction[prediction.player1]}%</strong>
-      </div>
+                  <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>
+                    <span className={winner === prediction.player2 ? "winnerName" : ""}>
+                      {prediction.player2}
+                    </span>
+                    <strong>{prediction.prediction?.[prediction.player2]}%</strong>
+                  </div>
 
-      <div className="bar">
-  <div
-    className={winner === prediction.player1 ? "barFill winBar" : "barFill"}
-    style={{ width: prediction.prediction[prediction.player1] + "%" }}
-  />
-</div>
+                  <p className="confidence">
+                    Confidence: {prediction.confidence}%
+                  </p>
 
-      <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>
-        <span className={winner === prediction.player2 ? "winnerName" : ""}>
-  {prediction.player2}
-</span>
-        <strong>{prediction.prediction[prediction.player2]}%</strong>
-      </div>
+                  <p className="edge">{prediction.edge}</p>
 
-      <p className={`confidence ${
-  prediction.confidence > 10
-    ? "high"
-    : prediction.confidence > 5
-    ? "mid"
-    : "low"
-}`}>
-  Confidence: {prediction.confidence}%
-</p>
-      <p className="edge">{prediction.edge}</p>
-      {prediction.explain && (
-  <p className="proExplain">
-    🧠 {prediction.explain}
-  </p>
-)}
-      <div className="valueBox">
-  <h4>💰 Value Bet Check</h4>
+                  {prediction.explain && (
+                    <p className="proExplain">🧠 {prediction.explain}</p>
+                  )}
 
-  <input
-    type="number"
-    step="0.01"
-    value={odds1}
-    onChange={(e) => setOdds1(Number(e.target.value))}
-    placeholder={`${prediction.player1} odds`}
-  />
+                  <div className="valueBox">
+                    <h4>💰 Value Bet Check</h4>
 
-  <input
-    type="number"
-    step="0.01"
-    value={odds2}
-    onChange={(e) => setOdds2(Number(e.target.value))}
-    placeholder={`${prediction.player2} odds`}
-  />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={odds1}
+                      onChange={(e) => setOdds1(Number(e.target.value))}
+                    />
 
-  <p className={(prediction.prediction[prediction.player1] - 100 / odds1) > 0 ? "valuePositive" : "valueNegative"}>
-  {prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1) > 0 ? "+" : ""} ({(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%)
-</p>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={odds2}
+                      onChange={(e) => setOdds2(Number(e.target.value))}
+                    />
 
-<p className={(prediction.prediction[prediction.player2] - 100 / odds2) > 0 ? "valuePositive" : "valueNegative"}>
-  {prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2) > 0 ? "+" : ""} ({(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%)
-</p>
-</div>
+                    <p>
+                      {prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%
+                    </p>
 
- {prediction.factors && (
-  <div className="factorBox">
-    <h4>Prediction Explain</h4>
+                    <p>
+                      {prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%
+                    </p>
+                  </div>
 
-    <FactorBar label="Ranking" value={prediction.factors.ranking} />
-    <FactorBar label="Form" value={prediction.factors.form} />
-    <FactorBar label="Clutch" value={prediction.factors.clutch} />
-    <FactorBar label="Momentum" value={prediction.factors.momentum} />
+                  {p1Data && p2Data && (
+                    <div className="compareBox">
+                      <h4>Player Compare</h4>
+                      <p>Serve: {p1Data.serve} vs {p2Data.serve}</p>
+                      <p>Return: {p1Data.return} vs {p2Data.return}</p>
+                      <p>Clutch: {p1Data.clutch} vs {p2Data.clutch}</p>
+                      <p>Momentum: {p1Data.momentum} vs {p2Data.momentum}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </Panel>
+          </>
+        )}
 
-    <p className="surfaceNote">
-      Surface: {prediction.factors.surface}
-    </p>
-
-    <div className="advantageBox">
-      <h4>Matchup Edge</h4>
-      <p>Ranking Edge: {p1Data.rank < p2Data.rank ? p1 : p2}</p>
-      <p>Serve Edge: {p1Data.serve > p2Data.serve ? p1 : p2}</p>
-      <p>Return Edge: {p1Data.return > p2Data.return ? p1 : p2}</p>
-      <p>Momentum Edge: {p1Data.momentum > p2Data.momentum ? p1 : p2}</p>
-    </div>
-
-    {p1Data && p2Data && (
-      <div className="compareBox">
-        <h4>Player Compare</h4>
-        <p>Serve: {p1Data.serve} vs {p2Data.serve}</p>
-        <p>Return: {p1Data.return} vs {p2Data.return}</p>
-        <p>Clutch: {p1Data.clutch} vs {p2Data.clutch}</p>
-        <p>Momentum: {p1Data.momentum} vs {p2Data.momentum}</p>
-      </div>
-    )}
-  </div>
-
-)}
-  </>
-)}
-</Panel>
-</>
-)}
         {tab === "surface" && (
           <>
             <Header title="Surface Lab" />
@@ -517,7 +431,7 @@ const demoOddsB = 2.00;
           <>
             <Header title="H2H Intelligence" />
             <Panel title="Matchup Insight">
-              <p className="insight">Daten kommen jetzt über dein Backend. Nächster Schritt: echte Tennis-API anbinden.</p>
+              <p className="insight">Daten kommen jetzt über dein Backend.</p>
             </Panel>
           </>
         )}
@@ -531,12 +445,12 @@ function Header({ title }) {
 }
 
 function Panel({ title, children }) {
- return (
-  <div className="panel">
-    <h3>{title}</h3>
-    {children}
-  </div>
-);
+  return (
+    <div className="panel">
+      <h3>{title}</h3>
+      {children}
+    </div>
+  );
 }
 
 function Kpis({ data }) {
@@ -553,19 +467,5 @@ function Kpis({ data }) {
 }
 
 function Card({ label, value }) {
- return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
-}
-
-function FactorBar({ label, value }) {
-  return (
-    <div className="factorRow">
-      <div className="factorTop">
-        <span>{label}</span>
-        <strong>{value}%</strong>
-      </div>
-      <div className="factorTrack">
-        <div style={{ width: value + "%" }} />
-      </div>
-    </div>
-  );
+  return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
 }
