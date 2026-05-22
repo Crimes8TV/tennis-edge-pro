@@ -814,15 +814,17 @@ app.get("/api/news/:player", async (req, res) => {
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
     const today = new Date();
+    // Aktuelles + nächste 2 Wochen (laufende Turniere einschließen)
     const start = new Date(today);
-    start.setDate(today.getDate() + 1);
+    start.setDate(today.getDate() - 7); // auch laufende Turniere
     const end = new Date(today);
     end.setDate(today.getDate() + 14);
 
     const dateStart = start.toISOString().split("T")[0];
     const dateEnd = end.toISOString().split("T")[0];
+    const todayStr = today.toISOString().split("T")[0];
 
-    // ATP Singles (265) + ATP Doubles (267)
+    // ATP Singles (265) + ATP Doubles (267) + alle bisherigen Matches des Turniers
     const [singlesRes, doublesRes, standingsRes] = await Promise.allSettled([
       apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 265 }),
       apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 267 }),
@@ -912,7 +914,12 @@ app.get("/api/tournament-predictions", async (req, res) => {
       // Turniersieg-Wahrscheinlichkeit
       // Realistischer Ansatz: Rang-basierte Exponentialfunktion
       // #1 hat exponentiell mehr Chance als #10, #10 mehr als #50
-      const top8 = playerList.slice(0, Math.min(8, playerList.length));
+      // Ausgeschiedene Spieler aus der Berechnung entfernen
+      const eliminatedNames = new Set([...tourn.eliminated].map(p => getFullName(p).toLowerCase()));
+      const activePlayers = playerList.filter(p => !eliminatedNames.has(p.name.toLowerCase()));
+      const stillIn = activePlayers.length > 0 ? activePlayers : playerList;
+      const top8 = stillIn.slice(0, Math.min(8, stillIn.length));
+      const eliminatedCount = playerList.length - stillIn.length;
       
       // Score = e^(-rank * 0.15) → stärkere Differenzierung
       const scores = top8.map(p => ({
@@ -934,7 +941,11 @@ app.get("/api/tournament-predictions", async (req, res) => {
         winProbs: winProbs.slice(0, 5),
         rounds: Object.entries(rounds).map(([round, matches]) => ({ round, matches }))
           .sort((a, b) => a.round.localeCompare(b.round)),
-        drawSet: playerList.length > 0
+        drawSet: playerList.length > 0,
+        eliminatedCount,
+        activePlayerCount: stillIn.length,
+        isLive: tourn.matches.some(m => m.event_live === "1" || m.event_live === 1),
+        hasStarted: tourn.eliminated.size > 0
       };
     }).sort((a, b) => a.dateStart.localeCompare(b.dateStart));
 
