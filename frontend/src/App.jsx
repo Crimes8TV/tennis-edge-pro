@@ -76,6 +76,46 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
   );
 }
 
+function MatchCard({ m, onClick }) {
+  const isLive = m.live;
+  const isFinished = m.finished;
+  const catAtp = m.category?.includes("ATP");
+
+  return (
+    <div className="matchCard" onClick={onClick}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
+          {isLive
+            ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
+            : isFinished
+            ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Beendet</span>
+            : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>
+          }
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "2px" }}>{m.player1}</div>
+          <div style={{ fontSize: "14px", color: isFinished ? "#475569" : "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
+        </div>
+        {(isLive || isFinished) && m.score && m.score !== "-" && (
+          <div style={{ textAlign: "right", minWidth: "60px" }}>
+            <div style={{ fontSize: "15px", fontWeight: 700, color: isLive ? "#4ade80" : "#64748b" }}>{m.score}</div>
+            {isLive && m.gameScore && m.gameScore !== "-" && (
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>{m.gameScore}</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="matchCardMeta" style={{ marginTop: "6px" }}>{m.tournament}</div>
+    </div>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState("dashboard");
   const [players, setPlayers] = useState([]);
@@ -247,12 +287,12 @@ export default function App() {
             <div className="dashGrid">
               <div>
                 <div className="dashSectionHeader">
-                  {liveMatches.length > 0
+                  {fixtures.some(m => m.live)
                     ? <><span className="liveDot" />Live Matches</>
                     : <>📅 Heute — {new Date().toLocaleDateString("de-DE")}</>
                   }
                 </div>
-                {liveMatches.length > 0 ? (
+                {fixtures.some(m => m.live) ? (
                   <div className="matchCardGrid">
                     {liveMatches.slice(0, 5).map((m, i) => (
                       <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
@@ -276,18 +316,7 @@ export default function App() {
                 ) : (
                   <div className="matchCardGrid">
                     {fixtures.slice(0, 5).map((m, i) => (
-                      <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
-                          <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
-                          {m.time && <span style={{fontSize:"12px",color:"#94a3b8"}}>🕐 {m.time}</span>}
-                        </div>
-                        <div className="matchCardPlayers">
-                          <span>{m.player1}</span>
-                          <span className="matchCardVs">vs</span>
-                          <span>{m.player2}</span>
-                        </div>
-                        <div className="matchCardMeta">{m.tournament}</div>
-                      </div>
+                      <MatchCard key={i} m={m} onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }} />
                     ))}
                     {fixtures.length > 5 && (
                       <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length - 5} weitere → alle anzeigen</p>
@@ -351,30 +380,16 @@ export default function App() {
               }
             </p>
 
-            {liveMatches.length > 0 && (
-              <div style={{marginBottom:"32px"}}>
-                <div className="dashSectionHeader"><span className="liveDot"/>Live jetzt</div>
-                <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                  {liveMatches.map((m, i) => (
-                    <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
-                        <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
-                        <span style={{fontSize:"11px",color:"#f87171",fontWeight:700}}>{m.status}</span>
-                      </div>
-                      <div className="matchCardPlayers">
-                        <span>{m.player1}</span>
-                        <span className="matchCardScore">{m.score !== "-" ? m.score : "vs"}</span>
-                        <span>{m.player2}</span>
-                      </div>
-                      <div className="matchCardMeta">{m.tournament}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div>
-              <div className="dashSectionHeader">📅 Alle Matches heute</div>
+              <div className="dashSectionHeader">
+                📅 Alle Matches heute
+                {fixtures.filter(m => m.live).length > 0 && (
+                  <span style={{marginLeft:"12px",fontSize:"12px",color:"#f87171",fontWeight:700}}>
+                    <span style={{display:"inline-block",width:"7px",height:"7px",borderRadius:"50%",background:"#f87171",marginRight:"4px",boxShadow:"0 0 6px #f87171"}} />
+                    {fixtures.filter(m => m.live).length} Live
+                  </span>
+                )}
+              </div>
               {fixturesLoading ? (
                 <p style={{color:"#94a3b8"}}>⏳ Lade Matches...</p>
               ) : fixtures.length === 0 ? (
@@ -382,18 +397,7 @@ export default function App() {
               ) : (
                 <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
                   {fixtures.map((m, i) => (
-                    <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
-                        <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
-                        {m.time && <span style={{fontSize:"12px",color:"#94a3b8"}}>🕐 {m.time}</span>}
-                      </div>
-                      <div className="matchCardPlayers">
-                        <span>{m.player1}</span>
-                        <span className="matchCardVs">vs</span>
-                        <span>{m.player2}</span>
-                      </div>
-                      <div className="matchCardMeta">{m.tournament}</div>
-                    </div>
+                    <MatchCard key={i} m={m} onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }} />
                   ))}
                 </div>
               )}
