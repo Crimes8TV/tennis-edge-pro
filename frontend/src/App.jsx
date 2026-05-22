@@ -244,17 +244,20 @@ export default function App() {
       .catch(err => { console.error(err); setValuePicksLoading(false); });
   }, []);
 
-  const loadFixtures = () => {
-    fetch("https://tennis-edge-backend.onrender.com/api/fixtures/today")
-      .then(res => { if (!res.ok) throw new Error("Fehler"); return res.json(); })
-      .then(data => { setFixtures(Array.isArray(data) ? data : []); setFixturesLoading(false); })
-      .catch(err => { console.error("Fixtures Fehler:", err); setFixtures([]); setFixturesLoading(false); });
-  };
-
   useEffect(() => {
+    const loadFixtures = () => {
+      fetch("https://tennis-edge-backend.onrender.com/api/fixtures/today")
+        .then(res => { if (!res.ok) throw new Error("Fehler"); return res.json(); })
+        .then(data => {
+          const arr = Array.isArray(data) ? data : [];
+          console.log("Fixtures:", arr.length, "Live:", arr.filter(m=>m.live).length);
+          setFixtures(arr);
+          setFixturesLoading(false);
+        })
+        .catch(err => { console.error("Fixtures Fehler:", err); setFixtures([]); setFixturesLoading(false); });
+    };
     setFixturesLoading(true);
     loadFixtures();
-    // Alle 30 Sekunden aktualisieren
     const interval = setInterval(loadFixtures, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -295,8 +298,8 @@ export default function App() {
               <div>
                 <div className="dashSectionHeader">
                   {fixtures.some(m => m.live)
-                    ? <><span className="liveDot" />{fixtures.filter(m=>m.live).length} Live · Heute {new Date().toLocaleDateString("de-DE")}</>
-                    : <>📅 Heute — {new Date().toLocaleDateString("de-DE")}</>
+                    ? <><span className="liveDot" />{fixtures.filter(m=>m.live).length} Live · Heute {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})}</>
+                    : <>📅 Heute — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})}</>
                   }
                 </div>
                 {fixtures.some(m => m.live) ? (
@@ -383,7 +386,7 @@ export default function App() {
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
               {liveMatches.length > 0
                 ? `🔴 ${liveMatches.length} Live Matches`
-                : `📅 Heute — ${new Date().toLocaleDateString("de-DE")} · ${fixtures.length} Matches`
+                : `📅 Heute — ${new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})} · ${fixtures.length} Matches`
               }
             </p>
 
@@ -415,7 +418,7 @@ export default function App() {
                 {tab === "valuepicks" && (
           <>
             <Header title="Value Picks" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE")}</p>
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})}</p>
 
             <div>
               <div className="dashSectionHeader">💰 Value Picks heute</div>
