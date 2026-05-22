@@ -909,19 +909,17 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const r2temp = getRank(m.event_second_player);
         const avgRank = (r1temp + r2temp) / 2;
         
-        // Qualifikation wenn: "qual" im Namen ODER durchschnittlicher Rang > 130
-        // (Hauptfeld ATP hat max 104 Spieler + Lucky Losers)
+        // Qualifikation überspringen — nur Hauptfeld anzeigen
         const isQual = roundLower.includes("qual") || 
                        roundLower.includes("pre-") ||
                        roundLower.includes("qualification") ||
                        avgRank > 110;
-        const section = isQual ? "Qualifikation" : "Hauptfeld";
+        if (isQual) return;
 
         // Singles oder Doubles aus Event-Type oder Round-Name
         const eventType = (m.event_type_type || m._type || tourn.type || "").toLowerCase();
         const discipline = eventType.includes("double") || roundLower.includes("double") ? "Doubles" : "Singles";
-
-        const sectionFinal = isQual ? "Qualifikation" : "Hauptfeld";
+        const sectionFinal = "Hauptfeld";
 
         // Bereinigter Rundenname - alles vor dem letzten " - " entfernen
         const dashIdx = roundName.lastIndexOf(" - ");
