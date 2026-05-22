@@ -81,9 +81,22 @@ function MatchCard({ m, onClick }) {
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
 
+  // Sets aus score parsen z.B. "6-4, 3-6, 2-1"
+  const sets = m.score && m.score !== "-"
+    ? m.score.split(",").map(s => s.trim()).filter(Boolean).map(s => {
+        const parts = s.split("-");
+        return { p1: parts[0]?.trim(), p2: parts[1]?.trim() };
+      })
+    : [];
+
+  // Game Score aufteilen z.B. "40 - 30"
+  const gameParts = m.gameScore && m.gameScore !== "-"
+    ? m.gameScore.split("-").map(s => s.trim())
+    : null;
+
   return (
     <div className="matchCard" onClick={onClick}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
         <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
@@ -96,22 +109,40 @@ function MatchCard({ m, onClick }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "2px" }}>{m.player1}</div>
-          <div style={{ fontSize: "14px", color: isFinished ? "#475569" : "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
-        </div>
-        {(isLive || isFinished) && m.score && m.score !== "-" && (
-          <div style={{ textAlign: "right", minWidth: "60px" }}>
-            <div style={{ fontSize: "15px", fontWeight: 700, color: isLive ? "#4ade80" : "#64748b" }}>{m.score}</div>
-            {isLive && m.gameScore && m.gameScore !== "-" && (
-              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>{m.gameScore}</div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Score Tabelle */}
+      {(isLive || isFinished) && sets.length > 0 ? (
+        <div style={{ marginBottom: "8px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "28px").join(" ")}${isLive && gameParts ? " 36px" : ""}`, gap: "4px", alignItems: "center" }}>
+            {/* Headers */}
+            <div />
+            {sets.map((_, i) => (
+              <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>
+            ))}
+            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Now</div>}
 
-      <div className="matchCardMeta" style={{ marginTop: "6px" }}>{m.tournament}</div>
+            {/* Player 1 */}
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
+            {sets.map((s, i) => (
+              <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>
+            ))}
+            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "13px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
+
+            {/* Player 2 */}
+            <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
+            {sets.map((s, i) => (
+              <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>
+            ))}
+            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "13px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: "8px" }}>
+          <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px" }}>{m.player1}</div>
+          <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
+        </div>
+      )}
+
+      <div className="matchCardMeta">{m.tournament}</div>
     </div>
   );
 }
