@@ -646,7 +646,17 @@ app.get("/api/match/:matchKey", async (req, res) => {
       return sets;
     };
 
-    const sets = extractSets(match);
+    let sets = extractSets(match);
+    
+    // Fallback: wenn keine individuellen Sets, Score-String "1 - 1" als Satz-Stand verwenden
+    if (sets.length === 0) {
+      const scoreStr = match.event_final_result || "";
+      const parts = scoreStr.replace(/ /g, "").split("-");
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        sets = [{ p1: parts[0], p2: parts[1], set: 1, isTotalSets: true }];
+      }
+    }
+
     const isLive = match._isLive || match.event_live === "1" || match.event_live === 1;
 
     // event_serve: wer aufschlägt (1 = Player1, 2 = Player2)
