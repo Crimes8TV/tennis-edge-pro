@@ -530,12 +530,24 @@ app.get("/api/fixtures/today", async (req, res) => {
       const isLive = !!liveMatch || m.event_live === "1" || m.event_live === 1;
       const isFinished = m.event_status === "Finished" || m.event_status === "After Extra Time";
 
+      const src = liveMatch || m;
+      // Individuelle Set-Scores extrahieren (API fields: score_first, score_second etc.)
+      const setScores = [];
+      for (let i = 1; i <= 5; i++) {
+        const p1s = src[`score_first_${i}`] ?? src[`scores_home_${i}`];
+        const p2s = src[`score_second_${i}`] ?? src[`scores_away_${i}`];
+        if (p1s !== undefined && p1s !== null && p1s !== "") {
+          setScores.push({ p1: String(p1s), p2: String(p2s ?? "-") });
+        }
+      }
+
       return {
         player1: m.event_first_player,
         player2: m.event_second_player,
-        score: liveMatch?.event_final_result || m.event_final_result || "-",
-        gameScore: liveMatch?.event_game_result || "-",
-        status: isLive ? (liveMatch?.event_status || "Live") : isFinished ? "Beendet" : m.event_status || "Geplant",
+        score: src.event_final_result || "-",
+        gameScore: src.event_game_result || "-",
+        sets: setScores,
+        status: isLive ? (src.event_status || "Live") : isFinished ? "Beendet" : m.event_status || "Geplant",
         tournament: m.tournament_name || "",
         category: m._category || "",
         time: m.event_time || "",
