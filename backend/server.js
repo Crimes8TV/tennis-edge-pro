@@ -258,14 +258,17 @@ app.get("/api/predict", async (req, res) => {
   const rankBoost = Math.min(30, rankDiff * 0.4);
   const confidence = Math.min(99, Math.round(gap * 1.8 + rankBoost));
 
-  // Abgeleitete Spieler-Stats aus Rang und Elo
+  // Abgeleitete Spieler-Stats aus Rang und Elo — realistisch skaliert
   const deriveStats = (rank, elo) => {
-    const base = Math.max(50, 100 - rank * 0.4);
+    // Rang 1 = ~88, Rang 50 = ~75, Rang 100 = ~68, Rang 200 = ~60
+    const base = Math.max(55, Math.min(88, 90 - Math.sqrt(rank) * 2.5));
+    const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
+    const rand = () => (Math.random() - 0.5) * 6;
     return {
-      serve:    Math.min(99, Math.round(base + (elo - 1800) * 0.015 + Math.random() * 6)),
-      return:   Math.min(99, Math.round(base + (elo - 1800) * 0.012 + Math.random() * 6)),
-      clutch:   Math.min(99, Math.round(base + (elo - 1800) * 0.010 + Math.random() * 8)),
-      momentum: Math.min(99, Math.round(base + (elo - 1800) * 0.011 + Math.random() * 7)),
+      serve:    Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
+      return:   Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
+      clutch:   Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
+      momentum: Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
     };
   };
   const p1Stats = deriveStats(Number(rank1), elo1);
