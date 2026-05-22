@@ -930,8 +930,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
         if (cl === "final" || cl === "finals") cleanRound = "Final";
         else if (cl.includes("semi")) cleanRound = "Semi-Finals";
         else if (cl.includes("quarter")) cleanRound = "Quarter-Finals";
-        else if (cl.includes("1/8")) cleanRound = "1/8-Finals";
-        else if (cl.includes("1/16")) cleanRound = "1/16-Finals";
+        else if (cl.includes("1/8") || cl === "round 2" || cl === "r2") cleanRound = "1/8-Finals";
+        else if (cl.includes("1/16") || cl === "round 1" || cl === "r1" || cl === "first round") cleanRound = "1/16-Finals";
         else if (cl.includes("1/32")) cleanRound = "1/32-Finals";
         else if (cl.includes("1/64")) cleanRound = "1/64-Finals";
 
@@ -1036,9 +1036,17 @@ app.get("/api/tournament-predictions", async (req, res) => {
               "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
             };
             const max = maxMatches[r.round] || 999;
-            // Neueste Matches nehmen (nach Datum sortiert)
-            const sorted = [...r.matches].sort((a, b) => {
-              if (a.date && b.date) return b.date.localeCompare(a.date);
+            // Deduplizieren (gleiche Spielerpaarung nur einmal)
+            const seen = new Set();
+            const unique = r.matches.filter(m => {
+              const key = [m.player1, m.player2].sort().join("|||");
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            // Nach Datum sortieren (älteste zuerst = frühere Runden oben)
+            const sorted = [...unique].sort((a, b) => {
+              if (a.date && b.date) return a.date.localeCompare(b.date);
               return 0;
             });
             return { ...r, matches: sorted.slice(0, max) };
