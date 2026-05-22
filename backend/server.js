@@ -406,5 +406,54 @@ app.get("/api/valuepicks", async (req, res) => {
   }
 });
 
+
+// ─── HEUTIGE FIXTURES (geplante Matches) ─────────────────────────────────────
+app.get("/api/fixtures/today", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const eventTypes = [
+      { key: 265, label: "ATP Singles" },
+      { key: 267, label: "ATP Doubles" },
+      { key: 281, label: "Challenger Singles" },
+      { key: 282, label: "Challenger Doubles" }
+    ];
+
+    const results = await Promise.allSettled(
+      eventTypes.map(et =>
+        apiGet({
+          method: "get_fixtures",
+          date_start: today,
+          date_stop: today,
+          event_type_key: et.key
+        }).then(r => (r.data?.result || []).map(m => ({ ...m, _category: et.label })))
+      )
+    );
+
+    const allMatches = results
+      .filter(r => r.status === "fulfilled")
+      .flatMap(r => r.value);
+
+    const formatted = allMatches
+      .filter(m => m.event_status !== "Finished")
+      .map(m => ({
+        player1: m.event_first_player,
+        player2: m.event_second_player,
+        score: m.event_final_result || "-",
+        status: m.event_status || "Geplant",
+        tournament: m.tournament_name || "",
+        category: m._category || "",
+        time: m.event_time || "",
+        live: m.event_live === "1" || m.event_live === 1,
+        matchKey: m.event_key
+      }))
+      .sort((a, b) => (a.time > b.time ? 1 : -1));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("FIXTURES TODAY ERROR:", err.message);
+    res.status(500).json({ error: "Fehler beim Laden der Fixtures" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
