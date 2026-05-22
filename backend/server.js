@@ -532,12 +532,13 @@ app.get("/api/fixtures/today", async (req, res) => {
 
       const src = liveMatch || m;
       // Set-Scores aus scores Array (score_first/score_second/score_set)
+      const parseScore = (val) => val !== undefined && val !== null ? String(val).split(".")[0] : "-";
       const setScores = [];
       if (Array.isArray(src.scores) && src.scores.length > 0) {
         const sorted = [...src.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
         sorted.forEach(s => {
           if (s.score_first !== undefined && s.score_first !== null) {
-            setScores.push({ p1: String(s.score_first), p2: String(s.score_second ?? "-") });
+            setScores.push({ p1: parseScore(s.score_first), p2: parseScore(s.score_second) });
           }
         });
       }
@@ -619,9 +620,10 @@ app.get("/api/match/:matchKey", async (req, res) => {
         const sorted = [...m.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
         sorted.forEach(s => {
           if (s.score_first !== undefined && s.score_first !== null) {
+            // score_first kann "6" oder "6.3" sein — nur Integer-Teil nehmen
             sets.push({
-              p1: String(s.score_first),
-              p2: String(s.score_second ?? "-"),
+              p1: String(s.score_first).split(".")[0],
+              p2: String(s.score_second ?? "-").split(".")[0],
               set: parseInt(s.score_set)
             });
           }
