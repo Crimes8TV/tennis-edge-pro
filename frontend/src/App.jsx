@@ -176,6 +176,8 @@ export default function App() {
   const [tournamentPreds, setTournamentPreds] = useState([]);
   const [tournamentPredsLoading, setTournamentPredsLoading] = useState(false);
   const [expandedTournament, setExpandedTournament] = useState(null);
+  const [collapsedRounds, setCollapsedRounds] = useState({});
+  const toggleRound = (key) => setCollapsedRounds(prev => ({ ...prev, [key]: !prev[key] }));
   const [matchDetailLoading, setMatchDetailLoading] = useState(false);
   const [selectedMatchKey, setSelectedMatchKey] = useState(null);
   const [prediction, setPrediction] = useState(null);
@@ -1204,17 +1206,15 @@ export default function App() {
                           <div style={{ marginBottom: "20px" }}>
                             <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>🏅 Turniersieg-Wahrscheinlichkeit</h4>
                             {tourn.winProbs.map((p, i) => (
-                              <div key={i} style={{ marginBottom: "10px" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
-                                  <span style={{ color: i === 0 ? "#4ade80" : "#cbd5e1" }}>
-                                    {i === 0 && "⭐ "}{p.name}
-                                  </span>
-                                  <span style={{ color: "#475569", fontSize: "11px" }}>#{p.rank}</span>
-                                  <strong style={{ color: i === 0 ? "#4ade80" : "#94a3b8" }}>{p.winProb}%</strong>
-                                </div>
-                                <div style={{ height: "6px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
+                              <div key={i} style={{ marginBottom: "10px", display: "flex", alignItems: "center", gap: "12px" }}>
+                                <span style={{ width: "36px", fontSize: "11px", color: "#475569", flexShrink: 0, textAlign: "right" }}>#{p.rank}</span>
+                                <span style={{ width: "160px", fontSize: "13px", color: i === 0 ? "#4ade80" : "#cbd5e1", flexShrink: 0, fontWeight: i === 0 ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {i === 0 && "⭐ "}{p.name}
+                                </span>
+                                <div style={{ flex: 1, height: "6px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
                                   <div style={{ width: `${p.winProb}%`, height: "100%", background: i === 0 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : i === 1 ? "#6366f1" : "#334155", borderRadius: "999px", transition: "width 0.4s ease" }} />
                                 </div>
+                                <strong style={{ width: "40px", textAlign: "right", fontSize: "13px", color: i === 0 ? "#4ade80" : "#94a3b8", flexShrink: 0 }}>{p.winProb}%</strong>
                               </div>
                             ))}
                           </div>
@@ -1224,32 +1224,47 @@ export default function App() {
                         {tourn.rounds?.length > 0 && (
                           <div>
                             <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>📋 Runden-Predictions</h4>
-                            {tourn.rounds.map((r, ri) => (
-                              <div key={ri} style={{ marginBottom: "16px" }}>
-                                <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>{r.round}</div>
-                                {r.matches.map((m, mi) => (
-                                  <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", marginBottom: "6px", background: "rgba(255,255,255,0.03)", borderRadius: "10px", cursor: "pointer" }}
-                                    onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                                    <div style={{ flex: 1 }}>
-                                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                        <span style={{ fontSize: "13px", color: m.prediction === m.player1 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player1 ? 700 : 400 }}>{m.player1}</span>
-                                        <span style={{ color: "#475569", fontSize: "11px" }}>#{m.rank1}</span>
-                                      </div>
-                                      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "4px" }}>
-                                        <span style={{ fontSize: "13px", color: m.prediction === m.player2 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player2 ? 700 : 400 }}>{m.player2}</span>
-                                        <span style={{ color: "#475569", fontSize: "11px" }}>#{m.rank2}</span>
-                                      </div>
-                                    </div>
-                                    <div style={{ textAlign: "right", minWidth: "80px" }}>
-                                      <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "2px" }}>Pick</div>
-                                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#4ade80" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
-                                      <div style={{ fontSize: "11px", color: "#64748b" }}>{m.prob}%</div>
-                                    </div>
-                                    {m.date && <div style={{ fontSize: "11px", color: "#475569", marginLeft: "8px" }}>🕐 {m.time || m.date}</div>}
+                            {tourn.rounds.map((r, ri) => {
+                              const roundKey = `${ti}-${ri}`;
+                              const isRoundCollapsed = collapsedRounds[roundKey];
+                              return (
+                                <div key={ri} style={{ marginBottom: "8px", background: "rgba(255,255,255,0.02)", borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                  {/* Runden-Header klickbar */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", cursor: "pointer", userSelect: "none" }}
+                                    onClick={() => toggleRound(roundKey)}>
+                                    <span style={{ fontSize: "11px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isRoundCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
+                                    <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", flex: 1 }}>{r.round}</span>
+                                    <span style={{ fontSize: "11px", color: "#475569" }}>{r.matches.length} Matches</span>
                                   </div>
-                                ))}
-                              </div>
-                            ))}
+                                  {/* Matches */}
+                                  {!isRoundCollapsed && (
+                                    <div style={{ padding: "0 10px 10px" }}>
+                                      {r.matches.map((m, mi) => (
+                                        <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", marginBottom: "4px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", cursor: "pointer" }}
+                                          onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
+                                          <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                                              <span style={{ fontSize: "13px", color: m.prediction === m.player1 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player1 ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</span>
+                                              <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank1}</span>
+                                            </div>
+                                            <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "3px" }}>
+                                              <span style={{ fontSize: "13px", color: m.prediction === m.player2 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player2 ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</span>
+                                              <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank2}</span>
+                                            </div>
+                                          </div>
+                                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "8px" }}>
+                                            <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "1px" }}>Pick</div>
+                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "#4ade80" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
+                                            <div style={{ fontSize: "11px", color: "#64748b" }}>{m.prob}%</div>
+                                          </div>
+                                          {m.time && <div style={{ fontSize: "10px", color: "#475569", marginLeft: "6px", flexShrink: 0 }}>🕐 {m.time}</div>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
 
