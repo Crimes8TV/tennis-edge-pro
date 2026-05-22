@@ -874,7 +874,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
     const getRank = (name) => {
       const lastName = (name || "").toLowerCase().split(" ").pop();
       const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
-      return found ? parseInt(found.place) || 100 : 100;
+      // Unbekannte Spieler (nicht in Top 200) bekommen Rang 200+
+      return found ? parseInt(found.place) || 200 : 200;
     };
 
     const getFullName = (shortName) => {
@@ -913,7 +914,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const isQual = roundLower.includes("qual") || 
                        roundLower.includes("pre-") ||
                        roundLower.includes("qualification") ||
-                       avgRank > 130;
+                       avgRank > 110;
         const section = isQual ? "Qualifikation" : "Hauptfeld";
 
         // Singles oder Doubles aus Event-Type oder Round-Name
@@ -938,7 +939,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
         const key = `${sectionFinal}|||${discipline}|||${cleanRound}`;
         if (!rounds[key]) rounds[key] = { section: sectionFinal, discipline, round: cleanRound, matches: [] };
-        if (!rounds[key]) rounds[key] = { section, discipline, round: cleanRound, matches: [] };
 
         const p1 = getFullName(m.event_first_player);
         const p2 = getFullName(m.event_second_player);
@@ -950,13 +950,18 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
         if (p1 && p2) {
           // Tatsächliches Ergebnis falls vorhanden
-          const isFinished = m.event_status === "Finished" || m.event_winner;
+          const isFinished = m.event_status === "Finished" || 
+                             m.event_status === "After Extra Time" ||
+                             (m.event_winner && m.event_winner !== "");
           const actualWinner = isFinished && m.event_winner
             ? (m.event_winner === "First Player" ? p1 : p2)
             : null;
-          const score = m.event_final_result || null;
+          const score = m.event_final_result && m.event_final_result !== "-" ? m.event_final_result : null;
           const predPick = prob1 > 50 ? p1 : p2;
-          const correct = actualWinner ? (predPick === actualWinner) : null;
+          // Vergleich über Nachnamen da Namen manchmal leicht abweichen
+          const winnerLast = actualWinner ? actualWinner.toLowerCase().split(" ").pop() : null;
+          const predLast = predPick ? predPick.toLowerCase().split(" ").pop() : null;
+          const correct = winnerLast && predLast ? (winnerLast === predLast) : null;
 
           rounds[key].matches.push({
             player1: p1,
