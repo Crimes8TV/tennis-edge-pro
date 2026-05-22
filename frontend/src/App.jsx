@@ -127,6 +127,9 @@ export default function App() {
   const [h2hP2, setH2hP2] = useState("");
   const [h2hData, setH2hData] = useState(null);
   const [h2hLoading, setH2hLoading] = useState(false);
+  const [matchDetail, setMatchDetail] = useState(null);
+  const [matchDetailLoading, setMatchDetailLoading] = useState(false);
+  const [selectedMatchKey, setSelectedMatchKey] = useState(null);
   const [prediction, setPrediction] = useState(null);
 
   const [p1, setP1] = useState("");
@@ -203,6 +206,18 @@ export default function App() {
       .then(data => setCompareStats(data))
       .catch(err => console.error(err));
   }, [comparePlayer]);
+
+  const openMatchDetail = (m) => {
+    if (!m.matchKey) return;
+    setSelectedMatchKey(m.matchKey);
+    setMatchDetail(null);
+    setMatchDetailLoading(true);
+    setTab("matchdetail");
+    fetch(`https://tennis-edge-backend.onrender.com/api/match/${m.matchKey}`)
+      .then(res => res.json())
+      .then(data => { setMatchDetail(data); setMatchDetailLoading(false); })
+      .catch(err => { console.error(err); setMatchDetailLoading(false); });
+  };
 
   const fetchH2H = () => {
     if (!h2hP1 || !h2hP2) return;
@@ -288,6 +303,7 @@ export default function App() {
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
         <button onClick={() => setTab("h2h")}><Trophy /> H2H Intelligence</button>
+        {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
       </aside>
 
       <main>
@@ -326,7 +342,7 @@ export default function App() {
                 ) : (
                   <div className="matchCardGrid">
                     {fixtures.slice(0, 5).map((m, i) => (
-                      <MatchCard key={i} m={m} onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }} />
+                      <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1), setP2(m.player2), setTab("predictor"))} />
                     ))}
                     {fixtures.length > 5 && (
                       <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length - 5} weitere → alle anzeigen</p>
@@ -407,7 +423,7 @@ export default function App() {
               ) : (
                 <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
                   {fixtures.map((m, i) => (
-                    <MatchCard key={i} m={m} onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }} />
+                    <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1), setP2(m.player2), setTab("predictor"))} />
                   ))}
                 </div>
               )}
@@ -782,6 +798,86 @@ export default function App() {
                 </>
               )}
             </Panel>
+          </>
+        )}
+
+        {tab === "matchdetail" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+              <h2 style={{ margin: 0, color: "#67e8f9" }}>Match Detail</h2>
+              {matchDetail?.live && (
+                <span style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "20px", padding: "4px 12px", fontSize: "12px", color: "#f87171", fontWeight: 700 }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite" }} />
+                  LIVE
+                </span>
+              )}
+            </div>
+
+            {matchDetailLoading ? (
+              <p style={{ color: "#94a3b8" }}>⏳ Lade Match-Details...</p>
+            ) : !matchDetail ? (
+              <p style={{ color: "#94a3b8" }}>Keine Daten verfügbar.</p>
+            ) : (
+              <>
+                <Panel title={`${matchDetail.tournament}${matchDetail.round ? " · " + matchDetail.round : ""}`}>
+                  {matchDetail.surface && (
+                    <p style={{ color: "#94a3b8", fontSize: "13px", marginTop: 0 }}>
+                      Belag: {matchDetail.surface === "clay" ? "🧱 Clay" : matchDetail.surface === "grass" ? "🌿 Grass" : "🏟️ Hard"}
+                    </p>
+                  )}
+
+                  {/* Score Board */}
+                  <div style={{ background: "#0f172a", borderRadius: "16px", padding: "24px", marginBottom: "20px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "8px 16px", alignItems: "center" }}>
+                      {/* Header */}
+                      <div />
+                      {matchDetail.sets.map((_, i) => (
+                        <div key={i} style={{ textAlign: "center", fontSize: "11px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>
+                      ))}
+                      {matchDetail.live && <div style={{ textAlign: "center", fontSize: "11px", color: "#f87171", fontWeight: 700 }}>Game</div>}
+
+                      {/* Player 1 */}
+                      <div style={{ fontSize: "16px", fontWeight: 700, color: "#e2e8f0" }}>{matchDetail.player1}</div>
+                      {matchDetail.sets.map((s, i) => (
+                        <div key={i} style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#64748b" }}>{s.p1 || "-"}</div>
+                      ))}
+                      {matchDetail.live && (
+                        <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: "#facc15" }}>
+                          {matchDetail.gameScore?.split("-")[0] || "-"}
+                        </div>
+                      )}
+
+                      {/* Player 2 */}
+                      <div style={{ fontSize: "16px", fontWeight: 700, color: "#e2e8f0" }}>{matchDetail.player2}</div>
+                      {matchDetail.sets.map((s, i) => (
+                        <div key={i} style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#64748b" }}>{s.p2 || "-"}</div>
+                      ))}
+                      {matchDetail.live && (
+                        <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 700, color: "#facc15" }}>
+                          {matchDetail.gameScore?.split("-")[1] || "-"}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: "16px", textAlign: "center", fontSize: "13px", color: matchDetail.live ? "#f87171" : "#64748b", fontWeight: 600 }}>
+                      {matchDetail.status}
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <button className="predictBtn" style={{ flex: 1, padding: "12px" }}
+                      onClick={() => { setP1(matchDetail.player1); setP2(matchDetail.player2); setTab("predictor"); }}>
+                      ⚡ Match Prediction
+                    </button>
+                    <button className="predictBtn" style={{ flex: 1, padding: "12px", background: "linear-gradient(135deg,#8b5cf6,#6366f1)" }}
+                      onClick={() => { setH2hP1(matchDetail.player1); setH2hP2(matchDetail.player2); setTab("h2h"); fetchH2H(); }}>
+                      ⚔️ H2H laden
+                    </button>
+                  </div>
+                </Panel>
+              </>
+            )}
           </>
         )}
 
