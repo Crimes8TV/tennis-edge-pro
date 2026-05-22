@@ -1250,7 +1250,19 @@ export default function App() {
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", cursor: "pointer", userSelect: "none" }}
                                     onClick={() => toggleRound(roundKey)}>
                                     <span style={{ fontSize: "11px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isRoundCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
-                                    <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", flex: 1 }}>{r.round}</span>
+                                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                      {r.section && (
+                                        <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: r.section === "Hauptfeld" ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)", color: r.section === "Hauptfeld" ? "#22d3ee" : "#facc15" }}>
+                                          {r.section === "Hauptfeld" ? "🏆 Hauptfeld" : "🔑 Qualifikation"}
+                                        </span>
+                                      )}
+                                      {r.discipline && (
+                                        <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
+                                          {r.discipline === "Singles" ? "👤 Singles" : "👥 Doubles"}
+                                        </span>
+                                      )}
+                                      <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{r.round}</span>
+                                    </div>
                                     <span style={{ fontSize: "11px", color: "#475569" }}>{r.matches.length} Matches</span>
                                   </div>
                                   {/* Matches */}
