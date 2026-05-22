@@ -935,8 +935,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
         else if (cl.includes("1/32")) cleanRound = "1/32-Finals";
         else if (cl.includes("1/64")) cleanRound = "1/64-Finals";
 
-        const key = `${sectionFinal}|||${discipline}|||${cleanRound}`;
-        if (!rounds[key]) rounds[key] = { section: sectionFinal, discipline, round: cleanRound, matches: [] };
+        const key = `${discipline}|||${cleanRound}`;
+        if (!rounds[key]) rounds[key] = { discipline, round: cleanRound, matches: [] };
 
         const p1 = getFullName(m.event_first_player);
         const p2 = getFullName(m.event_second_player);
@@ -1024,12 +1024,24 @@ app.get("/api/tournament-predictions", async (req, res) => {
         winProbs: winProbs.slice(0, 5),
         rounds: Object.values(rounds)
           .sort((a, b) => {
-            // Hauptfeld vor Qualifikation
-            if (a.section !== b.section) return a.section === "Hauptfeld" ? -1 : 1;
             // Singles vor Doubles
             if (a.discipline !== b.discipline) return a.discipline === "Singles" ? -1 : 1;
             // Runden in korrekter Reihenfolge
             return getRoundIndex(a.round) - getRoundIndex(b.round);
+          })
+          .map(r => {
+            // Max matches pro Runde begrenzen
+            const maxMatches = {
+              "1/64-Finals": 64, "1/32-Finals": 32, "1/16-Finals": 16,
+              "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
+            };
+            const max = maxMatches[r.round] || 999;
+            // Neueste Matches nehmen (nach Datum sortiert)
+            const sorted = [...r.matches].sort((a, b) => {
+              if (a.date && b.date) return b.date.localeCompare(a.date);
+              return 0;
+            });
+            return { ...r, matches: sorted.slice(0, max) };
           }),
         drawSet: playerList.length > 0,
         eliminatedCount,
