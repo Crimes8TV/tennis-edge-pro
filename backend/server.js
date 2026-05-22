@@ -314,6 +314,68 @@ app.get("/api/predict", async (req, res) => {
   const p1Stats = deriveStats(Number(rank1), elo1);
   const p2Stats = deriveStats(Number(rank2), elo2);
 
+  // ── Set-Win Wahrscheinlichkeit ──────────────────────────────────────────────
+  // Basiert auf Elo + Surface-Modifikator
+  const surfaceSetMod = surface === "clay" ? 0.03 : surface === "grass" ? -0.02 : 0;
+  const setWinP1 = Math.min(0.85, Math.max(0.15, expected1 + surfaceSetMod + (surfMod1 - surfMod2) * 0.01));
+  const setWinP2 = 1 - setWinP1;
+
+  // ── Handicap-Empfehlung (Games) ──────────────────────────────────────────────
+  // Typisches Tennis-Matchformat: Best of 3 (6 Games pro Satz)
+  // Erwartete Games-Differenz pro Satz basierend auf Set-Win%
+  // Wenn setWinP1 = 0.65 → Favorit gewinnt ~65% der Sätze
+  // Expected games: Favorit ~6.2, Underdog ~4.1 pro Satz
+  const expectedGamesPerSetWinner = 6 + Math.max(0, (Math.max(setWinP1, setWinP2) - 0.5) * 2);
+  const expectedGamesPerSetLoser = Math.max(1, 6 - (Math.max(setWinP1, setWinP2) - 0.5) * 8);
+  
+  const favoriteIsP1 = setWinP1 >= setWinP2;
+  const favWinProb = Math.max(setWinP1, setWinP2);
+  const favorite = favoriteIsP1 ? p1 : p2;
+  const underdog = favoriteIsP1 ? p2 : p1;
+
+  // Erwartete Total-Games über 3 Sätze
+  // Szenario 1: Favorit gewinnt 2-0 (prob: favWinProb^2)
+  // Szenario 2: Favorit gewinnt 2-1 (prob: 2*favWinProb^2*(1-favWinProb))
+  // Szenario 3: Underdog gewinnt 2-1 (prob: 2*favWinProb*(1-favWinProb)^2)
+  // Szenario 4: Underdog gewinnt 2-0 (prob: (1-favWinProb)^2)
+  const p = favWinProb;
+  const q = 1 - p;
+  
+  const sc20 = p*p; // fav 2-0
+  const sc21 = 2*p*p*q; // fav 2-1
+  const sc12 = 2*p*q*q; // dog 2-1
+  const sc02 = q*q; // dog 2-0
+  
+  // Expected games für Favorit und Underdog
+  const favGames20 = 2 * expectedGamesPerSetWinner;
+  const dogGames20 = 2 * expectedGamesPerSetLoser;
+  const favGames21 = 2 * expectedGamesPerSetWinner + expectedGamesPerSetLoser;
+  const dogGames21 = 2 * expectedGamesPerSetLoser + expectedGamesPerSetWinner;
+  const favGames12 = expectedGamesPerSetWinner + 2 * expectedGamesPerSetLoser;
+  const dogGames12 = expectedGamesPerSetLoser + 2 * expectedGamesPerSetWinner;
+  const favGames02 = 2 * expectedGamesPerSetLoser;
+  const dogGames02 = 2 * expectedGamesPerSetWinner;
+  
+  const expFavGames = sc20*favGames20 + sc21*favGames21 + sc12*favGames12 + sc02*favGames02;
+  const expDogGames = sc20*dogGames20 + sc21*dogGames21 + sc12*dogGames12 + sc02*dogGames02;
+  const expGameDiff = expFavGames - expDogGames;
+  
+  // Handicap-Linie: runde auf .5
+  const handicapLine = Math.round(expGameDiff * 2) / 2;
+  
+  // Handicap-Empfehlung
+  let handicapPick, handicapReason;
+  if (handicapLine >= 2) {
+    handicapPick = `${favorite} -${handicapLine} Games`;
+    handicapReason = `${favorite} dominiert erwartungsgemäß um ~${handicapLine} Games. Favorit auf Handicap empfohlen.`;
+  } else if (handicapLine >= 0.5) {
+    handicapPick = `${favorite} -${handicapLine} Games (knapp)`;
+    handicapReason = `Kleiner Vorteil für ${favorite}. Handicap nur bei guter Quote spielen.`;
+  } else {
+    handicapPick = `Kein klares Handicap`;
+    handicapReason = `Zu ausgeglichen für eine Handicap-Empfehlung.`;
+  }
+
   res.json({
     player1: p1,
     player2: p2,
@@ -322,6 +384,21 @@ app.get("/api/predict", async (req, res) => {
     prediction: { [p1]: p1Win, [p2]: 100 - p1Win },
     confidence,
     playerStats: { [p1]: p1Stats, [p2]: p2Stats },
+    setWinProb: {
+      [p1]: Math.round(setWinP1 * 100),
+      [p2]: Math.round(setWinP2 * 100)
+    },
+    handicap: {
+      line: handicapLine,
+      favorite,
+      underdog,
+      pick: handicapPick,
+      reason: handicapReason,
+      expGames: {
+        [favorite]: Math.round(expFavGames * 10) / 10,
+        [underdog]: Math.round(expDogGames * 10) / 10
+      }
+    },
     factors: {
       ranking: Math.round(rankingFactor),
       form: Math.round(formFactor),
