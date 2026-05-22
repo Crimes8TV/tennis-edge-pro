@@ -621,6 +621,40 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  {h2hData.h2h_matches?.length > 0 && (() => {
+                    const getSurface = (tn) => {
+                      const t = (tn || "").toLowerCase();
+                      if (t.includes("clay") || t.includes("roland") || t.includes("french") || t.includes("monte") || t.includes("madrid") || t.includes("rome") || t.includes("barcelona")) return "clay";
+                      if (t.includes("grass") || t.includes("wimbledon") || t.includes("halle") || t.includes("queens")) return "grass";
+                      return "hard";
+                    };
+                    const surfaces = ["hard","clay","grass"];
+                    const icons = { hard: "🏟️", clay: "🧱", grass: "🌿" };
+                    const colors = { hard: "#22d3ee", clay: "#ef4444", grass: "#4ade80" };
+                    const surfaceStats = surfaces.map(s => {
+                      const matches = h2hData.h2h_matches.filter(m => getSurface(m.tournament_name) === s);
+                      const w1 = matches.filter(m => m.event_winner === "First Player").length;
+                      const w2 = matches.filter(m => m.event_winner === "Second Player").length;
+                      return { s, w1, w2, total: matches.length };
+                    }).filter(x => x.total > 0);
+                    return surfaceStats.length > 0 ? (
+                      <div style={{ marginTop: "20px", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "12px" }}>
+                        {surfaceStats.map(({ s, w1, w2, total }) => (
+                          <div key={s} style={{ background: `${colors[s]}11`, border: `1px solid ${colors[s]}33`, borderRadius: "14px", padding: "14px", textAlign: "center" }}>
+                            <div style={{ fontSize: "20px", marginBottom: "4px" }}>{icons[s]}</div>
+                            <div style={{ fontSize: "11px", color: colors[s], textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px", fontWeight: 700 }}>{s}</div>
+                            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
+                              <span style={{ fontSize: "22px", fontWeight: 900, color: "#22d3ee" }}>{w1}</span>
+                              <span style={{ color: "#475569" }}>:</span>
+                              <span style={{ fontSize: "22px", fontWeight: 900, color: "#f472b6" }}>{w2}</span>
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>{total} Spiele</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </Panel>
 
                 {h2hData.h2h_matches?.length > 0 && (
@@ -631,6 +665,7 @@ export default function App() {
                           <tr style={{ color: "#94a3b8", borderBottom: "1px solid rgba(34,211,238,0.2)" }}>
                             <th style={{ padding: "8px", textAlign: "left" }}>Datum</th>
                             <th style={{ padding: "8px", textAlign: "left" }}>Turnier</th>
+                            <th style={{ padding: "8px", textAlign: "left" }}>Belag</th>
                             <th style={{ padding: "8px", textAlign: "left" }}>Ergebnis</th>
                             <th style={{ padding: "8px", textAlign: "left" }}>Sieger</th>
                           </tr>
@@ -638,10 +673,32 @@ export default function App() {
                         <tbody>
                           {h2hData.h2h_matches.map((m, i) => {
                             const p1Won = m.event_winner === "First Player";
+                            const tn = (m.tournament_name || "").toLowerCase();
+                            const surface = tn.includes("clay") || tn.includes("roland") || tn.includes("french") || tn.includes("monte") || tn.includes("madrid") || tn.includes("rome") || tn.includes("barcelona")
+                              ? { label: "Clay", icon: "🧱", color: "#ef4444" }
+                              : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens") || tn.includes("eastbourne")
+                              ? { label: "Grass", icon: "🌿", color: "#4ade80" }
+                              : tn.includes("indoor") || tn.includes("hard") || tn.includes("australian") || tn.includes("us open") || tn.includes("miami") || tn.includes("indian wells") || tn.includes("cincinnati")
+                              ? { label: "Hard", icon: "🏟️", color: "#22d3ee" }
+                              : { label: "Hard", icon: "🏟️", color: "#22d3ee" };
                             return (
                               <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                                 <td style={{ padding: "8px", color: "#64748b" }}>{m.event_date}</td>
                                 <td style={{ padding: "8px", color: "#cbd5e1" }}>{m.tournament_name}</td>
+                                <td style={{ padding: "8px" }}>
+                                  <span style={{
+                                    background: `${surface.color}22`,
+                                    color: surface.color,
+                                    border: `1px solid ${surface.color}44`,
+                                    borderRadius: "6px",
+                                    padding: "2px 8px",
+                                    fontSize: "11px",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap"
+                                  }}>
+                                    {surface.icon} {surface.label}
+                                  </span>
+                                </td>
                                 <td style={{ padding: "8px", color: "#94a3b8" }}>{m.event_final_result}</td>
                                 <td style={{ padding: "8px" }}>
                                   <span style={{
@@ -670,11 +727,18 @@ export default function App() {
                   <Panel title={`📈 Letzte Spiele: ${h2hP1}`}>
                     {h2hData.p1_recent?.length > 0 ? h2hData.p1_recent.map((m, i) => {
                       const won = m.event_winner === "First Player";
+                      const tn = (m.tournament_name || "").toLowerCase();
+                      const surface = tn.includes("clay") || tn.includes("roland") || tn.includes("french") || tn.includes("monte") || tn.includes("madrid") || tn.includes("rome") || tn.includes("barcelona")
+                        ? { icon: "🧱", color: "#ef4444" }
+                        : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens")
+                        ? { icon: "🌿", color: "#4ade80" }
+                        : { icon: "🏟️", color: "#22d3ee" };
                       return (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
                           <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
-                          <span style={{ color: "#cbd5e1", flex: 1, marginLeft: "8px" }}>{m.event_second_player}</span>
-                          <span style={{ color: "#64748b" }}>{m.event_date}</span>
+                          <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
+                          <span style={{ color: "#cbd5e1", flex: 1 }}>{m.event_second_player}</span>
+                          <span style={{ color: "#64748b", fontSize: "11px" }}>{m.event_date}</span>
                         </div>
                       );
                     }) : <p style={{ color: "#94a3b8" }}>Keine Daten</p>}
@@ -683,11 +747,18 @@ export default function App() {
                   <Panel title={`📈 Letzte Spiele: ${h2hP2}`}>
                     {h2hData.p2_recent?.length > 0 ? h2hData.p2_recent.map((m, i) => {
                       const won = m.event_winner === "Second Player";
+                      const tn = (m.tournament_name || "").toLowerCase();
+                      const surface = tn.includes("clay") || tn.includes("roland") || tn.includes("french") || tn.includes("monte") || tn.includes("madrid") || tn.includes("rome") || tn.includes("barcelona")
+                        ? { icon: "🧱", color: "#ef4444" }
+                        : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens")
+                        ? { icon: "🌿", color: "#4ade80" }
+                        : { icon: "🏟️", color: "#22d3ee" };
                       return (
-                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
                           <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
-                          <span style={{ color: "#cbd5e1", flex: 1, marginLeft: "8px" }}>{m.event_first_player}</span>
-                          <span style={{ color: "#64748b" }}>{m.event_date}</span>
+                          <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
+                          <span style={{ color: "#cbd5e1", flex: 1 }}>{m.event_first_player}</span>
+                          <span style={{ color: "#64748b", fontSize: "11px" }}>{m.event_date}</span>
                         </div>
                       );
                     }) : <p style={{ color: "#94a3b8" }}>Keine Daten</p>}
