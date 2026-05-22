@@ -531,48 +531,15 @@ app.get("/api/fixtures/today", async (req, res) => {
       const isFinished = m.event_status === "Finished" || m.event_status === "After Extra Time";
 
       const src = liveMatch || m;
-      // Set-Scores aus allen möglichen API-Feldern extrahieren
+      // Set-Scores aus scores Array (score_first/score_second/score_set)
       const setScores = [];
-      
-      // Methode 1: scores Array
-      if (Array.isArray(src.scores)) {
-        src.scores.forEach(s => {
-          if (s.score) {
-            const parts = s.score.split("-");
-            if (parts.length === 2) setScores.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+      if (Array.isArray(src.scores) && src.scores.length > 0) {
+        const sorted = [...src.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
+        sorted.forEach(s => {
+          if (s.score_first !== undefined && s.score_first !== null) {
+            setScores.push({ p1: String(s.score_first), p2: String(s.score_second ?? "-") });
           }
         });
-      }
-      
-      // Methode 2: score_home_1, score_away_1 etc.
-      if (setScores.length === 0) {
-        for (let i = 1; i <= 5; i++) {
-          const fields = [
-            [src[`score_home_${i}`], src[`score_away_${i}`]],
-            [src[`score_first_${i}`], src[`score_second_${i}`]],
-            [src[`home_score_${i}`], src[`away_score_${i}`]],
-            [src[`set_${i}_home`], src[`set_${i}_away`]],
-          ];
-          for (const [p1s, p2s] of fields) {
-            if (p1s !== undefined && p1s !== null && p1s !== "") {
-              setScores.push({ p1: String(p1s), p2: String(p2s ?? "-") });
-              break;
-            }
-          }
-        }
-      }
-      
-      // Methode 3: score string "6-4, 3-2" parsen
-      if (setScores.length === 0) {
-        const scoreStr = src.event_final_result || "";
-        if (scoreStr.includes(",")) {
-          scoreStr.split(",").forEach(s => {
-            const parts = s.trim().split("-");
-            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-              setScores.push({ p1: parts[0].trim(), p2: parts[1].trim() });
-            }
-          });
-        }
       }
 
       return {
@@ -643,46 +610,37 @@ app.get("/api/match/:matchKey", async (req, res) => {
 
     if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
 
-    // Alle möglichen Set-Score Felder extrahieren
+    // Set-Scores aus scores Array extrahieren (score_first, score_second, score_set)
     const extractSets = (m) => {
       const sets = [];
-      // Methode 1: score_home_1 / score_away_1
-      for (let i = 1; i <= 5; i++) {
-        const candidates = [
-          [m[`score_home_${i}`], m[`score_away_${i}`]],
-          [m[`score_first_${i}`], m[`score_second_${i}`]],
-          [m[`home_score_${i}`], m[`away_score_${i}`]],
-          [m[`set${i}_home`], m[`set${i}_away`]],
-          [m[`set_${i}_home`], m[`set_${i}_away`]],
-        ];
-        for (const [p1, p2] of candidates) {
-          if (p1 !== undefined && p1 !== null && p1 !== "") {
-            sets.push({ p1: String(p1), p2: String(p2 ?? "-") });
-            break;
-          }
-        }
-      }
-      // Methode 2: scores Array
-      if (sets.length === 0 && Array.isArray(m.scores)) {
-        m.scores.forEach(s => {
-          if (s.score) {
-            const parts = s.score.split("-");
-            if (parts.length === 2) sets.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+
+      // Methode 1: scores Array mit score_first/score_second/score_set
+      if (Array.isArray(m.scores) && m.scores.length > 0) {
+        const sorted = [...m.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
+        sorted.forEach(s => {
+          if (s.score_first !== undefined && s.score_first !== null) {
+            sets.push({
+              p1: String(s.score_first),
+              p2: String(s.score_second ?? "-"),
+              set: parseInt(s.score_set)
+            });
           }
         });
       }
-      // Methode 3: event_final_result "6-4, 3-6, 7-5"
+
+      // Methode 2: event_final_result "6-4, 3-6, 7-5"
       if (sets.length === 0) {
         const scoreStr = m.event_final_result || "";
         if (scoreStr.includes(",")) {
-          scoreStr.split(",").forEach(s => {
+          scoreStr.split(",").forEach((s, i) => {
             const parts = s.trim().split("-");
             if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-              sets.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+              sets.push({ p1: parts[0].trim(), p2: parts[1].trim(), set: i + 1 });
             }
           });
         }
       }
+
       return sets;
     };
 
