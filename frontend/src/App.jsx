@@ -937,7 +937,18 @@ export default function App() {
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
                           <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
                           <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
-                          <span style={{ color: "#cbd5e1", flex: 1 }}>{m.event_second_player}</span>
+                          <span style={{ color: "#cbd5e1", flex: 1 }}>{
+                            // Zeige den Gegner (nicht den gesuchten Spieler selbst)
+                            (() => {
+                              const name = h2hP1.toLowerCase();
+                              const p1l = (m.event_first_player||"").toLowerCase();
+                              const p2l = (m.event_second_player||"").toLowerCase();
+                              const p1last = p1l.split(" ").pop();
+                              const p2last = p2l.split(" ").pop();
+                              const namelast = name.split(" ").pop();
+                              return namelast === p1last ? m.event_second_player : m.event_first_player;
+                            })()
+                          }</span>
                           <span style={{ color: "#64748b", fontSize: "11px" }}>{m.event_date}</span>
                         </div>
                       );
@@ -957,7 +968,17 @@ export default function App() {
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
                           <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
                           <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
-                          <span style={{ color: "#cbd5e1", flex: 1 }}>{m.event_first_player}</span>
+                          <span style={{ color: "#cbd5e1", flex: 1 }}>{
+                            (() => {
+                              const name = h2hP2.toLowerCase();
+                              const p1l = (m.event_first_player||"").toLowerCase();
+                              const p2l = (m.event_second_player||"").toLowerCase();
+                              const p1last = p1l.split(" ").pop();
+                              const p2last = p2l.split(" ").pop();
+                              const namelast = name.split(" ").pop();
+                              return namelast === p2last ? m.event_first_player : m.event_second_player;
+                            })()
+                          }</span>
                           <span style={{ color: "#64748b", fontSize: "11px" }}>{m.event_date}</span>
                         </div>
                       );
