@@ -1190,6 +1190,11 @@ export default function App() {
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
                           <span style={{ fontSize: "16px", fontWeight: 800, color: isATP ? "#22d3ee" : "#facc15" }}>🏆 {tourn.name}</span>
                           <span className={`matchCardBadge ${isATP ? "atp" : "challenger"}`}>{tourn.type}</span>
+                          {tourn.discipline && (
+                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
+                              {tourn.discipline === "Singles" ? "👤 Singles" : "👥 Doubles"}
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#475569", flexWrap: "wrap" }}>
                           <span>{tourn.dateStart}</span>
@@ -1254,11 +1259,6 @@ export default function App() {
                                       {r.section && (
                                         <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: r.section === "Hauptfeld" ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)", color: r.section === "Hauptfeld" ? "#22d3ee" : "#facc15" }}>
                                           {r.section === "Hauptfeld" ? "🏆 Hauptfeld" : "🔑 Qualifikation"}
-                                        </span>
-                                      )}
-                                      {r.discipline && (
-                                        <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
-                                          {r.discipline === "Singles" ? "👤 Singles" : "👥 Doubles"}
                                         </span>
                                       )}
                                       <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{r.round}</span>
