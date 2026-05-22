@@ -914,11 +914,9 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const isQualRefined = isQual || roundLower.includes("qualification") || roundLower.includes("qualifying");
         const sectionFinal = isQualRefined ? "Qualifikation" : "Hauptfeld";
 
-        // Bereinigter Rundenname (ohne Turniernamen-Prefix "ATP GENEVA - ")
-        const cleanRound = roundName
-          .replace(/^ATP\s+\w+\s*-\s*/i, "")
-          .replace(/^[A-Z\s]+\s*-\s*/i, "")
-          .trim() || roundName;
+        // Bereinigter Rundenname - alles vor dem letzten " - " entfernen
+        const dashIdx = roundName.lastIndexOf(" - ");
+        const cleanRound = dashIdx !== -1 ? roundName.substring(dashIdx + 3).trim() : roundName.trim();
 
         const key = `${sectionFinal}|||${discipline}|||${cleanRound}`;
         if (!rounds[key]) rounds[key] = { section: sectionFinal, discipline, round: cleanRound, matches: [] };
