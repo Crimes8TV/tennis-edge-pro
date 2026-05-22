@@ -6,27 +6,20 @@ import {
 import { Activity, BarChart3, Trophy, Search, Zap } from "lucide-react";
 import "./App.css";
 
-function PlayerAutocomplete({ label, value, onChange, players, onOpenChange }) {
+function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
   const [query, setQuery] = useState(value || "");
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const DROPDOWN_HEIGHT = 220;
-
-  useEffect(() => {
-    setQuery(value || "");
-  }, [value]);
+  useEffect(() => { setQuery(value || ""); }, [value]);
 
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-        onOpenChange && onOpenChange(false);
-      }
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [onOpenChange]);
+  }, []);
 
   const filtered = query
     ? players.filter(p => p.toLowerCase().includes(query.toLowerCase()))
@@ -36,73 +29,43 @@ function PlayerAutocomplete({ label, value, onChange, players, onOpenChange }) {
     setQuery(name);
     onChange(name);
     setOpen(false);
-    onOpenChange && onOpenChange(false);
   };
 
   const handleChange = (e) => {
     setQuery(e.target.value);
     setOpen(true);
-    onOpenChange && onOpenChange(true);
     const exact = players.find(p => p.toLowerCase() === e.target.value.toLowerCase());
     if (exact) onChange(exact);
   };
 
-  const handleFocus = () => {
-    setOpen(true);
-    onOpenChange && onOpenChange(true);
-  };
-
   return (
-    <div ref={ref} style={{ width: "100%" }}>
+    <div ref={ref} className="playerSearchWrapper">
+      <span className="playerSearchLabel">Spieler {playerNum}</span>
       <div style={{ position: "relative" }}>
         <Search
-          size={14}
+          size={15}
           style={{
-            position: "absolute",
-            left: "10px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "var(--color-text-secondary)",
-            pointerEvents: "none"
+            position: "absolute", left: "13px", top: "50%",
+            transform: "translateY(-50%)", color: "#22d3ee", pointerEvents: "none"
           }}
         />
         <input
           type="text"
           value={query}
           onChange={handleChange}
-          onFocus={handleFocus}
+          onFocus={() => setOpen(true)}
           placeholder={label}
-          style={{ width: "100%", paddingLeft: "30px", boxSizing: "border-box" }}
+          className="playerSearchInput"
         />
       </div>
 
       {open && filtered.length > 0 && (
-        <ul style={{
-          width: "100%",
-          background: "var(--color-background-primary)",
-          border: "0.5px solid var(--color-border-secondary)",
-          borderRadius: "var(--border-radius-md)",
-          maxHeight: `${DROPDOWN_HEIGHT}px`,
-          overflowY: "auto",
-          margin: "4px 0 0 0",
-          padding: 0,
-          listStyle: "none",
-          boxSizing: "border-box"
-        }}>
+        <ul className="playerDropdown">
           {filtered.map(name => (
             <li
               key={name}
+              className={name === value ? "active" : ""}
               onMouseDown={() => handleSelect(name)}
-              style={{
-                padding: "8px 12px",
-                cursor: "pointer",
-                fontSize: "14px",
-                color: "var(--color-text-primary)",
-                background: name === value ? "var(--color-background-secondary)" : "transparent",
-                borderBottom: "0.5px solid var(--color-border-tertiary)"
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--color-background-secondary)"}
-              onMouseLeave={e => e.currentTarget.style.background = name === value ? "var(--color-background-secondary)" : "transparent"}
             >
               {name}
             </li>
@@ -134,16 +97,9 @@ export default function App() {
     typeof p.name === "string" ? p.name : p.name?.name || "";
 
   const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
-
   const active = safePlayers.find(p => getPlayerName(p) === player) || {};
-
-  const p1Data = safePlayers.find(p =>
-    getPlayerName(p).toLowerCase() === p1.toLowerCase()
-  );
-
-  const p2Data = safePlayers.find(p =>
-    getPlayerName(p).toLowerCase() === p2.toLowerCase()
-  );
+  const p1Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p1.toLowerCase());
+  const p2Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p2.toLowerCase());
 
   const winner =
     prediction?.prediction?.[prediction?.player1] >
@@ -153,10 +109,7 @@ export default function App() {
 
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
-      .then(res => {
-        if (!res.ok) throw new Error("API Fehler");
-        return res.json();
-      })
+      .then(res => { if (!res.ok) throw new Error("API Fehler"); return res.json(); })
       .then(data => {
         const formatted = Array.isArray(data) ? data : [];
         setPlayers(formatted);
@@ -212,20 +165,13 @@ export default function App() {
       const probB = 100 - probA;
       const valueA = probA - 50;
       const valueB = probB - 50;
-      return {
-        match: `${a} vs ${b}`,
-        pick: valueA > valueB ? a : b,
-        value: Math.max(valueA, valueB),
-      };
+      return { match: `${a} vs ${b}`, pick: valueA > valueB ? a : b, value: Math.max(valueA, valueB) };
     })
     .filter(Boolean)
     .filter(pick => pick.value > 0)
     .sort((a, b) => b.value - a.value);
 
-  const formData = (active.form || []).map((v, i) => ({
-    match: `M-${6 - i}`,
-    form: v,
-  }));
+  const formData = (active.form || []).map((v, i) => ({ match: `M-${6 - i}`, form: v }));
 
   const radarData = [
     { stat: "Serve", value: active.serve || 0 },
@@ -245,7 +191,6 @@ export default function App() {
       <aside className="sidebar">
         <h1>TennisEdge Pro</h1>
         <p>Advanced Tennis Analytics</p>
-
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
@@ -263,26 +208,19 @@ export default function App() {
                 <p>Keine Live Matches</p>
               ) : (
                 liveMatches.map((m, i) => (
-                  <p key={i} className="matchItem" onClick={() => {
-                    setP1(m.player1);
-                    setP2(m.player2);
-                    setTab("predictor");
-                  }}>
+                  <p key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
                     {m.player1} vs {m.player2}
                   </p>
                 ))
               )}
             </div>
-
             <div className="valuePicks">
               <h4>💰 Auto Value Picks</h4>
               {autoValuePicks.map((pick, i) => (
                 <p key={i}>#{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)</p>
               ))}
             </div>
-
             <Kpis data={active} />
-
             <div className="grid two">
               <Panel title="Formkurve">
                 <ResponsiveContainer width="100%" height={280}>
@@ -294,7 +232,6 @@ export default function App() {
                   </LineChart>
                 </ResponsiveContainer>
               </Panel>
-
               <Panel title="Performance Radar">
                 <ResponsiveContainer width="100%" height={280}>
                   <RadarChart data={radarData}>
@@ -314,19 +251,16 @@ export default function App() {
             <select value={player} onChange={e => setPlayer(e.target.value)}>
               {playerNames.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
-
             <Kpis data={active} />
-
             {playerStats && (
               <Panel title="Player Stats">
                 <p>Win Rate: {playerStats.stats?.winRate}%</p>
-                <p>Serve: {playerStats.stats?.serveRating}</p>
-                <p>Return: {playerStats.stats?.returnRating}</p>
-                <p>Fitness: {playerStats.stats?.fitness}</p>
-                <p>Hard: {playerStats.surfaces?.hard}</p>
-                <p>Clay: {playerStats.surfaces?.clay}</p>
-                <p>Grass: {playerStats.surfaces?.grass}</p>
-                <p>Form: {playerStats.recentForm?.join(" ")}</p>
+                <p>Titles: {playerStats.stats?.titles}</p>
+                <p>Rank: #{playerStats.stats?.rank}</p>
+                <p>Points: {playerStats.stats?.points}</p>
+                <p>Hard: {playerStats.surfaces?.hard}%</p>
+                <p>Clay: {playerStats.surfaces?.clay}%</p>
+                <p>Grass: {playerStats.surfaces?.grass}%</p>
               </Panel>
             )}
           </>
@@ -336,36 +270,47 @@ export default function App() {
           <>
             <Header title="Match Predictor" />
 
-            <div className="grid two" style={{ marginBottom: "1rem", alignItems: "flex-start" }}>
+            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
               <PlayerAutocomplete
-                label="Spieler 1 suchen..."
+                label="Name eingeben..."
+                playerNum={1}
                 value={p1}
                 onChange={setP1}
                 players={playerNames}
               />
               <PlayerAutocomplete
-                label="Spieler 2 suchen..."
+                label="Name eingeben..."
+                playerNum={2}
                 value={p2}
                 onChange={setP2}
                 players={playerNames}
               />
             </div>
 
-            <select
-              className="surfaceSelect"
-              value={surface}
-              onChange={(e) => setSurface(e.target.value)}
-            >
-              <option value="hard">Hard</option>
-              <option value="clay">Clay</option>
-              <option value="grass">Grass</option>
-            </select>
+            <div className="surfaceSelector">
+              {[
+                { value: "hard", icon: "🏟️", label: "Hard" },
+                { value: "clay", icon: "🧱", label: "Clay" },
+                { value: "grass", icon: "🌿", label: "Grass" }
+              ].map(s => (
+                <button
+                  key={s.value}
+                  className={`surfaceBtn ${surface === s.value ? "active" : ""}`}
+                  onClick={() => setSurface(s.value)}
+                >
+                  <span className="surfaceIcon">{s.icon}</span>
+                  <span className="surfaceLabel">{s.label}</span>
+                </button>
+              ))}
+            </div>
 
-            {!p1Data || !p2Data ? (
-              <p>Bitte zwei Spieler auswählen.</p>
-            ) : (
-              <button onClick={predictMatch}>Prediction berechnen</button>
-            )}
+            <button
+              className="predictBtn"
+              onClick={predictMatch}
+              disabled={!p1Data || !p2Data}
+            >
+              ⚡ Prediction berechnen
+            </button>
 
             <Panel title="Prediction Engine">
               {prediction && (
@@ -376,35 +321,23 @@ export default function App() {
                       prediction.prediction?.[prediction.player2] || 0
                     )}%)
                   </p>
-
                   <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
-                    <span className={winner === prediction.player1 ? "winnerName" : ""}>
-                      {prediction.player1}
-                    </span>
+                    <span className={winner === prediction.player1 ? "winnerName" : ""}>{prediction.player1}</span>
                     <strong>{prediction.prediction?.[prediction.player1]}%</strong>
                   </div>
-
                   <div className="bar">
                     <div
                       className={winner === prediction.player1 ? "barFill winBar" : "barFill"}
                       style={{ width: (prediction.prediction?.[prediction.player1] || 0) + "%" }}
                     />
                   </div>
-
                   <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>
-                    <span className={winner === prediction.player2 ? "winnerName" : ""}>
-                      {prediction.player2}
-                    </span>
+                    <span className={winner === prediction.player2 ? "winnerName" : ""}>{prediction.player2}</span>
                     <strong>{prediction.prediction?.[prediction.player2]}%</strong>
                   </div>
-
                   <p className="confidence">Confidence: {prediction.confidence}%</p>
                   <p className="edge">{prediction.edge}</p>
-
-                  {prediction.explain && (
-                    <p className="proExplain">🧠 {prediction.explain}</p>
-                  )}
-
+                  {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
                     <input type="number" step="0.01" value={odds1} onChange={(e) => setOdds1(Number(e.target.value))} />
@@ -412,14 +345,32 @@ export default function App() {
                     <p>{prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%</p>
                     <p>{prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%</p>
                   </div>
-
-                  {p1Data && p2Data && (
+                  {prediction.playerStats && (
                     <div className="compareBox">
                       <h4>Player Compare</h4>
-                      <p>Serve: {p1Data.serve} vs {p2Data.serve}</p>
-                      <p>Return: {p1Data.return} vs {p2Data.return}</p>
-                      <p>Clutch: {p1Data.clutch} vs {p2Data.clutch}</p>
-                      <p>Momentum: {p1Data.momentum} vs {p2Data.momentum}</p>
+                      {[
+                        { label: "Serve",    k: "serve" },
+                        { label: "Return",   k: "return" },
+                        { label: "Clutch",   k: "clutch" },
+                        { label: "Momentum", k: "momentum" },
+                      ].map(({ label, k }) => {
+                        const v1 = prediction.playerStats[prediction.player1]?.[k] || 0;
+                        const v2 = prediction.playerStats[prediction.player2]?.[k] || 0;
+                        const better1 = v1 > v2;
+                        return (
+                          <div key={k} style={{ marginBottom: "10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                              <span style={{ color: better1 ? "#4ade80" : "#94a3b8", fontWeight: better1 ? 700 : 400 }}>{v1}</span>
+                              <span style={{ color: "#94a3b8" }}>{label}</span>
+                              <span style={{ color: !better1 ? "#4ade80" : "#94a3b8", fontWeight: !better1 ? 700 : 400 }}>{v2}</span>
+                            </div>
+                            <div style={{ display: "flex", height: "6px", borderRadius: "999px", overflow: "hidden", background: "#1e293b" }}>
+                              <div style={{ width: `${Math.round(v1 / (v1 + v2) * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
+                              <div style={{ flex: 1, background: "#f472b6" }} />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>
@@ -461,9 +412,7 @@ export default function App() {
   );
 }
 
-function Header({ title }) {
-  return <h2>{title}</h2>;
-}
+function Header({ title }) { return <h2>{title}</h2>; }
 
 function Panel({ title, children }) {
   return (
