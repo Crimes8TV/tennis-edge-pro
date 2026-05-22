@@ -269,5 +269,125 @@ app.get("/api/predict", async (req, res) => {
   });
 });
 
+
+// ─── TAGESAKTUELLE VALUE PICKS ────────────────────────────────────────────────
+app.get("/api/valuepicks", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+
+    // 1. Heutige ATP Singles Fixtures holen
+    const fixturesRes = await apiGet({
+      method: "get_fixtures",
+      date_start: today,
+      date_stop: today,
+      event_type_key: 265
+    });
+
+    const matches = fixturesRes.data?.result || [];
+    if (matches.length === 0) return res.json([]);
+
+    // 2. Standings für Rank-Lookup
+    const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
+    const standings = standingsRes.data?.result || [];
+
+    const getRank = (name) => {
+      const short = name.split(" ").pop().toLowerCase();
+      const found = standings.find(p =>
+        (p.player || "").toLowerCase().includes(short)
+      );
+      return found ? parseInt(found.place) || 100 : 100;
+    };
+
+    const eloFromRank = (rank) => Math.max(1500, 2400 - rank * 6);
+
+    const valuePicks = [];
+
+    for (const match of matches.slice(0, 15)) {
+      const p1 = match.event_first_player;
+      const p2 = match.event_second_player;
+      if (!p1 || !p2) continue;
+
+      const rank1 = getRank(p1);
+      const rank2 = getRank(p2);
+      const elo1 = eloFromRank(rank1);
+      const elo2 = eloFromRank(rank2);
+
+      // Unsere Gewinnwahrscheinlichkeit via Elo
+      const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+      const prob1 = Math.round(expected1 * 100);
+      const prob2 = 100 - prob1;
+
+      // Quoten holen
+      let odds1 = null, odds2 = null;
+      let bookmaker = "-";
+      try {
+        const oddsRes = await apiGet({
+          method: "get_odds",
+          match_key: match.event_key
+        });
+        const oddsData = oddsRes.data?.result?.[match.event_key];
+        const homeAway = oddsData?.["Home/Away"];
+        if (homeAway) {
+          const books = Object.keys(homeAway.Home || {});
+          if (books.length > 0) {
+            bookmaker = books[0];
+            odds1 = parseFloat(homeAway.Home[bookmaker]);
+            odds2 = parseFloat(homeAway.Away[bookmaker]);
+          }
+        }
+      } catch (e) {}
+
+      // Value berechnen: unsere Prob - implizierte Buchmacher-Prob
+      let pick = null, edge = null, bestOdds = null;
+
+      if (odds1 && odds2) {
+        const implied1 = Math.round(100 / odds1);
+        const implied2 = Math.round(100 / odds2);
+        const edge1 = prob1 - implied1;
+        const edge2 = prob2 - implied2;
+
+        if (edge1 > edge2 && edge1 > 2) {
+          pick = p1;
+          edge = edge1;
+          bestOdds = odds1;
+        } else if (edge2 > edge1 && edge2 > 2) {
+          pick = p2;
+          edge = edge2;
+          bestOdds = odds2;
+        }
+      } else {
+        // Kein Odds-Daten: rein Elo-basiert
+        if (Math.abs(prob1 - 50) > 8) {
+          pick = prob1 > prob2 ? p1 : p2;
+          edge = Math.abs(prob1 - 50) - 8;
+          bestOdds = null;
+        }
+      }
+
+      if (pick) {
+        valuePicks.push({
+          match: `${p1} vs ${p2}`,
+          tournament: match.tournament_name || "",
+          pick,
+          ourProb: pick === p1 ? prob1 : prob2,
+          bestOdds,
+          edge: Math.round(edge * 10) / 10,
+          bookmaker,
+          matchKey: match.event_key,
+          time: match.event_time || ""
+        });
+      }
+    }
+
+    // Sortiert nach Edge absteigend
+    valuePicks.sort((a, b) => b.edge - a.edge);
+    res.json(valuePicks.slice(0, 10));
+
+  } catch (err) {
+    console.error("VALUE PICKS ERROR:", err.message);
+    res.status(500).json({ error: "Fehler beim Laden der Value Picks" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
