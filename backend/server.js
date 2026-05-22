@@ -689,8 +689,8 @@ app.get("/api/match/:matchKey", async (req, res) => {
     const sets = extractSets(match);
     const isLive = match._isLive || match.event_live === "1" || match.event_live === 1;
 
-    // Alle Rohdaten loggen für Debugging
-    console.log("Match raw keys:", Object.keys(match).filter(k => k.includes("score") || k.includes("set")).join(", "));
+    // event_serve: wer aufschlägt (1 = Player1, 2 = Player2)
+    const server = match.event_serve === "1" ? 1 : match.event_serve === "2" ? 2 : null;
 
     res.json({
       player1: match.event_first_player,
@@ -699,13 +699,15 @@ app.get("/api/match/:matchKey", async (req, res) => {
       gameScore: match.event_game_result || "-",
       status: match.event_status || "-",
       tournament: match.tournament_name || "",
-      category: match.event_type || "",
+      round: match.tournament_round || "",
       sets,
-      rawKeys: Object.keys(match),
+      scores: match.scores || [],
+      statistics: match.statistics || [],
+      pointbypoint: match.pointbypoint || [],
+      server,
       live: isLive,
       time: match.event_time || "",
       date: match.event_date || "",
-      round: match.event_round || "",
       surface: match.event_ground || ""
     });
   } catch (err) {
