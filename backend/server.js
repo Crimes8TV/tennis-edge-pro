@@ -909,12 +909,21 @@ app.get("/api/tournament-predictions", async (req, res) => {
         }
       });
 
-      // Turnier-Gewinn-Wahrscheinlichkeit (vereinfacht: Elo-basiert)
-      const totalElo = playerList.reduce((sum, p) => sum + p.elo, 0) || 1;
-      const winProbs = playerList.slice(0, 8).map(p => ({
+      // Turniersieg-Wahrscheinlichkeit via Elo-Rating
+      // Methode: Jeder Spieler hat Siegchance proportional zu seinem Elo^2
+      // (quadratisch weil stärkere Spieler überproportional bessere Chancen haben)
+      const top8 = playerList.slice(0, Math.min(8, playerList.length));
+      const eloSquaredSum = top8.reduce((sum, p) => sum + Math.pow(p.elo, 2), 0) || 1;
+      const winProbs = top8.map(p => ({
         ...p,
-        winProb: Math.round((p.elo / totalElo) * 100 * playerList.length / 8)
+        winProb: Math.round((Math.pow(p.elo, 2) / eloSquaredSum) * 100)
       })).sort((a, b) => b.winProb - a.winProb);
+      
+      // Normalisieren damit alles 100% ergibt
+      const totalWinProb = winProbs.reduce((sum, p) => sum + p.winProb, 0) || 1;
+      winProbs.forEach(p => {
+        p.winProb = Math.round((p.winProb / totalWinProb) * 100);
+      });
 
       return {
         name: tourn.name,
