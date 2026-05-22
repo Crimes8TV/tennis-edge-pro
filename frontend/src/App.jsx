@@ -83,6 +83,10 @@ export default function App() {
   const [playerStats, setPlayerStats] = useState(null);
   const [comparePlayer, setComparePlayer] = useState("");
   const [compareStats, setCompareStats] = useState(null);
+  const [h2hP1, setH2hP1] = useState("");
+  const [h2hP2, setH2hP2] = useState("");
+  const [h2hData, setH2hData] = useState(null);
+  const [h2hLoading, setH2hLoading] = useState(false);
   const [prediction, setPrediction] = useState(null);
 
   const [p1, setP1] = useState("");
@@ -143,6 +147,18 @@ export default function App() {
       .then(data => setCompareStats(data))
       .catch(err => console.error(err));
   }, [comparePlayer]);
+
+  const fetchH2H = () => {
+    if (!h2hP1 || !h2hP2) return;
+    const p1Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === h2hP1.toLowerCase());
+    const p2Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === h2hP2.toLowerCase());
+    if (!p1Data?.player_key || !p2Data?.player_key) return;
+    setH2hLoading(true);
+    fetch(`https://tennis-edge-backend.onrender.com/api/h2h?p1_key=${p1Data.player_key}&p2_key=${p2Data.player_key}`)
+      .then(res => res.json())
+      .then(data => { setH2hData(data); setH2hLoading(false); })
+      .catch(err => { console.error(err); setH2hLoading(false); });
+  };
 
   const predictMatch = () => {
     if (!p1 || !p2 || !p1Data || !p2Data) return;
@@ -548,9 +564,137 @@ export default function App() {
         {tab === "h2h" && (
           <>
             <Header title="H2H Intelligence" />
-            <Panel title="Matchup Insight">
-              <p className="insight">Daten kommen jetzt über dein Backend.</p>
-            </Panel>
+
+            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
+              <PlayerAutocomplete
+                label="Spieler 1..."
+                playerNum={1}
+                value={h2hP1}
+                onChange={setH2hP1}
+                players={playerNames}
+              />
+              <PlayerAutocomplete
+                label="Spieler 2..."
+                playerNum={2}
+                value={h2hP2}
+                onChange={setH2hP2}
+                players={playerNames}
+              />
+            </div>
+
+            <button
+              className="predictBtn"
+              onClick={fetchH2H}
+              disabled={!h2hP1 || !h2hP2}
+              style={{ marginBottom: "24px" }}
+            >
+              ⚡ H2H laden
+            </button>
+
+            {h2hLoading && <p style={{ color: "#94a3b8" }}>⏳ Lade H2H-Daten...</p>}
+
+            {h2hData && !h2hLoading && (
+              <>
+                <Panel title={`⚔️ ${h2hP1} vs ${h2hP2}`}>
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "40px", padding: "20px 0" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "48px", fontWeight: 900, color: "#22d3ee" }}>{h2hData.p1_wins}</div>
+                      <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>{h2hP1}</div>
+                    </div>
+                    <div style={{ fontSize: "24px", color: "#475569", fontWeight: 700 }}>:</div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "48px", fontWeight: 900, color: "#f472b6" }}>{h2hData.p2_wins}</div>
+                      <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>{h2hP2}</div>
+                    </div>
+                  </div>
+
+                  {h2hData.p1_wins + h2hData.p2_wins > 0 && (
+                    <div style={{ marginTop: "8px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
+                        <span>{Math.round(h2hData.p1_wins / (h2hData.p1_wins + h2hData.p2_wins) * 100)}%</span>
+                        <span>H2H Bilanz</span>
+                        <span>{Math.round(h2hData.p2_wins / (h2hData.p1_wins + h2hData.p2_wins) * 100)}%</span>
+                      </div>
+                      <div style={{ display: "flex", height: "10px", borderRadius: "999px", overflow: "hidden" }}>
+                        <div style={{ width: `${Math.round(h2hData.p1_wins / (h2hData.p1_wins + h2hData.p2_wins) * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
+                        <div style={{ flex: 1, background: "#f472b6" }} />
+                      </div>
+                    </div>
+                  )}
+                </Panel>
+
+                {h2hData.h2h_matches?.length > 0 && (
+                  <Panel title="📋 Letzte Begegnungen" style={{ marginTop: "20px" }}>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                        <thead>
+                          <tr style={{ color: "#94a3b8", borderBottom: "1px solid rgba(34,211,238,0.2)" }}>
+                            <th style={{ padding: "8px", textAlign: "left" }}>Datum</th>
+                            <th style={{ padding: "8px", textAlign: "left" }}>Turnier</th>
+                            <th style={{ padding: "8px", textAlign: "left" }}>Ergebnis</th>
+                            <th style={{ padding: "8px", textAlign: "left" }}>Sieger</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {h2hData.h2h_matches.map((m, i) => {
+                            const p1Won = m.event_winner === "First Player";
+                            return (
+                              <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                                <td style={{ padding: "8px", color: "#64748b" }}>{m.event_date}</td>
+                                <td style={{ padding: "8px", color: "#cbd5e1" }}>{m.tournament_name}</td>
+                                <td style={{ padding: "8px", color: "#94a3b8" }}>{m.event_final_result}</td>
+                                <td style={{ padding: "8px" }}>
+                                  <span style={{
+                                    color: p1Won ? "#22d3ee" : "#f472b6",
+                                    fontWeight: 700
+                                  }}>
+                                    {p1Won ? m.event_first_player : m.event_second_player}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Panel>
+                )}
+
+                {h2hData.h2h_matches?.length === 0 && (
+                  <Panel title="📋 Begegnungen">
+                    <p style={{ color: "#94a3b8" }}>Keine direkten Begegnungen in der Datenbank gefunden.</p>
+                  </Panel>
+                )}
+
+                <div className="grid two" style={{ marginTop: "20px" }}>
+                  <Panel title={`📈 Letzte Spiele: ${h2hP1}`}>
+                    {h2hData.p1_recent?.length > 0 ? h2hData.p1_recent.map((m, i) => {
+                      const won = m.event_winner === "First Player";
+                      return (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
+                          <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
+                          <span style={{ color: "#cbd5e1", flex: 1, marginLeft: "8px" }}>{m.event_second_player}</span>
+                          <span style={{ color: "#64748b" }}>{m.event_date}</span>
+                        </div>
+                      );
+                    }) : <p style={{ color: "#94a3b8" }}>Keine Daten</p>}
+                  </Panel>
+
+                  <Panel title={`📈 Letzte Spiele: ${h2hP2}`}>
+                    {h2hData.p2_recent?.length > 0 ? h2hData.p2_recent.map((m, i) => {
+                      const won = m.event_winner === "Second Player";
+                      return (
+                        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
+                          <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
+                          <span style={{ color: "#cbd5e1", flex: 1, marginLeft: "8px" }}>{m.event_first_player}</span>
+                          <span style={{ color: "#64748b" }}>{m.event_date}</span>
+                        </div>
+                      );
+                    }) : <p style={{ color: "#94a3b8" }}>Keine Daten</p>}
+                  </Panel>
+                </div>
+              </>
+            )}
           </>
         )}
       </main>
