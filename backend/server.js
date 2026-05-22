@@ -850,12 +850,20 @@ app.get("/api/tournament-predictions", async (req, res) => {
           type: m._type,
           matches: [],
           players: new Set(),
+          eliminated: new Set(),
           dateStart: m.event_date || dateStart,
         };
       }
       tournaments[key].matches.push(m);
       if (m.event_first_player) tournaments[key].players.add(m.event_first_player);
       if (m.event_second_player) tournaments[key].players.add(m.event_second_player);
+
+      // Ausgeschiedene aus abgeschlossenen Matches ermitteln
+      const isFinished = m.event_status === "Finished" || m.event_winner;
+      if (isFinished && m.event_winner) {
+        const loser = m.event_winner === "First Player" ? m.event_second_player : m.event_first_player;
+        if (loser) tournaments[key].eliminated.add(loser);
+      }
     });
 
     const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
