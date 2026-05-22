@@ -643,12 +643,54 @@ app.get("/api/match/:matchKey", async (req, res) => {
 
     if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
 
-    // Sets parsen aus event_final_result z.B. "6-4, 3-6, 7-5"
-    const scoreStr = match.event_final_result || "";
-    const sets = scoreStr.split(",").map(s => s.trim()).filter(Boolean).map(s => {
-      const [s1, s2] = s.split("-");
-      return { p1: s1?.trim(), p2: s2?.trim() };
-    });
+    // Alle möglichen Set-Score Felder extrahieren
+    const extractSets = (m) => {
+      const sets = [];
+      // Methode 1: score_home_1 / score_away_1
+      for (let i = 1; i <= 5; i++) {
+        const candidates = [
+          [m[`score_home_${i}`], m[`score_away_${i}`]],
+          [m[`score_first_${i}`], m[`score_second_${i}`]],
+          [m[`home_score_${i}`], m[`away_score_${i}`]],
+          [m[`set${i}_home`], m[`set${i}_away`]],
+          [m[`set_${i}_home`], m[`set_${i}_away`]],
+        ];
+        for (const [p1, p2] of candidates) {
+          if (p1 !== undefined && p1 !== null && p1 !== "") {
+            sets.push({ p1: String(p1), p2: String(p2 ?? "-") });
+            break;
+          }
+        }
+      }
+      // Methode 2: scores Array
+      if (sets.length === 0 && Array.isArray(m.scores)) {
+        m.scores.forEach(s => {
+          if (s.score) {
+            const parts = s.score.split("-");
+            if (parts.length === 2) sets.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+          }
+        });
+      }
+      // Methode 3: event_final_result "6-4, 3-6, 7-5"
+      if (sets.length === 0) {
+        const scoreStr = m.event_final_result || "";
+        if (scoreStr.includes(",")) {
+          scoreStr.split(",").forEach(s => {
+            const parts = s.trim().split("-");
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              sets.push({ p1: parts[0].trim(), p2: parts[1].trim() });
+            }
+          });
+        }
+      }
+      return sets;
+    };
+
+    const sets = extractSets(match);
+    const isLive = match._isLive || match.event_live === "1" || match.event_live === 1;
+
+    // Alle Rohdaten loggen für Debugging
+    console.log("Match raw keys:", Object.keys(match).filter(k => k.includes("score") || k.includes("set")).join(", "));
 
     res.json({
       player1: match.event_first_player,
@@ -659,7 +701,8 @@ app.get("/api/match/:matchKey", async (req, res) => {
       tournament: match.tournament_name || "",
       category: match.event_type || "",
       sets,
-      live: match.event_live === "1" || match.event_live === 1,
+      rawKeys: Object.keys(match),
+      live: isLive,
       time: match.event_time || "",
       date: match.event_date || "",
       round: match.event_round || "",
