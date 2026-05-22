@@ -814,9 +814,9 @@ app.get("/api/news/:player", async (req, res) => {
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
     const today = new Date();
-    // Aktuelles + nächste 2 Wochen (laufende Turniere einschließen)
+    // 4 Wochen zurück + 2 Wochen voraus um alle Turnierrunden zu erfassen
     const start = new Date(today);
-    start.setDate(today.getDate() - 7); // auch laufende Turniere
+    start.setDate(today.getDate() - 28);
     const end = new Date(today);
     end.setDate(today.getDate() + 14);
 
