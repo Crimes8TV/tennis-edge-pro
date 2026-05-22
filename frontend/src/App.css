@@ -8,13 +8,29 @@ body {
 .app {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .sidebar {
-  width: 270px;
+  width: 220px;
+  min-width: 220px;
   background: #0d1320;
-  padding: 28px;
+  padding: 24px 20px;
   border-right: 1px solid rgba(34,211,238,.2);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+main {
+  flex: 1;
+  padding: 32px 40px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .sidebar h1 {
@@ -57,10 +73,6 @@ body {
   color: #22d3ee;
 }
 
-main {
-  flex: 1;
-  padding: 36px;
-}
 
 h2 {
   color: #67e8f9;
@@ -355,3 +367,26 @@ select {
 
 button { transition: 0.25s ease; }
 button:hover { transform: scale(1.03); }
+
+/* ── VOLLBILD LAYOUT ── */
+html, body, #root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.kpis {
+  grid-template-columns: repeat(6, 1fr) !important;
+}
+
+@media (max-width: 1200px) {
+  .kpis { grid-template-columns: repeat(3, 1fr) !important; }
+  .two { grid-template-columns: 1fr !important; }
+}
+
+.sidebar h1 {
+  white-space: nowrap;
+  font-size: 20px;
+}
