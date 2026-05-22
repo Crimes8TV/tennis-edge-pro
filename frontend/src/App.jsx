@@ -81,13 +81,16 @@ function MatchCard({ m, onClick }) {
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
 
-  // Sets aus score parsen z.B. "6-4, 3-6, 2-1"
-  const sets = m.score && m.score !== "-"
-    ? m.score.split(",").map(s => s.trim()).filter(Boolean).map(s => {
-        const parts = s.split("-");
-        return { p1: parts[0]?.trim(), p2: parts[1]?.trim() };
-      })
-    : [];
+  // Sets direkt vom Backend (individuelle Set-Ergebnisse)
+  const sets = Array.isArray(m.sets) && m.sets.length > 0 ? m.sets : [];
+  
+  // Set-Zähler aus score "1 - 1" als Fallback
+  const setCount = sets.length === 0 && m.score && m.score !== "-"
+    ? (() => {
+        const parts = m.score.replace(/ /g, "").split("-");
+        return { p1: parts[0], p2: parts[1] };
+      })()
+    : null;
 
   // Game Score aufteilen z.B. "40 - 30"
   const gameParts = m.gameScore && m.gameScore !== "-"
@@ -110,29 +113,41 @@ function MatchCard({ m, onClick }) {
       </div>
 
       {/* Score Tabelle */}
-      {(isLive || isFinished) && sets.length > 0 ? (
+      {(isLive || isFinished) ? (
         <div style={{ marginBottom: "8px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "28px").join(" ")}${isLive && gameParts ? " 36px" : ""}`, gap: "4px", alignItems: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: `1fr${sets.length > 0 ? " " + sets.map(() => "28px").join(" ") : " 28px 28px"}${isLive && gameParts ? " 40px" : ""}`, gap: "4px 8px", alignItems: "center" }}>
             {/* Headers */}
             <div />
-            {sets.map((_, i) => (
-              <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>
-            ))}
-            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Now</div>}
+            {sets.length > 0
+              ? sets.map((_, i) => (
+                  <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>
+                ))
+              : [<div key="s1" style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S1</div>,
+                 <div key="s2" style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S2</div>]
+            }
+            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
 
             {/* Player 1 */}
             <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
-            {sets.map((s, i) => (
-              <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>
-            ))}
-            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "13px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
+            {sets.length > 0
+              ? sets.map((s, i) => (
+                  <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>
+                ))
+              : [<div key="s1" style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: setCount?.p1 > setCount?.p2 ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>,
+                 <div key="s2" style={{ textAlign: "center", fontSize: "13px", color: "#475569" }}>-</div>]
+            }
+            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
 
             {/* Player 2 */}
             <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
-            {sets.map((s, i) => (
-              <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>
-            ))}
-            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "13px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
+            {sets.length > 0
+              ? sets.map((s, i) => (
+                  <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>
+                ))
+              : [<div key="s1" style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: setCount?.p2 > setCount?.p1 ? "#4ade80" : "#94a3b8" }}>{setCount?.p2 ?? "-"}</div>,
+                 <div key="s2" style={{ textAlign: "center", fontSize: "13px", color: "#475569" }}>-</div>]
+            }
+            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
           </div>
         </div>
       ) : (
