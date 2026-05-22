@@ -97,6 +97,8 @@ export default function App() {
   const [liveMatches, setLiveMatches] = useState([]);
   const [valuePicks, setValuePicks] = useState([]);
   const [valuePicksLoading, setValuePicksLoading] = useState(true);
+  const [fixtures, setFixtures] = useState([]);
+  const [fixturesLoading, setFixturesLoading] = useState(true);
   const [surface, setSurface] = useState("hard");
 
   const safePlayers = Array.isArray(players) ? players : [];
@@ -221,32 +223,63 @@ export default function App() {
           <>
             <Header title="Live Dashboard" />
             <div className="topMatches">
-              <h4>🔥 Live Matches</h4>
-              {liveMatches.length === 0 ? (
-                <p style={{ color: "#94a3b8", fontSize: "14px" }}>Keine Live Matches</p>
-              ) : (
-                liveMatches.map((m, i) => (
-                  <div key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "14px", color: "#e2e8f0" }}>{m.player1} <span style={{ color: "#475569" }}>vs</span> {m.player2}</div>
-                      <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px" }}>
-                        {m.category && <span style={{
-                          background: m.category.includes("ATP") ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)",
-                          color: m.category.includes("ATP") ? "#22d3ee" : "#facc15",
-                          padding: "1px 6px", borderRadius: "4px", marginRight: "6px", fontSize: "10px", fontWeight: 700
-                        }}>{m.category}</span>}
-                        {m.tournament}
+              {liveMatches.length > 0 ? (
+                <>
+                  <h4>🔴 Live Matches</h4>
+                  {liveMatches.map((m, i) => (
+                    <div key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}
+                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f87171", display: "inline-block", boxShadow: "0 0 6px #f87171" }} />
+                          <span style={{ fontSize: "14px", color: "#e2e8f0" }}>{m.player1} <span style={{ color: "#475569" }}>vs</span> {m.player2}</span>
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px", marginLeft: "16px" }}>
+                          {m.category && <span style={{
+                            background: m.category.includes("ATP") ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)",
+                            color: m.category.includes("ATP") ? "#22d3ee" : "#facc15",
+                            padding: "1px 6px", borderRadius: "4px", marginRight: "6px", fontSize: "10px", fontWeight: 700
+                          }}>{m.category}</span>}
+                          {m.tournament}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", minWidth: "80px" }}>
+                        <span style={{ color: "#4ade80", fontWeight: 700, fontSize: "15px" }}>{m.score !== "-" ? m.score : ""}</span>
+                        <div style={{ fontSize: "10px", color: "#f87171", marginTop: "2px" }}>{m.status}</div>
                       </div>
                     </div>
-                    <div style={{ textAlign: "right", minWidth: "60px" }}>
-                      {m.score && m.score !== "-" && (
-                        <span style={{ color: "#4ade80", fontWeight: 700, fontSize: "14px" }}>{m.score}</span>
-                      )}
-                      {m.status && <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{m.status}</div>}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </>
+              ) : (
+                <>
+                  <h4>📅 Heutige Matches — {new Date().toLocaleDateString("de-DE")}</h4>
+                  {fixturesLoading ? (
+                    <p style={{ color: "#94a3b8", fontSize: "14px" }}>⏳ Lade Matches...</p>
+                  ) : fixtures.length === 0 ? (
+                    <p style={{ color: "#94a3b8", fontSize: "14px" }}>Keine Matches heute gefunden.</p>
+                  ) : (
+                    fixtures.map((m, i) => (
+                      <div key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: "14px", color: "#e2e8f0" }}>{m.player1} <span style={{ color: "#475569" }}>vs</span> {m.player2}</div>
+                          <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px" }}>
+                            {m.category && <span style={{
+                              background: m.category.includes("ATP") ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)",
+                              color: m.category.includes("ATP") ? "#22d3ee" : "#facc15",
+                              padding: "1px 6px", borderRadius: "4px", marginRight: "6px", fontSize: "10px", fontWeight: 700
+                            }}>{m.category}</span>}
+                            {m.tournament}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right", minWidth: "60px" }}>
+                          {m.time && <div style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 600 }}>🕐 {m.time}</div>}
+                          <div style={{ fontSize: "10px", color: "#475569", marginTop: "2px" }}>{m.status}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </>
               )}
             </div>
             <div className="valuePicks">
