@@ -244,12 +244,19 @@ export default function App() {
       .catch(err => { console.error(err); setValuePicksLoading(false); });
   }, []);
 
-  useEffect(() => {
-    setFixturesLoading(true);
+  const loadFixtures = () => {
     fetch("https://tennis-edge-backend.onrender.com/api/fixtures/today")
       .then(res => { if (!res.ok) throw new Error("Fehler"); return res.json(); })
       .then(data => { setFixtures(Array.isArray(data) ? data : []); setFixturesLoading(false); })
       .catch(err => { console.error("Fixtures Fehler:", err); setFixtures([]); setFixturesLoading(false); });
+  };
+
+  useEffect(() => {
+    setFixturesLoading(true);
+    loadFixtures();
+    // Alle 30 Sekunden aktualisieren
+    const interval = setInterval(loadFixtures, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const formData = (active.form || []).map((v, i) => ({ match: `M-${6 - i}`, form: v }));
