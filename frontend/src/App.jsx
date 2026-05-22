@@ -546,10 +546,92 @@ export default function App() {
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
-                    <input type="number" step="0.01" value={odds1} onChange={(e) => setOdds1(Number(e.target.value))} />
-                    <input type="number" step="0.01" value={odds2} onChange={(e) => setOdds2(Number(e.target.value))} />
-                    <p>{prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%</p>
-                    <p>{prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%</p>
+                    <div style={{ display: "flex", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px", textTransform: "uppercase" }}>{prediction.player1} Quote</div>
+                        <input type="number" step="0.01" value={odds1} onChange={(e) => setOdds1(Number(e.target.value))} style={{ width: "100%", boxSizing: "border-box" }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px", textTransform: "uppercase" }}>{prediction.player2} Quote</div>
+                        <input type="number" step="0.01" value={odds2} onChange={(e) => setOdds2(Number(e.target.value))} style={{ width: "100%", boxSizing: "border-box" }} />
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const edge1 = parseFloat((prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1));
+                      const edge2 = parseFloat((prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1));
+                      const hasValue1 = edge1 > 0;
+                      const hasValue2 = edge2 > 0;
+                      const bestPick = hasValue1 && hasValue2
+                        ? (edge1 >= edge2 ? prediction.player1 : prediction.player2)
+                        : hasValue1 ? prediction.player1
+                        : hasValue2 ? prediction.player2
+                        : null;
+                      const bestEdge = bestPick === prediction.player1 ? edge1 : edge2;
+
+                      return (
+                        <>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+                            {[
+                              { name: prediction.player1, edge: edge1, odds: odds1 },
+                              { name: prediction.player2, edge: edge2, odds: odds2 }
+                            ].map(({ name, edge, odds }) => (
+                              <div key={name} style={{
+                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                padding: "8px 12px", borderRadius: "10px",
+                                background: edge > 0 ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)",
+                                border: `1px solid ${edge > 0 ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)"}`
+                              }}>
+                                <span style={{ color: "#cbd5e1", fontSize: "13px" }}>{name}</span>
+                                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                  <span style={{ fontSize: "11px", color: "#64748b" }}>
+                                    Prob: {prediction.prediction[name]}% | Impl: {Math.round(100/odds)}%
+                                  </span>
+                                  <span style={{
+                                    fontWeight: 700, fontSize: "15px",
+                                    color: edge > 0 ? "#4ade80" : "#f87171"
+                                  }}>
+                                    {edge > 0 ? "+" : ""}{edge}%
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div style={{
+                            padding: "14px 16px", borderRadius: "12px",
+                            background: bestPick ? "rgba(34,211,238,0.08)" : "rgba(100,116,139,0.1)",
+                            border: `1px solid ${bestPick ? "rgba(34,211,238,0.3)" : "rgba(100,116,139,0.2)"}`,
+                          }}>
+                            <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>🧠 Fazit</div>
+                            {bestPick ? (
+                              <>
+                                <p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}>
+                                  <strong style={{ color: "#22d3ee" }}>{bestPick}</strong> ist die Value Bet mit einem Edge von <strong style={{ color: "#4ade80" }}>+{bestEdge}%</strong>.
+                                </p>
+                                <p style={{ margin: "0", color: "#94a3b8", fontSize: "13px" }}>
+                                  Der Buchmacher bewertet {bestPick} mit {Math.round(100 / (bestPick === prediction.player1 ? odds1 : odds2))}% Gewinnchance, unser Modell sieht {prediction.prediction[bestPick]}%. Diese Differenz ist der Edge — langfristig profitabel wenn positiv.
+                                </p>
+                                {!hasValue1 || !hasValue2 ? null : (
+                                  <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "12px" }}>
+                                    Beide Spieler zeigen positiven Edge — wähle den höheren: {bestPick} (+{bestEdge}%).
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}>
+                                  <strong style={{ color: "#f87171" }}>Kein Value erkennbar.</strong>
+                                </p>
+                                <p style={{ margin: "0", color: "#94a3b8", fontSize: "13px" }}>
+                                  Die Buchmacher-Quoten sind fairer bewertet als unsere Einschätzung. Bei negativem Edge zahlt die Wette langfristig nicht — besser dieses Spiel passen.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                   {prediction.playerStats && (
                     <div className="compareBox">
