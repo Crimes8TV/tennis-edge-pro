@@ -5,10 +5,7 @@ const axios = require("axios");
 const app = express();
 
 app.use(cors({
-  origin: [
-    "https://tennis-edge-pro.vercel.app",
-    "https://tennis-edge-75d75ggx0-crimes8tvs-projects.vercel.app"
-  ]
+  origin: (origin, callback) => callback(null, true)
 }));
 
 app.use(express.json());
