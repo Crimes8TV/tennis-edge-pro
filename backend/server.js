@@ -22,7 +22,6 @@ app.get("/api/players", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    // ATP Rankings + heutige Fixture-Spieler parallel laden
     const [atpRes, fixturesRes] = await Promise.allSettled([
       apiGet({ method: "get_standings", event_type: "ATP" }),
       apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: 281 })
@@ -31,7 +30,6 @@ app.get("/api/players", async (req, res) => {
     const atpRaw = atpRes.status === "fulfilled" ? atpRes.value.data?.result || [] : [];
     const fixturesRaw = fixturesRes.status === "fulfilled" ? fixturesRes.value.data?.result || [] : [];
 
-    // ATP Spieler
     const atpPlayers = atpRaw.map(p => ({
       name: p.player || "Unknown",
       rank: parseInt(p.place) || 999,
@@ -44,7 +42,6 @@ app.get("/api/players", async (req, res) => {
       form: [80, 82, 78, 85, 87]
     }));
 
-    // Challenger Spieler aus heutigen Fixtures extrahieren
     const atpNames = new Set(atpPlayers.map(p => p.name.toLowerCase()));
     const challengerPlayers = [];
     const seen = new Set();
@@ -52,12 +49,10 @@ app.get("/api/players", async (req, res) => {
     fixturesRaw.forEach(m => {
       [m.event_first_player, m.event_second_player].forEach(shortName => {
         if (!shortName) return;
-        // Vollständigen Nachnamen extrahieren
         const lastName = shortName.trim().split(" ").pop();
         if (seen.has(lastName.toLowerCase())) return;
         seen.add(lastName.toLowerCase());
 
-        // Prüfen ob schon in ATP Liste
         const alreadyIn = [...atpNames].some(n => n.includes(lastName.toLowerCase()));
         if (!alreadyIn) {
           challengerPlayers.push({
@@ -87,7 +82,6 @@ app.get("/api/player/:name", async (req, res) => {
   try {
     const playerName = req.params.name;
 
-    // Erst Standings holen um player_key zu finden
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
     const found = standings.find(p =>
@@ -108,7 +102,6 @@ app.get("/api/player/:name", async (req, res) => {
 
     if (!playerData) throw new Error("Keine Spielerdaten");
 
-    // Aktuellste Saison-Stats
     const stats = playerData.stats?.find(s => s.type === "singles") || {};
     const hardWon = parseInt(stats.hard_won) || 0;
     const hardLost = parseInt(stats.hard_lost) || 0;
@@ -151,7 +144,7 @@ app.get("/api/live", async (req, res) => {
   try {
     const response = await apiGet({
       method: "get_livescore",
-      event_type_key: 265  // ATP Singles
+      event_type_key: 265
     });
     const matches = response.data?.result || [];
 
@@ -187,24 +180,20 @@ app.get("/api/h2h", async (req, res) => {
     const p1Results = result.firstPlayerResults || [];
     const p2Results = result.secondPlayerResults || [];
 
-    // H2H Bilanz berechnen
     let p1Wins = 0, p2Wins = 0;
     h2h.forEach(match => {
       if (match.event_winner === "First Player") p1Wins++;
       else if (match.event_winner === "Second Player") p2Wins++;
     });
 
-    // Selbst-Matches und ungültige Einträge filtern
     const filterSelfMatches = (matches) => matches.filter(m => {
       const p1 = (m.event_first_player || "").toLowerCase().trim();
       const p2 = (m.event_second_player || "").toLowerCase().trim();
       if (!p1 || !p2) return false;
       if (p1 === p2) return false;
-      // Nachnamen vergleichen
       const p1Last = p1.split(" ").pop();
       const p2Last = p2.split(" ").pop();
       if (p1Last === p2Last) return false;
-      // Initialen-Match: "B. Gojo" vs "B. Gojo"
       const p1Init = p1.split(" ")[0].replace(".", "");
       const p2Init = p2.split(" ")[0].replace(".", "");
       if (p1Init === p2Init && p1Last === p2Last) return false;
@@ -238,7 +227,7 @@ app.get("/api/odds/:match_key", async (req, res) => {
   }
 });
 
-// ─── MATCH PREDICTION (eigene Logik, unverändert) ────────────────────────────
+// ─── MATCH PREDICTION ────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
 
@@ -255,11 +244,8 @@ app.get("/api/predict", async (req, res) => {
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
 
-  // Surface-spezifische Modifikatoren basierend auf Spielertyp (Rang + Nationalität)
-  // Generelle Surface-Tendenzen nach Rang-Bereich
   const getSurfaceModifier = (rank, surf) => {
     const r = Number(rank);
-    // Top-Spieler sind ausgeglichener, niedrigere Ränge haben mehr Varianz
     const variance = Math.max(2, 8 - r * 0.05);
     const mods = {
       hard:  Math.round((Math.random() - 0.5) * variance),
@@ -271,14 +257,11 @@ app.get("/api/predict", async (req, res) => {
 
   const surfMod1 = getSurfaceModifier(rank1, surface);
   const surfMod2 = getSurfaceModifier(rank2, surface);
-
-  // Surface-Gewichtung: Clay = mehr Unterschiede, Grass = schnell & serve-dominant
   const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
 
   let score1 = expected1 * 100 * 0.50 + form1 * 0.20 + clutch1 * 0.10 + momentum1 * 0.15 + surfMod1 * surfaceWeight;
   let score2 = expected2 * 100 * 0.50 + form2 * 0.20 + clutch2 * 0.10 + momentum2 * 0.15 + surfMod2 * surfaceWeight;
 
-  // Externe Surface-Werte falls vorhanden
   const surface1 = Number(req.query.surface1 || 0);
   const surface2 = Number(req.query.surface2 || 0);
   if (surface1 > 0 || surface2 > 0) {
@@ -293,14 +276,11 @@ app.get("/api/predict", async (req, res) => {
   const clutchFactor = 10 + Math.random() * 10;
   const momentumFactor = Math.max(10, 100 - rankingFactor - formFactor - clutchFactor);
 
-  // Bessere Confidence: basiert auf Rankdifferenz + Winwahrscheinlichkeit
   const gap = Math.abs(p1Win - 50);
   const rankBoost = Math.min(30, rankDiff * 0.4);
   const confidence = Math.min(99, Math.round(gap * 1.8 + rankBoost));
 
-  // Abgeleitete Spieler-Stats aus Rang und Elo — realistisch skaliert
   const deriveStats = (rank, elo) => {
-    // Rang 1 = ~88, Rang 50 = ~75, Rang 100 = ~68, Rang 200 = ~60
     const base = Math.max(55, Math.min(88, 90 - Math.sqrt(rank) * 2.5));
     const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
     const rand = () => (Math.random() - 0.5) * 6;
@@ -314,39 +294,26 @@ app.get("/api/predict", async (req, res) => {
   const p1Stats = deriveStats(Number(rank1), elo1);
   const p2Stats = deriveStats(Number(rank2), elo2);
 
-  // ── Set-Win Wahrscheinlichkeit ──────────────────────────────────────────────
-  // Basiert auf Elo + Surface-Modifikator
   const surfaceSetMod = surface === "clay" ? 0.03 : surface === "grass" ? -0.02 : 0;
   const setWinP1 = Math.min(0.85, Math.max(0.15, expected1 + surfaceSetMod + (surfMod1 - surfMod2) * 0.01));
   const setWinP2 = 1 - setWinP1;
 
-  // ── Handicap-Empfehlung (Games) ──────────────────────────────────────────────
-  // Typisches Tennis-Matchformat: Best of 3 (6 Games pro Satz)
-  // Erwartete Games-Differenz pro Satz basierend auf Set-Win%
-  // Wenn setWinP1 = 0.65 → Favorit gewinnt ~65% der Sätze
-  // Expected games: Favorit ~6.2, Underdog ~4.1 pro Satz
   const expectedGamesPerSetWinner = 6 + Math.max(0, (Math.max(setWinP1, setWinP2) - 0.5) * 2);
   const expectedGamesPerSetLoser = Math.max(1, 6 - (Math.max(setWinP1, setWinP2) - 0.5) * 8);
-  
+
   const favoriteIsP1 = setWinP1 >= setWinP2;
   const favWinProb = Math.max(setWinP1, setWinP2);
   const favorite = favoriteIsP1 ? p1 : p2;
   const underdog = favoriteIsP1 ? p2 : p1;
 
-  // Erwartete Total-Games über 3 Sätze
-  // Szenario 1: Favorit gewinnt 2-0 (prob: favWinProb^2)
-  // Szenario 2: Favorit gewinnt 2-1 (prob: 2*favWinProb^2*(1-favWinProb))
-  // Szenario 3: Underdog gewinnt 2-1 (prob: 2*favWinProb*(1-favWinProb)^2)
-  // Szenario 4: Underdog gewinnt 2-0 (prob: (1-favWinProb)^2)
   const p = favWinProb;
   const q = 1 - p;
-  
-  const sc20 = p*p; // fav 2-0
-  const sc21 = 2*p*p*q; // fav 2-1
-  const sc12 = 2*p*q*q; // dog 2-1
-  const sc02 = q*q; // dog 2-0
-  
-  // Expected games für Favorit und Underdog
+
+  const sc20 = p*p;
+  const sc21 = 2*p*p*q;
+  const sc12 = 2*p*q*q;
+  const sc02 = q*q;
+
   const favGames20 = 2 * expectedGamesPerSetWinner;
   const dogGames20 = 2 * expectedGamesPerSetLoser;
   const favGames21 = 2 * expectedGamesPerSetWinner + expectedGamesPerSetLoser;
@@ -355,15 +322,13 @@ app.get("/api/predict", async (req, res) => {
   const dogGames12 = expectedGamesPerSetLoser + 2 * expectedGamesPerSetWinner;
   const favGames02 = 2 * expectedGamesPerSetLoser;
   const dogGames02 = 2 * expectedGamesPerSetWinner;
-  
+
   const expFavGames = sc20*favGames20 + sc21*favGames21 + sc12*favGames12 + sc02*favGames02;
   const expDogGames = sc20*dogGames20 + sc21*dogGames21 + sc12*dogGames12 + sc02*dogGames02;
   const expGameDiff = expFavGames - expDogGames;
-  
-  // Handicap-Linie: runde auf .5
+
   const handicapLine = Math.round(expGameDiff * 2) / 2;
-  
-  // Handicap-Empfehlung
+
   let handicapPick, handicapReason;
   if (handicapLine >= 2) {
     handicapPick = `${favorite} -${handicapLine} Games`;
@@ -421,13 +386,11 @@ app.get("/api/predict", async (req, res) => {
   });
 });
 
-
 // ─── TAGESAKTUELLE VALUE PICKS ────────────────────────────────────────────────
 app.get("/api/valuepicks", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    // 1. Heutige ATP Singles Fixtures holen
     const fixturesRes = await apiGet({
       method: "get_fixtures",
       date_start: today,
@@ -438,11 +401,9 @@ app.get("/api/valuepicks", async (req, res) => {
     const matches = fixturesRes.data?.result || [];
     if (matches.length === 0) return res.json([]);
 
-    // 2. Standings für Rank-Lookup
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
 
-    // Vollständigen Namen aus Standings finden anhand Nachname
     const getFullName = (shortName) => {
       const parts = shortName.trim().split(" ");
       const lastName = parts[parts.length - 1].toLowerCase();
@@ -462,7 +423,6 @@ app.get("/api/valuepicks", async (req, res) => {
     };
 
     const eloFromRank = (rank) => Math.max(1500, 2400 - rank * 6);
-
     const valuePicks = [];
 
     for (const match of matches.slice(0, 15)) {
@@ -478,12 +438,10 @@ app.get("/api/valuepicks", async (req, res) => {
       const elo1 = eloFromRank(rank1);
       const elo2 = eloFromRank(rank2);
 
-      // Unsere Gewinnwahrscheinlichkeit via Elo
       const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
       const prob1 = Math.round(expected1 * 100);
       const prob2 = 100 - prob1;
 
-      // Quoten holen
       let odds1 = null, odds2 = null;
       let bookmaker = "-";
       try {
@@ -503,7 +461,6 @@ app.get("/api/valuepicks", async (req, res) => {
         }
       } catch (e) {}
 
-      // Value berechnen: unsere Prob - implizierte Buchmacher-Prob
       let pick = null, edge = null, bestOdds = null;
 
       if (odds1 && odds2) {
@@ -513,16 +470,11 @@ app.get("/api/valuepicks", async (req, res) => {
         const edge2 = prob2 - implied2;
 
         if (edge1 > edge2 && edge1 > 2) {
-          pick = p1;
-          edge = edge1;
-          bestOdds = odds1;
+          pick = p1; edge = edge1; bestOdds = odds1;
         } else if (edge2 > edge1 && edge2 > 2) {
-          pick = p2;
-          edge = edge2;
-          bestOdds = odds2;
+          pick = p2; edge = edge2; bestOdds = odds2;
         }
       } else {
-        // Kein Odds-Daten: rein Elo-basiert
         if (Math.abs(prob1 - 50) > 8) {
           pick = prob1 > prob2 ? p1 : p2;
           edge = Math.abs(prob1 - 50) - 8;
@@ -548,7 +500,6 @@ app.get("/api/valuepicks", async (req, res) => {
       }
     }
 
-    // Sortiert nach Edge absteigend
     valuePicks.sort((a, b) => b.edge - a.edge);
     res.json(valuePicks.slice(0, 10));
 
@@ -557,7 +508,6 @@ app.get("/api/valuepicks", async (req, res) => {
     res.status(500).json({ error: "Fehler beim Laden der Value Picks" });
   }
 });
-
 
 // ─── HEUTIGE FIXTURES + LIVE STATUS ──────────────────────────────────────────
 app.get("/api/fixtures/today", async (req, res) => {
@@ -570,7 +520,6 @@ app.get("/api/fixtures/today", async (req, res) => {
       { key: 282, label: "Challenger Doubles" }
     ];
 
-    // Fixtures + Live parallel laden
     const [fixtureResults, liveResults] = await Promise.all([
       Promise.allSettled(
         eventTypes.map(et =>
@@ -594,7 +543,6 @@ app.get("/api/fixtures/today", async (req, res) => {
       .filter(r => r.status === "fulfilled")
       .flatMap(r => r.value);
 
-    // Live-Matches als Map für schnellen Lookup
     const liveMap = new Map();
     allLive.forEach(m => {
       const key = `${m.event_first_player}|${m.event_second_player}`;
@@ -608,7 +556,6 @@ app.get("/api/fixtures/today", async (req, res) => {
       const isFinished = m.event_status === "Finished" || m.event_status === "After Extra Time";
 
       const src = liveMatch || m;
-      // Set-Scores aus scores Array (score_first/score_second/score_set)
       const parseScore = (val) => val !== undefined && val !== null ? String(val).split(".")[0] : "-";
       const setScores = [];
       if (Array.isArray(src.scores) && src.scores.length > 0) {
@@ -636,7 +583,6 @@ app.get("/api/fixtures/today", async (req, res) => {
       };
     })
     .sort((a, b) => {
-      // Sortierung: Live zuerst, dann geplant nach Zeit, dann beendet
       if (a.live && !b.live) return -1;
       if (!a.live && b.live) return 1;
       if (a.finished && !b.finished) return 1;
@@ -651,18 +597,15 @@ app.get("/api/fixtures/today", async (req, res) => {
   }
 });
 
-
 // ─── MATCH DETAILS ────────────────────────────────────────────────────────────
 app.get("/api/match/:matchKey", async (req, res) => {
   try {
     const { matchKey } = req.params;
     const today = new Date().toISOString().split("T")[0];
 
-    // Alle Event-Types durchsuchen um das Match zu finden
     const eventTypes = [265, 267, 281, 282];
     let match = null;
 
-    // Erst in Live-Scores suchen
     const liveResults = await Promise.allSettled(
       eventTypes.map(et => apiGet({ method: "get_livescore", event_type_key: et }))
     );
@@ -673,7 +616,6 @@ app.get("/api/match/:matchKey", async (req, res) => {
       }
     }
 
-    // Falls nicht live, in Fixtures suchen
     if (!match) {
       const fixtureResults = await Promise.allSettled(
         eventTypes.map(et => apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: et }))
@@ -688,16 +630,12 @@ app.get("/api/match/:matchKey", async (req, res) => {
 
     if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
 
-    // Set-Scores aus scores Array extrahieren (score_first, score_second, score_set)
     const extractSets = (m) => {
       const sets = [];
-
-      // Methode 1: scores Array mit score_first/score_second/score_set
       if (Array.isArray(m.scores) && m.scores.length > 0) {
         const sorted = [...m.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
         sorted.forEach(s => {
           if (s.score_first !== undefined && s.score_first !== null) {
-            // score_first kann "6" oder "6.3" sein — nur Integer-Teil nehmen
             sets.push({
               p1: String(s.score_first).split(".")[0],
               p2: String(s.score_second ?? "-").split(".")[0],
@@ -706,8 +644,6 @@ app.get("/api/match/:matchKey", async (req, res) => {
           }
         });
       }
-
-      // Methode 2: event_final_result "6-4, 3-6, 7-5"
       if (sets.length === 0) {
         const scoreStr = m.event_final_result || "";
         if (scoreStr.includes(",")) {
@@ -719,13 +655,11 @@ app.get("/api/match/:matchKey", async (req, res) => {
           });
         }
       }
-
       return sets;
     };
 
     let sets = extractSets(match);
-    
-    // Fallback: wenn keine individuellen Sets, Score-String "1 - 1" als Satz-Stand verwenden
+
     if (sets.length === 0) {
       const scoreStr = match.event_final_result || "";
       const parts = scoreStr.replace(/ /g, "").split("-");
@@ -735,8 +669,6 @@ app.get("/api/match/:matchKey", async (req, res) => {
     }
 
     const isLive = match._isLive || match.event_live === "1" || match.event_live === 1;
-
-    // event_serve: wer aufschlägt (1 = Player1, 2 = Player2)
     const server = match.event_serve === "1" ? 1 : match.event_serve === "2" ? 2 : null;
 
     res.json({
@@ -763,35 +695,30 @@ app.get("/api/match/:matchKey", async (req, res) => {
   }
 });
 
-
 // ─── PLAYER NEWS ──────────────────────────────────────────────────────────────
 app.get("/api/news/:player", async (req, res) => {
   try {
     const playerName = decodeURIComponent(req.params.player);
-    
-    // Google News RSS Feed - kein API Key nötig
     const query = encodeURIComponent(`${playerName} tennis`);
     const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=de&gl=DE&ceid=DE:de`;
-    
+
     const response = await axios.get(rssUrl, {
       headers: { "User-Agent": "Mozilla/5.0" },
       timeout: 5000
     });
 
     const xml = response.data;
-    
-    // RSS XML parsen
     const items = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
-    
+
     while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
       const item = match[1];
       const title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/))?.[1] || "";
       const link = (item.match(/<link>(.*?)<\/link>/) || [])?.[1] || "";
       const pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])?.[1] || "";
       const source = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])?.[1] || "";
-      
+
       if (title) {
         items.push({
           title: title.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
@@ -814,7 +741,6 @@ app.get("/api/news/:player", async (req, res) => {
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
     const today = new Date();
-    // 4 Wochen zurück + 2 Wochen voraus um alle Turnierrunden zu erfassen
     const start = new Date(today);
     start.setDate(today.getDate() - 28);
     const end = new Date(today);
@@ -824,7 +750,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
     const dateEnd = end.toISOString().split("T")[0];
     const todayStr = today.toISOString().split("T")[0];
 
-    // ATP Singles (265) + ATP Doubles (267) + alle bisherigen Matches des Turniers
     const [singlesRes, doublesRes, standingsRes] = await Promise.allSettled([
       apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 265 }),
       apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 267 }),
@@ -840,13 +765,68 @@ app.get("/api/tournament-predictions", async (req, res) => {
       ...doubles.map(m => ({ ...m, _type: "ATP Doubles" }))
     ];
 
-    // Nach Turnier + Disziplin gruppieren (Singles und Doubles getrennt)
+    // ── Hilfsfunktionen ───────────────────────────────────────────────────────
+    const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
+
+    const getRank = (name) => {
+      const lastName = (name || "").toLowerCase().trim().split(" ").pop();
+      const found = standings.find(p => (p.player || "").toLowerCase().trim().split(" ").pop() === lastName);
+      return found ? parseInt(found.place) || 300 : 300;
+    };
+
+    const getFullName = (shortName) => {
+      if (!shortName) return shortName;
+      const lastName = shortName.trim().split(" ").pop().toLowerCase();
+      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
+      return found ? found.player : shortName;
+    };
+
+    // ── Prüft ob ein Match abgeschlossen ist ─────────────────────────────────
+    // FIX: Mehrere Erkennungsmethoden kombiniert
+    const isMatchFinished = (m) => {
+      if (m.event_status === "Finished" || m.event_status === "After Extra Time") return true;
+      // event_winner gesetzt und nicht leer/null
+      if (m.event_winner && m.event_winner !== "" && m.event_winner !== "0") return true;
+      // Ergebnis vorhanden und kein laufendes Spiel
+      if (m.event_final_result && m.event_final_result !== "-" && m.event_final_result !== "") {
+        // Live-Matches haben event_live = "1"
+        if (m.event_live === "1" || m.event_live === 1) return false;
+        // Wenn Datum vor heute: definitiv abgeschlossen
+        if (m.event_date && m.event_date < todayStr) return true;
+      }
+      return false;
+    };
+
+    // ── Sieger eines abgeschlossenen Matches ermitteln ────────────────────────
+    // FIX: event_winner allein reicht nicht, auch Score-basierte Erkennung
+    const getMatchWinner = (m, p1FullName, p2FullName) => {
+      if (!isMatchFinished(m)) return null;
+
+      // Methode 1: event_winner Flag
+      if (m.event_winner === "First Player" || m.event_winner === "1") return p1FullName;
+      if (m.event_winner === "Second Player" || m.event_winner === "2") return p2FullName;
+
+      // Methode 2: Score auswerten (z.B. "2-0", "2-1" = Sätze)
+      const scoreStr = m.event_final_result || "";
+      if (scoreStr && scoreStr !== "-") {
+        const parts = scoreStr.replace(/ /g, "").split("-");
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          const s1 = parseInt(parts[0]);
+          const s2 = parseInt(parts[1]);
+          if (s1 > s2) return p1FullName;
+          if (s2 > s1) return p2FullName;
+        }
+      }
+
+      return null;
+    };
+
+    // ── Turnier-Gruppierung ───────────────────────────────────────────────────
     const tournaments = {};
     allFixtures.forEach(m => {
-      const discipline = m._type?.includes("Doubles") ? "Doubles" : "Singles";
+      const discipline = (m._type || "").includes("Doubles") ? "Doubles" : "Singles";
       const key = `${m.tournament_name || "Unbekannt"}|||${discipline}`;
       if (!tournaments[key]) {
-        const discipline = m._type?.includes("Doubles") ? "Doubles" : "Singles";
         tournaments[key] = {
           name: m.tournament_name || "Unbekannt",
           type: m._type,
@@ -861,31 +841,50 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (m.event_first_player) tournaments[key].players.add(m.event_first_player);
       if (m.event_second_player) tournaments[key].players.add(m.event_second_player);
 
-      // Ausgeschiedene aus abgeschlossenen Matches ermitteln
-      const isFinished = m.event_status === "Finished" || m.event_winner;
-      if (isFinished && m.event_winner) {
-        const loser = m.event_winner === "First Player" ? m.event_second_player : m.event_first_player;
-        if (loser) tournaments[key].eliminated.add(loser);
+      // FIX: Ausgeschiedene Spieler korrekt ermitteln
+      const p1Full = getFullName(m.event_first_player);
+      const p2Full = getFullName(m.event_second_player);
+      const winner = getMatchWinner(m, p1Full, p2Full);
+      if (winner) {
+        const loser = winner.toLowerCase() === p1Full.toLowerCase() ? p2Full : p1Full;
+        if (loser) tournaments[key].eliminated.add(loser.toLowerCase());
       }
     });
 
-    const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
-
-    const getRank = (name) => {
-      const lastName = (name || "").toLowerCase().split(" ").pop();
-      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
-      // Unbekannte Spieler (nicht in Top 200) bekommen Rang 200+
-      return found ? parseInt(found.place) || 200 : 200;
+    // ─── Rundenname normalisieren ─────────────────────────────────────────────
+    const normalizeRoundName = (roundName) => {
+      if (!roundName) return "Round 1";
+      // Alles vor dem letzten " - " abschneiden
+      const dashIdx = roundName.lastIndexOf(" - ");
+      let clean = dashIdx !== -1 ? roundName.substring(dashIdx + 3).trim() : roundName.trim();
+      const cl = clean.toLowerCase();
+      if (cl === "final" || cl === "finals") return "Final";
+      if (cl.includes("semi")) return "Semi-Finals";
+      if (cl.includes("quarter")) return "Quarter-Finals";
+      if (cl.includes("1/8") || cl === "round of 16" || cl === "r16") return "1/8-Finals";
+      if (cl.includes("1/16") || cl === "round of 32" || cl === "r32" || cl === "round 1" || cl === "r1" || cl === "first round") return "1/16-Finals";
+      if (cl.includes("1/32") || cl === "round of 64") return "1/32-Finals";
+      if (cl.includes("1/64")) return "1/64-Finals";
+      return clean;
     };
 
-    const getFullName = (shortName) => {
-      const lastName = (shortName || "").trim().split(" ").pop().toLowerCase();
-      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
-      return found ? found.player : shortName;
+    // ─── Runden-Reihenfolge ───────────────────────────────────────────────────
+    const getRoundIndex = (r) => {
+      const lower = (r || "").toLowerCase().trim();
+      if (lower.includes("1/64")) return 1;
+      if (lower.includes("1/32")) return 2;
+      if (lower.includes("1/16")) return 3;
+      if (lower.includes("1/8")) return 4;
+      if (lower.includes("quarter")) return 5;
+      if (lower.includes("semi")) return 6;
+      if (lower === "final" || lower === "finals" || lower.includes("final")) return 7;
+      return 99;
     };
 
-    // Für jedes Turnier: Favoriten berechnen
+    // ─── Pro Turnier verarbeiten ──────────────────────────────────────────────
     const result = Object.values(tournaments).map(tourn => {
+
+      // Alle Spieler mit Rang
       const playerList = [...tourn.players].map(p => {
         const fullName = getFullName(p);
         const rank = getRank(p);
@@ -893,130 +892,200 @@ app.get("/api/tournament-predictions", async (req, res) => {
         return { name: fullName, shortName: p, rank, elo };
       }).sort((a, b) => a.rank - b.rank);
 
-      // Top-Favorit: höchster Elo
       const favorite = playerList[0] || null;
 
-      // Runden-Predictions aus vorhandenen Matches
-      // Gruppierung: Kategorie (Qual/Hauptfeld) + Disziplin (Singles/Doubles) + Runde
+      // ─── Runden-Matches aufbauen ──────────────────────────────────────────
       const rounds = {};
-      tourn.matches.forEach(m => {
-        const roundName = m.tournament_round || m.event_round || "Round 1";
-        const roundLower = roundName.toLowerCase();
 
-        // Qualifikation oder Hauptfeld?
-        // Erkennung: entweder aus Round-Name ODER aus Spieler-Rängen
-        const r1temp = getRank(m.event_first_player);
-        const r2temp = getRank(m.event_second_player);
-        const avgRank = (r1temp + r2temp) / 2;
-        
-        // Qualifikation nur über Round-Namen filtern
-        const isQual = roundLower.includes("qual") || 
+      tourn.matches.forEach(m => {
+        const rawRound = m.tournament_round || m.event_round || "Round 1";
+        const roundLower = rawRound.toLowerCase();
+
+        // Qualifikation rausfiltern
+        const isQual = roundLower.includes("qual") ||
                        roundLower.includes("pre-") ||
                        roundLower.includes("qualification") ||
                        roundLower.includes("qualifying");
         if (isQual) return;
 
-        // Singles oder Doubles aus Event-Type oder Round-Name
         const eventType = (m.event_type_type || m._type || tourn.type || "").toLowerCase();
-        const discipline = eventType.includes("double") || roundLower.includes("double") ? "Doubles" : "Singles";
-        const sectionFinal = "Hauptfeld";
-
-        // Bereinigter Rundenname - alles vor dem letzten " - " entfernen
-        const dashIdx = roundName.lastIndexOf(" - ");
-        let cleanRound = dashIdx !== -1 ? roundName.substring(dashIdx + 3).trim() : roundName.trim();
-        
-        // Normalisieren
-        const cl = cleanRound.toLowerCase();
-        if (cl === "final" || cl === "finals") cleanRound = "Final";
-        else if (cl.includes("semi")) cleanRound = "Semi-Finals";
-        else if (cl.includes("quarter")) cleanRound = "Quarter-Finals";
-        else if (cl.includes("1/8") || cl === "round 2" || cl === "r2") cleanRound = "1/8-Finals";
-        else if (cl.includes("1/16") || cl === "round 1" || cl === "r1" || cl === "first round") cleanRound = "1/16-Finals";
-        else if (cl.includes("1/32")) cleanRound = "1/32-Finals";
-        else if (cl.includes("1/64")) cleanRound = "1/64-Finals";
-
+        const discipline = eventType.includes("double") ? "Doubles" : "Singles";
+        const cleanRound = normalizeRoundName(rawRound);
         const key = `${discipline}|||${cleanRound}`;
+
         if (!rounds[key]) rounds[key] = { discipline, round: cleanRound, matches: [] };
 
         const p1 = getFullName(m.event_first_player);
         const p2 = getFullName(m.event_second_player);
+        if (!p1 || !p2 || !m.event_first_player || !m.event_second_player) return;
+
         const r1 = getRank(m.event_first_player);
         const r2 = getRank(m.event_second_player);
         const elo1 = eloFromRank(r1);
         const elo2 = eloFromRank(r2);
         const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
 
-        if (p1 && p2) {
-          // Tatsächliches Ergebnis falls vorhanden
-          const isFinished = m.event_status === "Finished" || 
-                             m.event_status === "After Extra Time" ||
-                             (m.event_winner && m.event_winner !== "");
-          const actualWinner = isFinished && m.event_winner
-            ? (m.event_winner === "First Player" ? p1 : p2)
-            : null;
-          const score = m.event_final_result && m.event_final_result !== "-" ? m.event_final_result : null;
-          const predPick = prob1 > 50 ? p1 : p2;
-          // Vergleich über Nachnamen da Namen manchmal leicht abweichen
-          const winnerLast = actualWinner ? actualWinner.toLowerCase().split(" ").pop() : null;
-          const predLast = predPick ? predPick.toLowerCase().split(" ").pop() : null;
-          const correct = winnerLast && predLast ? (winnerLast === predLast) : null;
+        const finished = isMatchFinished(m);
+        const actualWinner = getMatchWinner(m, p1, p2);
+        const score = m.event_final_result && m.event_final_result !== "-" ? m.event_final_result : null;
+        const predPick = prob1 > 50 ? p1 : p2;
 
-          rounds[key].matches.push({
-            player1: p1,
-            player2: p2,
-            rank1: r1,
-            rank2: r2,
-            prediction: predPick,
-            prob: Math.max(prob1, 100 - prob1),
-            date: m.event_date || "",
-            time: m.event_time || "",
-            actualWinner,
-            score,
-            isFinished,
-            correct
-          });
+        // Vergleich über Nachnamen (Namen können leicht abweichen)
+        const winnerLast = actualWinner ? actualWinner.toLowerCase().split(" ").pop() : null;
+        const predLast = predPick ? predPick.toLowerCase().split(" ").pop() : null;
+        const correct = winnerLast && predLast ? winnerLast === predLast : null;
+
+        rounds[key].matches.push({
+          player1: p1,
+          player2: p2,
+          rank1: r1,
+          rank2: r2,
+          prediction: predPick,
+          prob: Math.max(prob1, 100 - prob1),
+          date: m.event_date || "",
+          time: m.event_time || "",
+          actualWinner,
+          score,
+          isFinished: finished,
+          correct
+        });
+      });
+
+      // ─── Turniersieg-Wahrscheinlichkeit ───────────────────────────────────
+      // FIX: Ausgeschiedene korrekt aus aktivem Pool entfernen
+      // Eliminierte Map (lowercase Namen)
+      const eliminatedNames = new Set(tourn.eliminated); // bereits lowercase
+
+      // Hauptfeld-Spieler: Rang ≤ 200
+      // FIX: Kein willkürliches Limit - alle Turnierspieler einschließen
+      const allTournamentPlayers = playerList.filter(p => {
+        // Spieler der nicht ausgeschieden ist
+        const nameLower = p.name.toLowerCase();
+        const shortLower = (p.shortName || "").toLowerCase();
+        const lastNameLower = nameLower.split(" ").pop();
+        return !eliminatedNames.has(nameLower) && !eliminatedNames.has(lastNameLower);
+      });
+
+      // Mindestens die Top-Spieler nehmen (für kleine Turniere)
+      const activePlayers = allTournamentPlayers.length > 0
+        ? allTournamentPlayers
+        : playerList.slice(0, 8);
+
+      // FIX: Nur noch verbliebene Spieler für Win-Probability
+      // Für laufende Turniere: ermitteln wer noch im Draw ist
+      // Ansatz: Spieler der noch kein Finished-Match verloren hat
+      const confirmedEliminated = new Set();
+      tourn.matches.forEach(m => {
+        const p1Full = getFullName(m.event_first_player);
+        const p2Full = getFullName(m.event_second_player);
+        const winner = getMatchWinner(m, p1Full, p2Full);
+        if (winner) {
+          const loser = winner.toLowerCase() === p1Full.toLowerCase() ? p2Full : p1Full;
+          if (loser) confirmedEliminated.add(loser.toLowerCase());
         }
       });
 
-      // Turniersieg-Wahrscheinlichkeit
-      // Realistischer Ansatz: Rang-basierte Exponentialfunktion
-      // #1 hat exponentiell mehr Chance als #10, #10 mehr als #50
-      // Ausgeschiedene Spieler aus der Berechnung entfernen
-      // Nur echte Hauptfeld-Spieler (Rang ≤ 150) berücksichtigen
-      const mainDrawPlayers = playerList.filter(p => p.rank <= 150);
-      const eligiblePlayers = mainDrawPlayers.length > 0 ? mainDrawPlayers : playerList.filter(p => p.rank <= 300);
-      const eliminatedNames = new Set([...tourn.eliminated].map(p => getFullName(p).toLowerCase()));
-      const activePlayers = eligiblePlayers.filter(p => !eliminatedNames.has(p.name.toLowerCase()));
-      const stillIn = activePlayers.length > 0 ? activePlayers : eligiblePlayers.slice(0, 8);
-      const top8 = stillIn.slice(0, Math.min(8, stillIn.length));
-      const eliminatedCount = eligiblePlayers.length - stillIn.length;
-      
-      // Score = e^(-rank * 0.15) → stärkere Differenzierung
+      const stillInPlayers = playerList.filter(p => {
+        const nameLower = p.name.toLowerCase();
+        const lastNameLower = nameLower.split(" ").pop();
+        // Spieler ist noch dabei wenn er nicht als Verlierer identifiziert wurde
+        return !confirmedEliminated.has(nameLower) && !confirmedEliminated.has(lastNameLower);
+      });
+
+      // FIX: "Noch dabei" = wer tatsächlich noch nicht ausgeschieden ist
+      // Minimum: mindestens 1 Spieler anzeigen
+      const playersForProb = stillInPlayers.length > 0 ? stillInPlayers : playerList;
+
+      // Top 8 für Win-Probability-Anzeige (nach Rang sortiert)
+      const top8 = playersForProb.slice(0, Math.min(8, playersForProb.length));
+
+      // FIX: Wahrscheinlichkeiten basierend auf Elo, aber normalisiert auf 100%
+      // e^(-rank * 0.08) → stärkere Differenzierung
       const scores = top8.map(p => ({
         ...p,
         score: Math.exp(-p.rank * 0.08)
       }));
       const totalScore = scores.reduce((sum, p) => sum + p.score, 0) || 1;
-      const winProbs = scores.map(p => ({
+
+      // FIX: Sicherstellen dass Summe genau 100% ergibt
+      const rawProbs = scores.map(p => ({
         ...p,
         winProb: Math.max(1, Math.round((p.score / totalScore) * 100))
       })).sort((a, b) => b.winProb - a.winProb);
 
-      // Runden in korrekter Turnier-Reihenfolge sortieren
-      // Exakte Runden-Reihenfolge mit Priorität
-      const getRoundIndex = (r) => {
-        const lower = r.toLowerCase().trim();
-        if (lower.includes("1/64")) return 1;
-        if (lower.includes("1/32")) return 2;
-        if (lower.includes("1/16")) return 3;
-        if (lower.includes("round of 32") || lower === "r32") return 4;
-        if (lower.includes("round of 16") || lower === "r16") return 5;
-        if (lower.includes("1/8") || lower.includes("round of 8")) return 6;
-        if (lower.includes("quarter")) return 7;
-        if (lower.includes("semi")) return 8;
-        if (lower === "final" || lower === "finals" || lower.includes("final")) return 9;
-        return 99;
+      // Differenz auf 100% korrigieren (Rundungsfehler)
+      const probSum = rawProbs.reduce((s, p) => s + p.winProb, 0);
+      if (rawProbs.length > 0 && probSum !== 100) {
+        rawProbs[0].winProb += (100 - probSum);
+      }
+      const winProbs = rawProbs;
+
+      // ─── Runden-Matches filtern und aufbereiten ───────────────────────────
+      const maxMatchesPerRound = {
+        "1/64-Finals": 64, "1/32-Finals": 32, "1/16-Finals": 16,
+        "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
       };
+
+      // FIX: Rank-Filter großzügiger gestalten – kein Spieler darf wegen
+      // zu hohem Rang aus echten Hauptfeld-Runden herausgefiltert werden.
+      // Nur offensichtliche Qualifikations-Matches entfernen.
+      const rankLimitsForFilter = {
+        "Final": 300,
+        "Semi-Finals": 300,
+        "Quarter-Finals": 300,
+        "1/8-Finals": 300,
+        "1/16-Finals": 300,
+        "1/32-Finals": 500,
+        "1/64-Finals": 500
+      };
+
+      const sortedRounds = Object.values(rounds)
+        .sort((a, b) => {
+          if (a.discipline !== b.discipline) return a.discipline === "Singles" ? -1 : 1;
+          return getRoundIndex(a.round) - getRoundIndex(b.round);
+        })
+        .map(r => {
+          const maxMatches = maxMatchesPerRound[r.round] || 999;
+          const rankLimit = rankLimitsForFilter[r.round] || 500;
+
+          // FIX: Deduplizierung – selbes Matchup nur einmal behalten
+          // Bei Duplikaten: das abgeschlossene Match bevorzugen
+          const matchMap = new Map();
+          r.matches.forEach(m => {
+            const key = [m.player1, m.player2].sort().join("|||");
+            if (!matchMap.has(key)) {
+              matchMap.set(key, m);
+            } else {
+              // Bereits vorhandenes Match: abgeschlossenes bevorzugen
+              const existing = matchMap.get(key);
+              if (m.isFinished && !existing.isFinished) {
+                matchMap.set(key, m);
+              }
+            }
+          });
+
+          const deduped = [...matchMap.values()];
+
+          // FIX: Rank-Filter nur für klare Qualifikations-Matches
+          // Mindestens ein Spieler muss unter dem Limit sein
+          const filtered = deduped.filter(m => {
+            const minRank = Math.min(m.rank1, m.rank2);
+            return minRank <= rankLimit;
+          });
+
+          // Nach Datum sortieren, dann nach Status (abgeschlossen zuerst)
+          const sorted = [...filtered].sort((a, b) => {
+            // Abgeschlossene zuerst
+            if (a.isFinished && !b.isFinished) return -1;
+            if (!a.isFinished && b.isFinished) return 1;
+            if (a.date && b.date) return a.date.localeCompare(b.date);
+            return 0;
+          });
+
+          return { ...r, matches: sorted.slice(0, maxMatches) };
+        })
+        // FIX: Leere Runden nicht anzeigen
+        .filter(r => r.matches.length > 0);
 
       return {
         name: tourn.name,
@@ -1025,55 +1094,13 @@ app.get("/api/tournament-predictions", async (req, res) => {
         playerCount: playerList.length,
         favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
         winProbs: winProbs.slice(0, 5),
-        rounds: Object.values(rounds)
-          .sort((a, b) => {
-            // Singles vor Doubles
-            if (a.discipline !== b.discipline) return a.discipline === "Singles" ? -1 : 1;
-            // Runden in korrekter Reihenfolge
-            return getRoundIndex(a.round) - getRoundIndex(b.round);
-          })
-          .map(r => {
-            const maxMatches = {
-              "1/64-Finals": 64, "1/32-Finals": 32, "1/16-Finals": 16,
-              "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
-            };
-            const max = maxMatches[r.round] || 999;
-            
-            // Rang-Limits: mindestens ein Spieler unter dem Limit
-            // UND beide Spieler unter dem doppelten Limit (kein reiner Quali-Match)
-            const rankLimits = {
-              "Final": 80, "Semi-Finals": 80, "Quarter-Finals": 100,
-              "1/8-Finals": 130, "1/16-Finals": 180
-            };
-            const rankLimit = rankLimits[r.round] || 300;
-            const rankLimitBoth = rankLimit * 2.5;
-            
-            // Deduplizieren
-            const seen = new Set();
-            const filtered = r.matches.filter(m => {
-              // Mindestens ein Spieler unter Limit, beide unter doppeltem Limit
-              const minRank = Math.min(m.rank1, m.rank2);
-              const maxRank = Math.max(m.rank1, m.rank2);
-              if (minRank > rankLimit) return false;
-              if (maxRank > rankLimitBoth) return false;
-              const key = [m.player1, m.player2].sort().join("|||");
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            });
-            
-            // Nach Datum sortieren
-            const sorted = [...filtered].sort((a, b) => {
-              if (a.date && b.date) return a.date.localeCompare(b.date);
-              return 0;
-            });
-            return { ...r, matches: sorted.slice(0, max) };
-          }),
+        rounds: sortedRounds,
         drawSet: playerList.length > 0,
-        eliminatedCount,
-        activePlayerCount: stillIn.length,
+        // FIX: Korrekte Zählung verbleibender Spieler
+        eliminatedCount: confirmedEliminated.size,
+        activePlayerCount: stillInPlayers.length,
         isLive: tourn.matches.some(m => m.event_live === "1" || m.event_live === 1),
-        hasStarted: tourn.eliminated.size > 0
+        hasStarted: confirmedEliminated.size > 0
       };
     }).sort((a, b) => a.dateStart.localeCompare(b.dateStart));
 
