@@ -893,10 +893,25 @@ app.get("/api/tournament-predictions", async (req, res) => {
       const favorite = playerList[0] || null;
 
       // Runden-Predictions aus vorhandenen Matches
+      // Gruppierung: Kategorie (Qual/Hauptfeld) + Disziplin (Singles/Doubles) + Runde
       const rounds = {};
       tourn.matches.forEach(m => {
-        const round = m.tournament_round || m.event_round || "Round 1";
-        if (!rounds[round]) rounds[round] = [];
+        const roundName = m.tournament_round || m.event_round || "Round 1";
+        const roundLower = roundName.toLowerCase();
+
+        // Qualifikation oder Hauptfeld?
+        const isQual = roundLower.includes("qual") || roundLower.includes("pre-");
+        const section = isQual ? "Qualifikation" : "Hauptfeld";
+
+        // Singles oder Doubles?
+        const discipline = tourn.type?.includes("Doubles") ? "Doubles" : "Singles";
+
+        // Bereinigter Rundenname (ohne Turniernamen-Prefix)
+        const cleanRound = roundName.replace(/^[^-]+-\s*/i, "").trim() || roundName;
+
+        const key = `${section}|||${discipline}|||${cleanRound}`;
+        if (!rounds[key]) rounds[key] = { section, discipline, round: cleanRound, matches: [] };
+
         const p1 = getFullName(m.event_first_player);
         const p2 = getFullName(m.event_second_player);
         const r1 = getRank(m.event_first_player);
@@ -906,7 +921,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
 
         if (p1 && p2) {
-          rounds[round].push({
+          rounds[key].matches.push({
             player1: p1,
             player2: p2,
             rank1: r1,
@@ -961,8 +976,15 @@ app.get("/api/tournament-predictions", async (req, res) => {
         playerCount: playerList.length,
         favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
         winProbs: winProbs.slice(0, 5),
-        rounds: Object.entries(rounds).map(([round, matches]) => ({ round, matches }))
-          .sort((a, b) => getRoundIndex(a.round) - getRoundIndex(b.round)),
+        rounds: Object.values(rounds)
+          .sort((a, b) => {
+            // Hauptfeld vor Qualifikation
+            if (a.section !== b.section) return a.section === "Hauptfeld" ? -1 : 1;
+            // Singles vor Doubles
+            if (a.discipline !== b.discipline) return a.discipline === "Singles" ? -1 : 1;
+            // Runden in korrekter Reihenfolge
+            return getRoundIndex(a.round) - getRoundIndex(b.round);
+          }),
         drawSet: playerList.length > 0,
         eliminatedCount,
         activePlayerCount: stillIn.length,
