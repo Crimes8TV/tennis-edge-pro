@@ -1213,7 +1213,7 @@ export default function App() {
                                   <strong style={{ color: i === 0 ? "#4ade80" : "#94a3b8" }}>{p.winProb}%</strong>
                                 </div>
                                 <div style={{ height: "6px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
-                                  <div style={{ width: `${Math.min(100, p.winProb * 3)}%`, height: "100%", background: i === 0 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : "#334155", borderRadius: "999px" }} />
+                                  <div style={{ width: `${p.winProb}%`, height: "100%", background: i === 0 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : i === 1 ? "#6366f1" : "#334155", borderRadius: "999px", transition: "width 0.4s ease" }} />
                                 </div>
                               </div>
                             ))}
