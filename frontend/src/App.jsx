@@ -618,10 +618,35 @@ export default function App() {
                                 const surfaceOpp = isP1 ? p2Data?.[surface] : p1Data?.[surface];
 
                                 const reasons = [];
-                                if (rankVal && rankOpp && rankVal < rankOpp) reasons.push(`besseres Ranking (#${rankVal} vs #${rankOpp})`);
-                                if (eloVal && eloOpp && eloVal > eloOpp) reasons.push(`höherer Elo-Wert (${eloVal} vs ${eloOpp})`);
-                                if (surfaceVal && surfaceOpp && surfaceVal > surfaceOpp) reasons.push(`stärkere ${surface === "clay" ? "Clay" : surface === "grass" ? "Grass" : "Hard Court"}-Performance (${surfaceVal} vs ${surfaceOpp})`);
-                                if (reasons.length === 0) reasons.push(`ausgeglichenere Gesamtbilanz`);
+
+                                // Rang
+                                if (rankVal && rankOpp) {
+                                  if (rankVal < rankOpp) reasons.push(`besseres Weltranking (#${rankVal} vs #${rankOpp} — ${rankOpp - rankVal} Plätze höher)`);
+                                  else reasons.push(`schlechteres Ranking (#${rankVal} vs #${rankOpp}), aber andere Faktoren überwiegen`);
+                                }
+
+                                // Elo
+                                if (eloVal && eloOpp) {
+                                  const eloDiff = eloVal - eloOpp;
+                                  if (Math.abs(eloDiff) > 20) {
+                                    reasons.push(`${eloDiff > 0 ? "höherer" : "niedrigerer"} Elo-Wert (${eloVal} vs ${eloOpp}, Differenz: ${Math.abs(eloDiff)} Punkte)`);
+                                  }
+                                }
+
+                                // Surface
+                                const surfLabel = surface === "clay" ? "Clay" : surface === "grass" ? "Grass" : "Hard Court";
+                                if (surfaceVal && surfaceOpp && surfaceVal !== surfaceOpp) {
+                                  if (surfaceVal > surfaceOpp) reasons.push(`stärkere ${surfLabel}-Performance (${surfaceVal} vs ${surfaceOpp} Punkte)`);
+                                  else reasons.push(`schwächere ${surfLabel}-Performance (${surfaceVal} vs ${surfaceOpp}), aber Ranking/Elo gleichen das aus`);
+                                }
+
+                                // Implied vs our prob gap
+                                const implProb2 = Math.round(100 / (isP1 ? odds1 : odds2));
+                                if (ourProb - implProb2 > 10) {
+                                  reasons.push(`deutliche Unterbewertung durch Buchmacher (${implProb2}% impliziert vs ${ourProb}% Modell)`);
+                                }
+
+                                if (reasons.length === 0) reasons.push("ausgeglichene Gesamtbilanz mit leichtem Vorteil im Gesamtmodell");
 
                                 return (
                                   <>
@@ -631,9 +656,14 @@ export default function App() {
                                     <p style={{ margin: "0 0 8px", color: "#94a3b8", fontSize: "13px" }}>
                                       Der Buchmacher sieht {bestPick} bei <strong style={{ color: "#f472b6" }}>{implProb}%</strong> Gewinnchance, unser Modell bei <strong style={{ color: "#4ade80" }}>{ourProb}%</strong> — eine Differenz von +{bestEdge}%.
                                     </p>
-                                    <p style={{ margin: "0 0 6px", color: "#94a3b8", fontSize: "13px" }}>
-                                      <strong style={{ color: "#22d3ee" }}>Warum höher bewertet:</strong> Unser Modell gewichtet {reasons.join(", ")}.
-                                    </p>
+                                    <div style={{ margin: "0 0 8px" }}>
+                                      <p style={{ margin: "0 0 6px", color: "#22d3ee", fontSize: "13px", fontWeight: 600 }}>Warum höher bewertet:</p>
+                                      <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                                        {reasons.map((r, i) => (
+                                          <li key={i} style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "4px" }}>{r}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
                                     <p style={{ margin: "0", color: "#64748b", fontSize: "12px" }}>
                                       Ein positiver Edge bedeutet: wenn dieses Szenario 100x gespielt wird, wäre diese Wette langfristig profitabel.
                                     </p>
