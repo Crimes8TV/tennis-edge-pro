@@ -1039,18 +1039,23 @@ app.get("/api/tournament-predictions", async (req, res) => {
             };
             const max = maxMatches[r.round] || 999;
             
-            // Rang-Limits pro Runde: je später die Runde, desto besser die Spieler
+            // Rang-Limits: mindestens ein Spieler unter dem Limit
+            // UND beide Spieler unter dem doppelten Limit (kein reiner Quali-Match)
             const rankLimits = {
-              "Final": 80, "Semi-Finals": 100, "Quarter-Finals": 120,
-              "1/8-Finals": 150, "1/16-Finals": 200
+              "Final": 80, "Semi-Finals": 80, "Quarter-Finals": 100,
+              "1/8-Finals": 130, "1/16-Finals": 180
             };
             const rankLimit = rankLimits[r.round] || 300;
+            const rankLimitBoth = rankLimit * 2.5;
             
             // Deduplizieren
             const seen = new Set();
             const filtered = r.matches.filter(m => {
-              // Mindestens ein Spieler muss unter dem Rang-Limit liegen
-              if (m.rank1 > rankLimit && m.rank2 > rankLimit) return false;
+              // Mindestens ein Spieler unter Limit, beide unter doppeltem Limit
+              const minRank = Math.min(m.rank1, m.rank2);
+              const maxRank = Math.max(m.rank1, m.rank2);
+              if (minRank > rankLimit) return false;
+              if (maxRank > rankLimitBoth) return false;
               const key = [m.player1, m.player2].sort().join("|||");
               if (seen.has(key)) return false;
               seen.add(key);
