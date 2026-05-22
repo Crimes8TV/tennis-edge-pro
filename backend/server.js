@@ -194,12 +194,19 @@ app.get("/api/h2h", async (req, res) => {
       else if (match.event_winner === "Second Player") p2Wins++;
     });
 
+    // Selbst-Matches filtern
+    const filterSelfMatches = (matches) => matches.filter(m => {
+      const p1Last = (m.event_first_player || "").toLowerCase().split(" ").pop();
+      const p2Last = (m.event_second_player || "").toLowerCase().split(" ").pop();
+      return p1Last !== p2Last && m.event_first_player !== m.event_second_player;
+    }).slice(0, 5);
+
     res.json({
       h2h_matches: h2h.slice(0, 10),
       p1_wins: p1Wins,
       p2_wins: p2Wins,
-      p1_recent: p1Results.slice(0, 5),
-      p2_recent: p2Results.slice(0, 5)
+      p1_recent: filterSelfMatches(p1Results),
+      p2_recent: filterSelfMatches(p2Results)
     });
   } catch (err) {
     console.error("H2H ERROR:", err.message);
