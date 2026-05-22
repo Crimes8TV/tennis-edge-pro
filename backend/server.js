@@ -565,22 +565,36 @@ app.get("/api/fixtures/today", async (req, res) => {
 app.get("/api/match/:matchKey", async (req, res) => {
   try {
     const { matchKey } = req.params;
+    const today = new Date().toISOString().split("T")[0];
 
-    // Match-Details + Live-Score parallel holen
-    const [detailRes, liveRes] = await Promise.allSettled([
-      apiGet({ method: "get_fixtures", match_id: matchKey }),
-      apiGet({ method: "get_livescore", match_id: matchKey })
-    ]);
+    // Alle Event-Types durchsuchen um das Match zu finden
+    const eventTypes = [265, 267, 281, 282];
+    let match = null;
 
-    const detail = detailRes.status === "fulfilled"
-      ? (detailRes.value.data?.result?.[0] || detailRes.value.data?.result || null)
-      : null;
+    // Erst in Live-Scores suchen
+    const liveResults = await Promise.allSettled(
+      eventTypes.map(et => apiGet({ method: "get_livescore", event_type_key: et }))
+    );
+    for (const r of liveResults) {
+      if (r.status === "fulfilled") {
+        const found = (r.value.data?.result || []).find(m => String(m.event_key) === String(matchKey));
+        if (found) { match = { ...found, _isLive: true }; break; }
+      }
+    }
 
-    const live = liveRes.status === "fulfilled"
-      ? (liveRes.value.data?.result?.[0] || null)
-      : null;
+    // Falls nicht live, in Fixtures suchen
+    if (!match) {
+      const fixtureResults = await Promise.allSettled(
+        eventTypes.map(et => apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: et }))
+      );
+      for (const r of fixtureResults) {
+        if (r.status === "fulfilled") {
+          const found = (r.value.data?.result || []).find(m => String(m.event_key) === String(matchKey));
+          if (found) { match = found; break; }
+        }
+      }
+    }
 
-    const match = live || detail;
     if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
 
     // Sets parsen aus event_final_result z.B. "6-4, 3-6, 7-5"
