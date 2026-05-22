@@ -223,12 +223,29 @@ export default function App() {
             <div className="topMatches">
               <h4>🔥 Live Matches</h4>
               {liveMatches.length === 0 ? (
-                <p>Keine Live Matches</p>
+                <p style={{ color: "#94a3b8", fontSize: "14px" }}>Keine Live Matches</p>
               ) : (
                 liveMatches.map((m, i) => (
-                  <p key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                    {m.player1} vs {m.player2}
-                  </p>
+                  <div key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "14px", color: "#e2e8f0" }}>{m.player1} <span style={{ color: "#475569" }}>vs</span> {m.player2}</div>
+                      <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px" }}>
+                        {m.category && <span style={{
+                          background: m.category.includes("ATP") ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)",
+                          color: m.category.includes("ATP") ? "#22d3ee" : "#facc15",
+                          padding: "1px 6px", borderRadius: "4px", marginRight: "6px", fontSize: "10px", fontWeight: 700
+                        }}>{m.category}</span>}
+                        {m.tournament}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", minWidth: "60px" }}>
+                      {m.score && m.score !== "-" && (
+                        <span style={{ color: "#4ade80", fontWeight: 700, fontSize: "14px" }}>{m.score}</span>
+                      )}
+                      {m.status && <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{m.status}</div>}
+                    </div>
+                  </div>
                 ))
               )}
             </div>
@@ -610,12 +627,23 @@ export default function App() {
                                 const implProb = Math.round(100 / (isP1 ? odds1 : odds2));
                                 const ourProb = prediction.prediction[bestPick];
                                 const oppProb = prediction.prediction[isP1 ? prediction.player2 : prediction.player1];
+
+                                // Elo aus prediction response
                                 const eloVal = prediction.elo?.[bestPick];
                                 const eloOpp = prediction.elo?.[isP1 ? prediction.player2 : prediction.player1];
-                                const rankVal = isP1 ? p1Data?.rank : p2Data?.rank;
-                                const rankOpp = isP1 ? p2Data?.rank : p1Data?.rank;
-                                const surfaceVal = isP1 ? p1Data?.[surface] : p2Data?.[surface];
-                                const surfaceOpp = isP1 ? p2Data?.[surface] : p1Data?.[surface];
+
+                                // Rank aus safePlayers
+                                const pickPlayerData = safePlayers.find(p => getPlayerName(p).toLowerCase() === bestPick.toLowerCase());
+                                const oppName = isP1 ? prediction.player2 : prediction.player1;
+                                const oppPlayerData = safePlayers.find(p => getPlayerName(p).toLowerCase() === oppName.toLowerCase());
+                                const rankVal = pickPlayerData?.rank;
+                                const rankOpp = oppPlayerData?.rank;
+
+                                // Surface + Stats aus prediction.playerStats
+                                const pickStats = prediction.playerStats?.[bestPick];
+                                const oppStats = prediction.playerStats?.[oppName];
+                                const surfaceVal = pickStats?.serve; // Serve als Proxy für Stärke
+                                const surfaceOpp = oppStats?.serve;
 
                                 const reasons = [];
 
@@ -634,10 +662,14 @@ export default function App() {
                                 }
 
                                 // Surface
-                                const surfLabel = surface === "clay" ? "Clay" : surface === "grass" ? "Grass" : "Hard Court";
-                                if (surfaceVal && surfaceOpp && surfaceVal !== surfaceOpp) {
-                                  if (surfaceVal > surfaceOpp) reasons.push(`stärkere ${surfLabel}-Performance (${surfaceVal} vs ${surfaceOpp} Punkte)`);
-                                  else reasons.push(`schwächere ${surfLabel}-Performance (${surfaceVal} vs ${surfaceOpp}), aber Ranking/Elo gleichen das aus`);
+                                // Spieler-Stats Vergleich
+                                if (pickStats && oppStats) {
+                                  const serveAdv = pickStats.serve - oppStats.serve;
+                                  const returnAdv = pickStats.return - oppStats.return;
+                                  const clutchAdv = pickStats.clutch - oppStats.clutch;
+                                  if (Math.abs(serveAdv) >= 3) reasons.push(`${serveAdv > 0 ? "stärkerer" : "schwächerer"} Aufschlag (${pickStats.serve} vs ${oppStats.serve} Punkte)`);
+                                  if (Math.abs(returnAdv) >= 3) reasons.push(`${returnAdv > 0 ? "stärkeres" : "schwächeres"} Return-Spiel (${pickStats.return} vs ${oppStats.return} Punkte)`);
+                                  if (Math.abs(clutchAdv) >= 3) reasons.push(`${clutchAdv > 0 ? "höherer" : "niedrigerer"} Clutch-Faktor (${pickStats.clutch} vs ${oppStats.clutch} Punkte)`);
                                 }
 
                                 // Implied vs our prob gap
