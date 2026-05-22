@@ -221,13 +221,32 @@ app.get("/api/predict", async (req, res) => {
   const clutchFactor = 10 + Math.random() * 10;
   const momentumFactor = Math.max(10, 100 - rankingFactor - formFactor - clutchFactor);
 
+  // Bessere Confidence: basiert auf Rankdifferenz + Winwahrscheinlichkeit
+  const gap = Math.abs(p1Win - 50);
+  const rankBoost = Math.min(30, rankDiff * 0.4);
+  const confidence = Math.min(99, Math.round(gap * 1.8 + rankBoost));
+
+  // Abgeleitete Spieler-Stats aus Rang und Elo
+  const deriveStats = (rank, elo) => {
+    const base = Math.max(50, 100 - rank * 0.4);
+    return {
+      serve:    Math.min(99, Math.round(base + (elo - 1800) * 0.015 + Math.random() * 6)),
+      return:   Math.min(99, Math.round(base + (elo - 1800) * 0.012 + Math.random() * 6)),
+      clutch:   Math.min(99, Math.round(base + (elo - 1800) * 0.010 + Math.random() * 8)),
+      momentum: Math.min(99, Math.round(base + (elo - 1800) * 0.011 + Math.random() * 7)),
+    };
+  };
+  const p1Stats = deriveStats(Number(rank1), elo1);
+  const p2Stats = deriveStats(Number(rank2), elo2);
+
   res.json({
     player1: p1,
     player2: p2,
     surface,
     elo: { [p1]: Math.round(elo1), [p2]: Math.round(elo2) },
     prediction: { [p1]: p1Win, [p2]: 100 - p1Win },
-    confidence: Math.round(Math.abs(p1Win - 50) * 2),
+    confidence,
+    playerStats: { [p1]: p1Stats, [p2]: p2Stats },
     factors: {
       ranking: Math.round(rankingFactor),
       form: Math.round(formFactor),
