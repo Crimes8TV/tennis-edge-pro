@@ -909,11 +909,11 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const r2temp = getRank(m.event_second_player);
         const avgRank = (r1temp + r2temp) / 2;
         
-        // Qualifikation überspringen — nur Hauptfeld anzeigen
+        // Qualifikation nur über Round-Namen filtern
         const isQual = roundLower.includes("qual") || 
                        roundLower.includes("pre-") ||
                        roundLower.includes("qualification") ||
-                       avgRank > 110;
+                       roundLower.includes("qualifying");
         if (isQual) return;
 
         // Singles oder Doubles aus Event-Type oder Round-Name
