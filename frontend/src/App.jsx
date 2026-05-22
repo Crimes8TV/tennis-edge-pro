@@ -1269,24 +1269,43 @@ export default function App() {
                                   {!isRoundCollapsed && (
                                     <div style={{ padding: "0 10px 10px" }}>
                                       {r.matches.map((m, mi) => (
-                                        <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", marginBottom: "4px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", cursor: "pointer" }}
+                                        <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", marginBottom: "4px", background: m.isFinished ? (m.correct ? "rgba(74,222,128,0.05)" : m.correct === false ? "rgba(248,113,113,0.05)" : "rgba(255,255,255,0.03)") : "rgba(255,255,255,0.03)", borderRadius: "8px", cursor: "pointer", border: m.isFinished ? `1px solid ${m.correct ? "rgba(74,222,128,0.2)" : m.correct === false ? "rgba(248,113,113,0.2)" : "rgba(255,255,255,0.05)"}` : "1px solid rgba(255,255,255,0.05)" }}
                                           onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
                                           <div style={{ flex: 1, minWidth: 0 }}>
+                                            {/* Player 1 */}
                                             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                              <span style={{ fontSize: "13px", color: m.prediction === m.player1 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player1 ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</span>
+                                              {m.actualWinner === m.player1 && <span style={{ fontSize: "10px" }}>🏆</span>}
+                                              <span style={{ fontSize: "13px", fontWeight: m.prediction === m.player1 || m.actualWinner === m.player1 ? 700 : 400, color: m.actualWinner === m.player1 ? "#4ade80" : m.prediction === m.player1 ? "#22d3ee" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</span>
                                               <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank1}</span>
                                             </div>
+                                            {/* Player 2 */}
                                             <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "3px" }}>
-                                              <span style={{ fontSize: "13px", color: m.prediction === m.player2 ? "#4ade80" : "#94a3b8", fontWeight: m.prediction === m.player2 ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</span>
+                                              {m.actualWinner === m.player2 && <span style={{ fontSize: "10px" }}>🏆</span>}
+                                              <span style={{ fontSize: "13px", fontWeight: m.prediction === m.player2 || m.actualWinner === m.player2 ? 700 : 400, color: m.actualWinner === m.player2 ? "#4ade80" : m.prediction === m.player2 ? "#22d3ee" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</span>
                                               <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank2}</span>
                                             </div>
                                           </div>
-                                          <div style={{ textAlign: "right", flexShrink: 0, marginLeft: "8px" }}>
-                                            <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "1px" }}>Pick</div>
-                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "#4ade80" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
-                                            <div style={{ fontSize: "11px", color: "#64748b" }}>{m.prob}%</div>
+
+                                          {/* Mitte: Score oder Zeit */}
+                                          <div style={{ textAlign: "center", flexShrink: 0, margin: "0 12px", minWidth: "60px" }}>
+                                            {m.isFinished && m.score ? (
+                                              <span style={{ fontSize: "11px", color: "#64748b" }}>{m.score}</span>
+                                            ) : m.time ? (
+                                              <span style={{ fontSize: "11px", color: "#475569" }}>🕐 {m.time}</span>
+                                            ) : null}
                                           </div>
-                                          {m.time && <div style={{ fontSize: "10px", color: "#475569", marginLeft: "6px", flexShrink: 0 }}>🕐 {m.time}</div>}
+
+                                          {/* Rechts: Prediction + Ergebnis */}
+                                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                            <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "2px" }}>Pick {m.prob}%</div>
+                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "#22d3ee" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
+                                            {m.isFinished && (
+                                              <div style={{ fontSize: "11px", marginTop: "2px" }}>
+                                                {m.correct === true && <span style={{ color: "#4ade80" }}>✅ Korrekt</span>}
+                                                {m.correct === false && <span style={{ color: "#f87171" }}>❌ Falsch</span>}
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
