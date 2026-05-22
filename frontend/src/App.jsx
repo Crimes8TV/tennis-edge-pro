@@ -457,10 +457,12 @@ export default function App() {
           <>
             <Header title="Matches" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              {liveMatches.length > 0
-                ? `🔴 ${liveMatches.length} Live Matches`
-                : `📅 Heute — ${new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})} · ${fixtures.length} Matches`
-              }
+              📅 Heute — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
+              {fixtures.filter(m => m.live).length > 0 && (
+                <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>
+                  🔴 {fixtures.filter(m => m.live).length} Live
+                </span>
+              )}
             </p>
 
             <div>
