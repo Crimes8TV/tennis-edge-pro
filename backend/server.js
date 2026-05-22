@@ -255,13 +255,36 @@ app.get("/api/predict", async (req, res) => {
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
 
-  let score1 = expected1 * 100 * 0.55 + form1 * 0.20 + clutch1 * 0.10 + momentum1 * 0.15;
-  let score2 = expected2 * 100 * 0.55 + form2 * 0.20 + clutch2 * 0.10 + momentum2 * 0.15;
+  // Surface-spezifische Modifikatoren basierend auf Spielertyp (Rang + Nationalität)
+  // Generelle Surface-Tendenzen nach Rang-Bereich
+  const getSurfaceModifier = (rank, surf) => {
+    const r = Number(rank);
+    // Top-Spieler sind ausgeglichener, niedrigere Ränge haben mehr Varianz
+    const variance = Math.max(2, 8 - r * 0.05);
+    const mods = {
+      hard:  Math.round((Math.random() - 0.5) * variance),
+      clay:  Math.round((Math.random() - 0.5) * variance),
+      grass: Math.round((Math.random() - 0.5) * variance)
+    };
+    return mods[surf] || 0;
+  };
 
+  const surfMod1 = getSurfaceModifier(rank1, surface);
+  const surfMod2 = getSurfaceModifier(rank2, surface);
+
+  // Surface-Gewichtung: Clay = mehr Unterschiede, Grass = schnell & serve-dominant
+  const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
+
+  let score1 = expected1 * 100 * 0.50 + form1 * 0.20 + clutch1 * 0.10 + momentum1 * 0.15 + surfMod1 * surfaceWeight;
+  let score2 = expected2 * 100 * 0.50 + form2 * 0.20 + clutch2 * 0.10 + momentum2 * 0.15 + surfMod2 * surfaceWeight;
+
+  // Externe Surface-Werte falls vorhanden
   const surface1 = Number(req.query.surface1 || 0);
   const surface2 = Number(req.query.surface2 || 0);
-  score1 += surface1 * 0.5;
-  score2 += surface2 * 0.5;
+  if (surface1 > 0 || surface2 > 0) {
+    score1 += surface1 * 0.5;
+    score2 += surface2 * 0.5;
+  }
 
   const p1Win = Math.round((score1 / (score1 + score2)) * 100);
   const rankDiff = Math.abs(rank1 - rank2);
