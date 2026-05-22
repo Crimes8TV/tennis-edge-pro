@@ -6,10 +6,12 @@ import {
 import { Activity, BarChart3, Trophy, Search, Zap } from "lucide-react";
 import "./App.css";
 
-function PlayerAutocomplete({ label, value, onChange, players }) {
+function PlayerAutocomplete({ label, value, onChange, players, onOpenChange }) {
   const [query, setQuery] = useState(value || "");
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
+  const DROPDOWN_HEIGHT = 220;
 
   useEffect(() => {
     setQuery(value || "");
@@ -17,31 +19,41 @@ function PlayerAutocomplete({ label, value, onChange, players }) {
 
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        onOpenChange && onOpenChange(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [onOpenChange]);
 
   const filtered = query
-    ? players.filter(p => p.toLowerCase().includes(query.toLowerCase())).slice(0, 50)
-    : players.slice(0, 50);
+    ? players.filter(p => p.toLowerCase().includes(query.toLowerCase()))
+    : players;
 
   const handleSelect = (name) => {
     setQuery(name);
     onChange(name);
     setOpen(false);
+    onOpenChange && onOpenChange(false);
   };
 
   const handleChange = (e) => {
     setQuery(e.target.value);
     setOpen(true);
+    onOpenChange && onOpenChange(true);
     const exact = players.find(p => p.toLowerCase() === e.target.value.toLowerCase());
     if (exact) onChange(exact);
   };
 
+  const handleFocus = () => {
+    setOpen(true);
+    onOpenChange && onOpenChange(true);
+  };
+
   return (
-    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+    <div ref={ref} style={{ width: "100%" }}>
       <div style={{ position: "relative" }}>
         <Search
           size={14}
@@ -58,32 +70,24 @@ function PlayerAutocomplete({ label, value, onChange, players }) {
           type="text"
           value={query}
           onChange={handleChange}
-          onFocus={() => setOpen(true)}
+          onFocus={handleFocus}
           placeholder={label}
-          style={{
-            width: "100%",
-            paddingLeft: "30px",
-            boxSizing: "border-box"
-          }}
+          style={{ width: "100%", paddingLeft: "30px", boxSizing: "border-box" }}
         />
       </div>
 
       {open && filtered.length > 0 && (
         <ul style={{
-          position: "absolute",
-          top: "calc(100% + 4px)",
-          left: 0,
-          right: 0,
+          width: "100%",
           background: "var(--color-background-primary)",
           border: "0.5px solid var(--color-border-secondary)",
           borderRadius: "var(--border-radius-md)",
-          maxHeight: "220px",
+          maxHeight: `${DROPDOWN_HEIGHT}px`,
           overflowY: "auto",
-          zIndex: 100,
-          margin: 0,
+          margin: "4px 0 0 0",
           padding: 0,
           listStyle: "none",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+          boxSizing: "border-box"
         }}>
           {filtered.map(name => (
             <li
@@ -332,7 +336,7 @@ export default function App() {
           <>
             <Header title="Match Predictor" />
 
-            <div className="grid two" style={{ marginBottom: "1rem" }}>
+            <div className="grid two" style={{ marginBottom: "1rem", alignItems: "flex-start" }}>
               <PlayerAutocomplete
                 label="Spieler 1 suchen..."
                 value={p1}
