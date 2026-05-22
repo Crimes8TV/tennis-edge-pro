@@ -109,8 +109,22 @@ export default function App() {
   const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
   const active = safePlayers.find(p => getPlayerName(p) === player) || {};
   const compareActive = safePlayers.find(p => getPlayerName(p) === comparePlayer) || {};
-  const p1Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p1.toLowerCase());
-  const p2Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p2.toLowerCase());
+  const findPlayer = (name) => {
+    if (!name) return null;
+    const lower = name.toLowerCase();
+    // 1. Exact match
+    let found = safePlayers.find(p => getPlayerName(p).toLowerCase() === lower);
+    if (found) return found;
+    // 2. Last name match (handles "I. Ivashka" → "Ilya Ivashka")
+    const lastName = lower.split(" ").pop();
+    found = safePlayers.find(p => getPlayerName(p).toLowerCase().split(" ").pop() === lastName);
+    if (found) return found;
+    // 3. Contains match
+    found = safePlayers.find(p => getPlayerName(p).toLowerCase().includes(lastName));
+    return found || null;
+  };
+  const p1Data = findPlayer(p1);
+  const p2Data = findPlayer(p2);
 
   const winner =
     prediction?.prediction?.[prediction?.player1] >
