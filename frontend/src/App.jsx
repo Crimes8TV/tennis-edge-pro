@@ -605,19 +605,46 @@ export default function App() {
                           }}>
                             <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>🧠 Fazit</div>
                             {bestPick ? (
-                              <>
-                                <p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}>
-                                  <strong style={{ color: "#22d3ee" }}>{bestPick}</strong> ist die Value Bet mit einem Edge von <strong style={{ color: "#4ade80" }}>+{bestEdge}%</strong>.
-                                </p>
-                                <p style={{ margin: "0", color: "#94a3b8", fontSize: "13px" }}>
-                                  Der Buchmacher bewertet {bestPick} mit {Math.round(100 / (bestPick === prediction.player1 ? odds1 : odds2))}% Gewinnchance, unser Modell sieht {prediction.prediction[bestPick]}%. Diese Differenz ist der Edge — langfristig profitabel wenn positiv.
-                                </p>
-                                {!hasValue1 || !hasValue2 ? null : (
-                                  <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "12px" }}>
-                                    Beide Spieler zeigen positiven Edge — wähle den höheren: {bestPick} (+{bestEdge}%).
-                                  </p>
-                                )}
-                              </>
+                                {(() => {
+                                const isP1 = bestPick === prediction.player1;
+                                const implProb = Math.round(100 / (isP1 ? odds1 : odds2));
+                                const ourProb = prediction.prediction[bestPick];
+                                const oppProb = prediction.prediction[isP1 ? prediction.player2 : prediction.player1];
+                                const eloVal = prediction.elo?.[bestPick];
+                                const eloOpp = prediction.elo?.[isP1 ? prediction.player2 : prediction.player1];
+                                const rankVal = isP1 ? p1Data?.rank : p2Data?.rank;
+                                const rankOpp = isP1 ? p2Data?.rank : p1Data?.rank;
+                                const surfaceVal = isP1 ? p1Data?.[surface] : p2Data?.[surface];
+                                const surfaceOpp = isP1 ? p2Data?.[surface] : p1Data?.[surface];
+
+                                const reasons = [];
+                                if (rankVal && rankOpp && rankVal < rankOpp) reasons.push(`besseres Ranking (#${rankVal} vs #${rankOpp})`);
+                                if (eloVal && eloOpp && eloVal > eloOpp) reasons.push(`höherer Elo-Wert (${eloVal} vs ${eloOpp})`);
+                                if (surfaceVal && surfaceOpp && surfaceVal > surfaceOpp) reasons.push(`stärkere ${surface === "clay" ? "Clay" : surface === "grass" ? "Grass" : "Hard Court"}-Performance (${surfaceVal} vs ${surfaceOpp})`);
+                                if (reasons.length === 0) reasons.push(`ausgeglichenere Gesamtbilanz`);
+
+                                return (
+                                  <>
+                                    <p style={{ margin: "0 0 8px", color: "#e2e8f0", fontSize: "14px" }}>
+                                      <strong style={{ color: "#22d3ee" }}>{bestPick}</strong> ist die Value Bet mit einem Edge von <strong style={{ color: "#4ade80" }}>+{bestEdge}%</strong>.
+                                    </p>
+                                    <p style={{ margin: "0 0 8px", color: "#94a3b8", fontSize: "13px" }}>
+                                      Der Buchmacher sieht {bestPick} bei <strong style={{ color: "#f472b6" }}>{implProb}%</strong> Gewinnchance, unser Modell bei <strong style={{ color: "#4ade80" }}>{ourProb}%</strong> — eine Differenz von +{bestEdge}%.
+                                    </p>
+                                    <p style={{ margin: "0 0 6px", color: "#94a3b8", fontSize: "13px" }}>
+                                      <strong style={{ color: "#22d3ee" }}>Warum höher bewertet:</strong> Unser Modell gewichtet {reasons.join(", ")}.
+                                    </p>
+                                    <p style={{ margin: "0", color: "#64748b", fontSize: "12px" }}>
+                                      Ein positiver Edge bedeutet: wenn dieses Szenario 100x gespielt wird, wäre diese Wette langfristig profitabel.
+                                    </p>
+                                    {hasValue1 && hasValue2 && (
+                                      <p style={{ margin: "6px 0 0", color: "#64748b", fontSize: "12px" }}>
+                                        Beide Spieler zeigen positiven Edge — wähle den höheren: {bestPick} (+{bestEdge}%).
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             ) : (
                               <>
                                 <p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}>
