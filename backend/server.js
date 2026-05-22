@@ -379,11 +379,14 @@ app.get("/api/valuepicks", async (req, res) => {
       }
 
       if (pick) {
+        const ourProb = pick === p1 ? prob1 : prob2;
+        const impliedProb = bestOdds ? Math.round(100 / bestOdds) : null;
         valuePicks.push({
           match: `${p1} vs ${p2}`,
           tournament: match.tournament_name || "",
           pick,
-          ourProb: pick === p1 ? prob1 : prob2,
+          ourProb,
+          impliedProb,
           bestOdds,
           edge: Math.round(edge * 10) / 10,
           bookmaker,
