@@ -117,7 +117,7 @@ function MatchCard({ m, onClick }) {
         <div style={{ marginBottom: "8px" }}>
           {sets.length > 0 ? (
             // Individuelle Set-Ergebnisse
-            <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "28px").join(" ")}${isLive && gameParts ? " 40px" : ""}`, gap: "4px 8px", alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "36px").join(" ")}${isLive && gameParts ? " 44px" : ""}`, gap: "4px 10px", alignItems: "center" }}>
               <div />
               {sets.map((_, i) => <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>)}
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
