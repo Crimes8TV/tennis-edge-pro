@@ -433,26 +433,88 @@ export default function App() {
             </p>
 
             <div>
-              <div className="dashSectionHeader">
-                📅 Alle Matches heute
-                {fixtures.filter(m => m.live).length > 0 && (
-                  <span style={{marginLeft:"12px",fontSize:"12px",color:"#f87171",fontWeight:700}}>
-                    <span style={{display:"inline-block",width:"7px",height:"7px",borderRadius:"50%",background:"#f87171",marginRight:"4px",boxShadow:"0 0 6px #f87171"}} />
-                    {fixtures.filter(m => m.live).length} Live
-                  </span>
-                )}
-              </div>
               {fixturesLoading ? (
                 <p style={{color:"#94a3b8"}}>⏳ Lade Matches...</p>
               ) : fixtures.length === 0 ? (
                 <p style={{color:"#94a3b8"}}>Keine Matches heute gefunden.</p>
-              ) : (
-                <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                  {fixtures.map((m, i) => (
-                    <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1), setP2(m.player2), setTab("predictor"))} />
-                  ))}
-                </div>
-              )}
+              ) : (() => {
+                // Nach Kategorie + Turnier gruppieren
+                const categoryOrder = ["ATP Singles", "ATP Doubles", "Challenger Singles", "Challenger Doubles"];
+                
+                // Erst nach Kategorie, dann nach Turnier gruppieren
+                const grouped = {};
+                fixtures.forEach(m => {
+                  const cat = m.category || "Sonstige";
+                  const tourn = m.tournament || "Unbekannt";
+                  const key = `${cat}|||${tourn}`;
+                  if (!grouped[key]) grouped[key] = { cat, tourn, matches: [] };
+                  grouped[key].matches.push(m);
+                });
+
+                // Sortieren: ATP zuerst, dann Challenger
+                const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                  const catA = grouped[a].cat;
+                  const catB = grouped[b].cat;
+                  const idxA = categoryOrder.indexOf(catA);
+                  const idxB = categoryOrder.indexOf(catB);
+                  if (idxA !== idxB) return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+                  return grouped[a].tourn.localeCompare(grouped[b].tourn);
+                });
+
+                // Nach Kategorie gruppieren für Überschriften
+                const byCategory = {};
+                sortedKeys.forEach(key => {
+                  const { cat } = grouped[key];
+                  if (!byCategory[cat]) byCategory[cat] = [];
+                  byCategory[cat].push(key);
+                });
+
+                return Object.entries(byCategory).map(([cat, keys]) => {
+                  const isATP = cat.includes("ATP");
+                  const liveInCat = keys.flatMap(k => grouped[k].matches).filter(m => m.live).length;
+                  return (
+                    <div key={cat} style={{ marginBottom: "32px" }}>
+                      {/* Kategorie-Header */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", paddingBottom: "10px", borderBottom: `2px solid ${isATP ? "rgba(34,211,238,0.3)" : "rgba(250,204,21,0.3)"}` }}>
+                        <span style={{ fontSize: "18px", fontWeight: 800, color: isATP ? "#22d3ee" : "#facc15" }}>{cat}</span>
+                        {liveInCat > 0 && (
+                          <span style={{ display: "flex", alignItems: "center", gap: "5px", background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "20px", padding: "2px 10px", fontSize: "11px", color: "#f87171", fontWeight: 700 }}>
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block" }} />
+                            {liveInCat} Live
+                          </span>
+                        )}
+                        <span style={{ fontSize: "12px", color: "#475569" }}>
+                          {keys.flatMap(k => grouped[k].matches).length} Matches
+                        </span>
+                      </div>
+
+                      {/* Turniere innerhalb der Kategorie */}
+                      {keys.map(key => {
+                        const { tourn, matches } = grouped[key];
+                        const liveInTourn = matches.filter(m => m.live).length;
+                        return (
+                          <div key={key} style={{ marginBottom: "20px" }}>
+                            {/* Turnier-Header */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                              <span style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8" }}>🏆 {tourn}</span>
+                              {liveInTourn > 0 && (
+                                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block" }} />
+                              )}
+                              <span style={{ fontSize: "11px", color: "#475569" }}>{matches.length} Matches</span>
+                            </div>
+                            {/* Match-Karten */}
+                            <div className="matchCardGrid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
+                              {matches.map((m, i) => (
+                                <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1), setP2(m.player2), setTab("predictor"))} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </>
         )}
