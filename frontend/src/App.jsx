@@ -921,15 +921,15 @@ export default function App() {
                         const n2 = parseFloat(v2.replace("%","")) || 0;
                         const total = n1 + n2 || 1;
                         return (
-                          <div key={statName} style={{ marginBottom: "12px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                              <strong style={{ color: n1 >= n2 ? "#4ade80" : "#94a3b8" }}>{v1}</strong>
-                              <span style={{ color: "#64748b" }}>{statName}</span>
-                              <strong style={{ color: n2 > n1 ? "#4ade80" : "#94a3b8" }}>{v2}</strong>
+                          <div key={statName} style={{ marginBottom: "16px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                              <strong style={{ color: n1 >= n2 ? "#4ade80" : "#94a3b8", fontSize: "14px", minWidth: "60px" }}>{v1}</strong>
+                              <span style={{ color: "#64748b", fontSize: "12px", textAlign: "center", flex: 1 }}>{statName}</span>
+                              <strong style={{ color: n2 > n1 ? "#4ade80" : "#94a3b8", fontSize: "14px", minWidth: "60px", textAlign: "right" }}>{v2}</strong>
                             </div>
-                            <div style={{ display: "flex", height: "6px", borderRadius: "999px", overflow: "hidden" }}>
-                              <div style={{ width: `${Math.round(n1/total*100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
-                              <div style={{ flex: 1, background: "#f472b6" }} />
+                            <div style={{ display: "flex", height: "8px", borderRadius: "999px", overflow: "hidden", background: "#1e293b" }}>
+                              <div style={{ width: `${Math.round(n1/total*100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)", borderRadius: "999px 0 0 999px" }} />
+                              <div style={{ flex: 1, background: "#f472b6", borderRadius: "0 999px 999px 0" }} />
                             </div>
                           </div>
                         );
