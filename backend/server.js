@@ -1046,5 +1046,59 @@ app.get("/api/tournament-predictions", async (req, res) => {
   }
 });
 
+// ─── DEBUG: Rohdaten für ein Turnier anzeigen ─────────────────────────────────
+// Aufruf: /api/debug-tournament?name=Geneva
+// Zeigt alle API-Felder der Matches damit man event_winner, event_status etc. prüfen kann
+app.get("/api/debug-tournament", async (req, res) => {
+  try {
+    const tournName = (req.query.name || "").toLowerCase();
+    const today = new Date();
+    const start = new Date(today); start.setDate(today.getDate() - 28);
+    const end   = new Date(today); end.setDate(today.getDate() + 14);
+    const dateStart = start.toISOString().split("T")[0];
+    const dateEnd   = end.toISOString().split("T")[0];
+
+    const singlesRes = await apiGet({
+      method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 265
+    });
+    const all = singlesRes.data?.result || [];
+    const filtered = all.filter(m =>
+      !tournName || (m.tournament_name || "").toLowerCase().includes(tournName)
+    );
+
+    // Nur die relevanten Felder zurückgeben
+    const debug = filtered.map(m => ({
+      event_key:          m.event_key,
+      tournament_name:    m.tournament_name,
+      tournament_round:   m.tournament_round,
+      event_round:        m.event_round,
+      event_date:         m.event_date,
+      event_time:         m.event_time,
+      event_status:       m.event_status,
+      event_live:         m.event_live,
+      event_winner:       m.event_winner,
+      event_final_result: m.event_final_result,
+      event_first_player: m.event_first_player,
+      event_second_player:m.event_second_player,
+    }));
+
+    // Gruppiert nach Runde ausgeben
+    const byRound = {};
+    debug.forEach(m => {
+      const r = m.tournament_round || m.event_round || "?";
+      if (!byRound[r]) byRound[r] = [];
+      byRound[r].push(m);
+    });
+
+    res.json({
+      total: debug.length,
+      byRound,
+      raw: debug
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
