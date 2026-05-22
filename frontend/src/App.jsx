@@ -243,550 +243,104 @@ export default function App() {
         {tab === "dashboard" && (
           <>
             <Header title="Live Dashboard" />
-            <div className="topMatches">
-              {liveMatches.length > 0 ? (
-                <>
-                  <h4>🔴 Live Matches</h4>
-                  {liveMatches.map((m, i) => (
-                    <div key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}
-                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f87171", display: "inline-block", boxShadow: "0 0 6px #f87171" }} />
-                          <span style={{ fontSize: "14px", color: "#e2e8f0" }}>{m.player1} <span style={{ color: "#475569" }}>vs</span> {m.player2}</span>
+            <div className="dashGrid">
+              <div>
+                <div className="dashSectionHeader">
+                  {liveMatches.length > 0
+                    ? <><span className="liveDot" />Live Matches</>
+                    : <>📅 Heute — {new Date().toLocaleDateString("de-DE")}</>
+                  }
+                </div>
+                {liveMatches.length > 0 ? (
+                  <div className="matchCardGrid">
+                    {liveMatches.slice(0, 5).map((m, i) => (
+                      <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
+                        <div className="matchCardBadge atp">{m.category}</div>
+                        <div className="matchCardPlayers">
+                          <span>{m.player1}</span>
+                          <span className="matchCardScore">{m.score !== "-" ? m.score : "vs"}</span>
+                          <span>{m.player2}</span>
                         </div>
-                        <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px", marginLeft: "16px" }}>
-                          {m.category && <span style={{
-                            background: m.category.includes("ATP") ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)",
-                            color: m.category.includes("ATP") ? "#22d3ee" : "#facc15",
-                            padding: "1px 6px", borderRadius: "4px", marginRight: "6px", fontSize: "10px", fontWeight: 700
-                          }}>{m.category}</span>}
-                          {m.tournament}
-                        </div>
+                        <div className="matchCardMeta">{m.tournament} · <span style={{color:"#f87171"}}>{m.status}</span></div>
                       </div>
-                      <div style={{ textAlign: "right", minWidth: "80px" }}>
-                        <span style={{ color: "#4ade80", fontWeight: 700, fontSize: "15px" }}>{m.score !== "-" ? m.score : ""}</span>
-                        <div style={{ fontSize: "10px", color: "#f87171", marginTop: "2px" }}>{m.status}</div>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <h4>📅 Heutige Matches — {new Date().toLocaleDateString("de-DE")}</h4>
-                  {fixturesLoading ? (
-                    <p style={{ color: "#94a3b8", fontSize: "14px" }}>⏳ Lade Matches...</p>
-                  ) : fixtures.length === 0 ? (
-                    <p style={{ color: "#94a3b8", fontSize: "14px" }}>Keine Matches heute gefunden.</p>
-                  ) : (
-                    fixtures.map((m, i) => (
-                      <div key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}
-                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "14px", color: "#e2e8f0" }}>{m.player1} <span style={{ color: "#475569" }}>vs</span> {m.player2}</div>
-                          <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px" }}>
-                            {m.category && <span style={{
-                              background: m.category.includes("ATP") ? "rgba(34,211,238,0.15)" : "rgba(250,204,21,0.15)",
-                              color: m.category.includes("ATP") ? "#22d3ee" : "#facc15",
-                              padding: "1px 6px", borderRadius: "4px", marginRight: "6px", fontSize: "10px", fontWeight: 700
-                            }}>{m.category}</span>}
-                            {m.tournament}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: "right", minWidth: "60px" }}>
-                          {m.time && <div style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 600 }}>🕐 {m.time}</div>}
-                          <div style={{ fontSize: "10px", color: "#475569", marginTop: "2px" }}>{m.status}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </>
-              )}
-            </div>
-            <div className="valuePicks">
-              <h4>💰 Value Picks heute — {new Date().toLocaleDateString("de-DE")}</h4>
-              {valuePicksLoading ? (
-                <p style={{ color: "#94a3b8", fontSize: "14px" }}>⏳ Lade heutige Matches...</p>
-              ) : valuePicks.length === 0 ? (
-                <p style={{ color: "#94a3b8", fontSize: "14px" }}>Keine Matches heute gefunden.</p>
-              ) : (
-                valuePicks.map((pick, i) => (
-                  <div
-                    key={i}
-                    className="valuePickRow"
-                    onClick={() => { setP1(pick.match.split(" vs ")[0]); setP2(pick.match.split(" vs ")[1]); setTab("predictor"); }}
-                  >
-                    <div className="valuePickTop">
-                      <span className="valuePickRank">#{i + 1}</span>
-                      <span className="valuePickMatch">{pick.match}</span>
-                      <span className="valuePickEdge">+{pick.edge}% Edge</span>
-                    </div>
-                    <div className="valuePickBottom">
-                      <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
-                      {pick.bestOdds && (
-                        <span className="valuePickOdds">Quote: {pick.bestOdds}</span>
-                      )}
-                      {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
-                    </div>
-                    <div className="valuePickProbBar">
-                      <div className="valuePickProbItem">
-                        <span className="valuePickProbLabel">Unsere Einschätzung</span>
-                        <div className="valuePickProbTrack">
-                          <div className="valuePickProbFill ourFill" style={{ width: `${pick.ourProb}%` }} />
-                        </div>
-                        <span className="valuePickProbValue our">{pick.ourProb}%</span>
-                      </div>
-                      {pick.impliedProb && (
-                        <div className="valuePickProbItem">
-                          <span className="valuePickProbLabel">Buchmacher</span>
-                          <div className="valuePickProbTrack">
-                            <div className="valuePickProbFill bookFill" style={{ width: `${pick.impliedProb}%` }} />
-                          </div>
-                          <span className="valuePickProbValue book">{pick.impliedProb}%</span>
-                        </div>
-                      )}
-                    </div>
-                    {pick.tournament && (
-                      <div className="valuePickTournament">{pick.tournament}</div>
+                    ))}
+                    {liveMatches.length > 5 && (
+                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>+{liveMatches.length - 5} weitere →</p>
                     )}
                   </div>
-                ))
-              )}
-            </div>
+                ) : fixturesLoading ? (
+                  <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Lade Matches...</p>
+                ) : fixtures.length === 0 ? (
+                  <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>Keine Matches heute.</p>
+                ) : (
+                  <div className="matchCardGrid">
+                    {fixtures.slice(0, 5).map((m, i) => (
+                      <div key={i} className="matchCard" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                          <span className={`matchCardBadge ${m.category?.includes("ATP") ? "atp" : "challenger"}`}>{m.category}</span>
+                          {m.time && <span style={{fontSize:"12px",color:"#94a3b8"}}>🕐 {m.time}</span>}
+                        </div>
+                        <div className="matchCardPlayers">
+                          <span>{m.player1}</span>
+                          <span className="matchCardVs">vs</span>
+                          <span>{m.player2}</span>
+                        </div>
+                        <div className="matchCardMeta">{m.tournament}</div>
+                      </div>
+                    ))}
+                    {fixtures.length > 5 && (
+                      <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>+{fixtures.length - 5} weitere → alle anzeigen</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
+              <div>
+                <div className="dashSectionHeader" style={{justifyContent:"space-between"}}>
+                  <span>💰 Top Value Picks</span>
+                  <span style={{fontSize:"12px",color:"#22d3ee",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>Alle anzeigen →</span>
+                </div>
+                {valuePicksLoading ? (
+                  <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Berechne Value Picks...</p>
+                ) : valuePicks.length === 0 ? (
+                  <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>Keine Value Picks heute.</p>
+                ) : (
+                  valuePicks.slice(0, 3).map((pick, i) => (
+                    <div key={i} className="valuePickCardMini" onClick={() => { setP1(pick.match.split(" vs ")[0]); setP2(pick.match.split(" vs ")[1]); setTab("predictor"); }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{color:"#e2e8f0",fontSize:"14px",fontWeight:600}}>{pick.match}</span>
+                        <span className="valuePickEdge">+{pick.edge}%</span>
+                      </div>
+                      <div style={{display:"flex",gap:"12px",marginTop:"6px",fontSize:"12px"}}>
+                        <span style={{color:"#4ade80"}}>✅ {pick.pick}</span>
+                        {pick.bestOdds && <span style={{color:"#facc15"}}>Quote: {pick.bestOdds}</span>}
+                        {pick.time && <span style={{color:"#64748b"}}>🕐 {pick.time}</span>}
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"6px"}}>
+                        <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Unser Modell</span>
+                        <div style={{flex:1,height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                          <div style={{width:`${pick.ourProb}%`,height:"100%",background:"linear-gradient(90deg,#22d3ee,#4ade80)"}} />
+                        </div>
+                        <span style={{fontSize:"11px",color:"#4ade80",minWidth:"30px"}}>{pick.ourProb}%</span>
+                      </div>
+                      {pick.impliedProb && (
+                        <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"4px"}}>
+                          <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Buchmacher</span>
+                          <div style={{flex:1,height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                            <div style={{width:`${pick.impliedProb}%`,height:"100%",background:"#f472b6"}} />
+                          </div>
+                          <span style={{fontSize:"11px",color:"#f472b6",minWidth:"30px"}}>{pick.impliedProb}%</span>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </>
         )}
 
-        {tab === "player" && (
-          <>
-            <Header title="Player Analyzer" />
-
-            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
-              <PlayerAutocomplete
-                label="Spieler 1 suchen..."
-                playerNum={1}
-                value={player}
-                onChange={setPlayer}
-                players={playerNames}
-              />
-              <PlayerAutocomplete
-                label="Spieler 2 vergleichen..."
-                playerNum={2}
-                value={comparePlayer}
-                onChange={setComparePlayer}
-                players={playerNames}
-              />
-            </div>
-
-            <div className="grid two">
-              {playerStats && (
-                <Panel title={`📊 ${player}`}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Win Rate</span>
-                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.winRate}%</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Titles</span>
-                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.titles}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-                    <span style={{ color: "#94a3b8" }}>Ranking Points</span>
-                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.points}</strong>
-                  </div>
-
-                  <h4 style={{ color: "#22d3ee", marginBottom: "12px" }}>Belag Win-%</h4>
-                  {[
-                    { label: "🏟️ Hard", value: playerStats.surfaces?.hard },
-                    { label: "🧱 Clay", value: playerStats.surfaces?.clay },
-                    { label: "🌿 Grass", value: playerStats.surfaces?.grass },
-                  ].map(s => (
-                    <div key={s.label} style={{ marginBottom: "12px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
-                        <span style={{ color: "#cbd5e1" }}>{s.label}</span>
-                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>
-                          {s.value !== "-" ? `${s.value}%` : "–"}
-                        </strong>
-                      </div>
-                      <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
-                        <div style={{
-                          width: `${s.value !== "-" ? s.value : 0}%`,
-                          height: "100%",
-                          background: s.value >= 60 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : s.value >= 45 ? "#facc15" : "#f87171",
-                          borderRadius: "999px"
-                        }} />
-                      </div>
-                    </div>
-                  ))}
-
-                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Formkurve</h4>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={formData}>
-                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="form" stroke="#22d3ee" strokeWidth={3} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-
-                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Performance Radar</h4>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <RadarChart data={[
-                      { stat: "Serve", value: active.serve || 0 },
-                      { stat: "Return", value: active.return || 0 },
-                      { stat: "Clutch", value: active.clutch || 0 },
-                      { stat: "Momentum", value: active.momentum || 0 },
-                      { stat: "Hard", value: active.hard || 0 },
-                      { stat: "Clay", value: active.clay || 0 },
-                    ]}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                      <Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.3} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </Panel>
-              )}
-
-              {compareStats && (
-                <Panel title={`📊 ${comparePlayer}`}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Win Rate</span>
-                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.winRate}%</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Titles</span>
-                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.titles}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-                    <span style={{ color: "#94a3b8" }}>Ranking Points</span>
-                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.points}</strong>
-                  </div>
-
-                  <h4 style={{ color: "#22d3ee", marginBottom: "12px" }}>Belag Win-%</h4>
-                  {[
-                    { label: "🏟️ Hard", value: compareStats.surfaces?.hard },
-                    { label: "🧱 Clay", value: compareStats.surfaces?.clay },
-                    { label: "🌿 Grass", value: compareStats.surfaces?.grass },
-                  ].map(s => (
-                    <div key={s.label} style={{ marginBottom: "12px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
-                        <span style={{ color: "#cbd5e1" }}>{s.label}</span>
-                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>
-                          {s.value !== "-" ? `${s.value}%` : "–"}
-                        </strong>
-                      </div>
-                      <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
-                        <div style={{
-                          width: `${s.value !== "-" ? s.value : 0}%`,
-                          height: "100%",
-                          background: s.value >= 60 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : s.value >= 45 ? "#facc15" : "#f87171",
-                          borderRadius: "999px"
-                        }} />
-                      </div>
-                    </div>
-                  ))}
-
-                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Formkurve</h4>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={formData}>
-                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="form" stroke="#f472b6" strokeWidth={3} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-
-                  <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Performance Radar</h4>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <RadarChart data={[
-                      { stat: "Serve", value: compareActive.serve || 0 },
-                      { stat: "Return", value: compareActive.return || 0 },
-                      { stat: "Clutch", value: compareActive.clutch || 0 },
-                      { stat: "Momentum", value: compareActive.momentum || 0 },
-                      { stat: "Hard", value: compareActive.hard || 0 },
-                      { stat: "Clay", value: compareActive.clay || 0 },
-                    ]}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                      <Radar dataKey="value" stroke="#f472b6" fill="#f472b6" fillOpacity={0.3} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </Panel>
-              )}
-            </div>
-
-            {playerStats && compareStats && (
-              <Panel title="⚔️ Direktvergleich Belag">
-                {[
-                  { label: "🏟️ Hard Court", v1: playerStats.surfaces?.hard, v2: compareStats.surfaces?.hard },
-                  { label: "🧱 Clay Court", v1: playerStats.surfaces?.clay, v2: compareStats.surfaces?.clay },
-                  { label: "🌿 Grass Court", v1: playerStats.surfaces?.grass, v2: compareStats.surfaces?.grass },
-                ].map(s => {
-                  const v1 = s.v1 !== "-" ? s.v1 : 0;
-                  const v2 = s.v2 !== "-" ? s.v2 : 0;
-                  const total = v1 + v2 || 1;
-                  return (
-                    <div key={s.label} style={{ marginBottom: "16px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "6px" }}>
-                        <strong style={{ color: v1 >= v2 ? "#4ade80" : "#94a3b8" }}>{player}: {v1}%</strong>
-                        <span style={{ color: "#94a3b8" }}>{s.label}</span>
-                        <strong style={{ color: v2 > v1 ? "#4ade80" : "#94a3b8" }}>{comparePlayer}: {v2}%</strong>
-                      </div>
-                      <div style={{ display: "flex", height: "10px", borderRadius: "999px", overflow: "hidden" }}>
-                        <div style={{ width: `${Math.round(v1 / total * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
-                        <div style={{ flex: 1, background: "#f472b6" }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </Panel>
-            )}
-          </>
-        )}
-
-        {tab === "predictor" && (
-          <>
-            <Header title="Match Predictor" />
-
-            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
-              <PlayerAutocomplete
-                label="Name eingeben..."
-                playerNum={1}
-                value={p1}
-                onChange={setP1}
-                players={playerNames}
-              />
-              <PlayerAutocomplete
-                label="Name eingeben..."
-                playerNum={2}
-                value={p2}
-                onChange={setP2}
-                players={playerNames}
-              />
-            </div>
-
-            <div className="surfaceSelector">
-              {[
-                { value: "hard", icon: "🏟️", label: "Hard" },
-                { value: "clay", icon: "🧱", label: "Clay" },
-                { value: "grass", icon: "🌿", label: "Grass" }
-              ].map(s => (
-                <button
-                  key={s.value}
-                  className={`surfaceBtn ${surface === s.value ? "active" : ""}`}
-                  onClick={() => setSurface(s.value)}
-                >
-                  <span className="surfaceIcon">{s.icon}</span>
-                  <span className="surfaceLabel">{s.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <button
-              className="predictBtn"
-              onClick={predictMatch}
-              disabled={!p1Data || !p2Data}
-            >
-              ⚡ Prediction berechnen
-            </button>
-
-            <Panel title="Prediction Engine">
-              {prediction && (
-                <>
-                  <p className="bestPick">
-                    🔥 Best Pick: {winner} ({Math.max(
-                      prediction.prediction?.[prediction.player1] || 0,
-                      prediction.prediction?.[prediction.player2] || 0
-                    )}%)
-                  </p>
-                  <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
-                    <span className={winner === prediction.player1 ? "winnerName" : ""}>{prediction.player1}</span>
-                    <strong>{prediction.prediction?.[prediction.player1]}%</strong>
-                  </div>
-                  <div className="bar">
-                    <div
-                      className={winner === prediction.player1 ? "barFill winBar" : "barFill"}
-                      style={{ width: (prediction.prediction?.[prediction.player1] || 0) + "%" }}
-                    />
-                  </div>
-                  <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>
-                    <span className={winner === prediction.player2 ? "winnerName" : ""}>{prediction.player2}</span>
-                    <strong>{prediction.prediction?.[prediction.player2]}%</strong>
-                  </div>
-                  <p className="confidence">Confidence: {prediction.confidence}%</p>
-                  <p className="edge">{prediction.edge}</p>
-                  {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
-                  <div className="valueBox">
-                    <h4>💰 Value Bet Check</h4>
-                    <div style={{ display: "flex", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px", textTransform: "uppercase" }}>{prediction.player1} Quote</div>
-                        <input type="number" step="0.01" value={odds1} onChange={(e) => setOdds1(Number(e.target.value))} style={{ width: "100%", boxSizing: "border-box" }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px", textTransform: "uppercase" }}>{prediction.player2} Quote</div>
-                        <input type="number" step="0.01" value={odds2} onChange={(e) => setOdds2(Number(e.target.value))} style={{ width: "100%", boxSizing: "border-box" }} />
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const edge1 = parseFloat((prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1));
-                      const edge2 = parseFloat((prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1));
-                      const hasValue1 = edge1 > 0;
-                      const hasValue2 = edge2 > 0;
-                      const bestPick = hasValue1 && hasValue2
-                        ? (edge1 >= edge2 ? prediction.player1 : prediction.player2)
-                        : hasValue1 ? prediction.player1
-                        : hasValue2 ? prediction.player2
-                        : null;
-                      const bestEdge = bestPick === prediction.player1 ? edge1 : edge2;
-
-                      return (
-                        <>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
-                            {[
-                              { name: prediction.player1, edge: edge1, odds: odds1 },
-                              { name: prediction.player2, edge: edge2, odds: odds2 }
-                            ].map(({ name, edge, odds }) => (
-                              <div key={name} style={{
-                                display: "flex", justifyContent: "space-between", alignItems: "center",
-                                padding: "8px 12px", borderRadius: "10px",
-                                background: edge > 0 ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)",
-                                border: `1px solid ${edge > 0 ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)"}`
-                              }}>
-                                <span style={{ color: "#cbd5e1", fontSize: "13px" }}>{name}</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                  <span style={{ fontSize: "11px", color: "#64748b" }}>
-                                    Prob: {prediction.prediction[name]}% | Impl: {Math.round(100/odds)}%
-                                  </span>
-                                  <span style={{
-                                    fontWeight: 700, fontSize: "15px",
-                                    color: edge > 0 ? "#4ade80" : "#f87171"
-                                  }}>
-                                    {edge > 0 ? "+" : ""}{edge}%
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div style={{
-                            padding: "14px 16px", borderRadius: "12px",
-                            background: bestPick ? "rgba(34,211,238,0.08)" : "rgba(100,116,139,0.1)",
-                            border: `1px solid ${bestPick ? "rgba(34,211,238,0.3)" : "rgba(100,116,139,0.2)"}`,
-                          }}>
-                            <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>🧠 Fazit</div>
-                            {(() => {
-                              if (!bestPick) return (
-                                <>
-                                  <p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}>
-                                    <strong style={{ color: "#f87171" }}>Kein Value erkennbar.</strong>
-                                  </p>
-                                  <p style={{ margin: "0", color: "#94a3b8", fontSize: "13px" }}>
-                                    Die Buchmacher-Quoten sind fairer bewertet. Bei negativem Edge zahlt die Wette langfristig nicht — besser passen.
-                                  </p>
-                                </>
-                              );
-
-                              const isP1 = bestPick === prediction.player1;
-                              const implProb = Math.round(100 / (isP1 ? odds1 : odds2));
-                              const ourProb = prediction.prediction[bestPick];
-                              const oppName = isP1 ? prediction.player2 : prediction.player1;
-                              const eloVal = prediction.elo?.[bestPick] || 0;
-                              const eloOpp = prediction.elo?.[oppName] || 0;
-                              const pickPlayerData = safePlayers.find(p => getPlayerName(p).toLowerCase() === bestPick.toLowerCase());
-                              const oppPlayerData = safePlayers.find(p => getPlayerName(p).toLowerCase() === oppName.toLowerCase());
-                              const rankVal = pickPlayerData?.rank;
-                              const rankOpp = oppPlayerData?.rank;
-                              const pickStats = prediction.playerStats?.[bestPick];
-                              const oppStats = prediction.playerStats?.[oppName];
-
-                              const reasons = [];
-                              if (rankVal && rankOpp && rankVal !== rankOpp)
-                                reasons.push(rankVal < rankOpp
-                                  ? `Besseres Weltranking (#${rankVal} vs #${rankOpp})`
-                                  : `Niedrigeres Ranking (#${rankVal} vs #${rankOpp}), aber Elo gleicht aus`);
-                              if (eloVal && eloOpp) {
-                                const diff = eloVal - eloOpp;
-                                if (Math.abs(diff) > 10)
-                                  reasons.push(`${diff > 0 ? "Höherer" : "Niedrigerer"} Elo-Wert (${eloVal} vs ${eloOpp}, Δ ${Math.abs(diff)})`);
-                              }
-                              if (pickStats && oppStats) {
-                                if (Math.abs(pickStats.serve - oppStats.serve) >= 2)
-                                  reasons.push(`${pickStats.serve > oppStats.serve ? "Stärkerer" : "Schwächerer"} Aufschlag (${pickStats.serve} vs ${oppStats.serve})`);
-                                if (Math.abs(pickStats.return - oppStats.return) >= 2)
-                                  reasons.push(`${pickStats.return > oppStats.return ? "Stärkeres" : "Schwächeres"} Return (${pickStats.return} vs ${oppStats.return})`);
-                                if (Math.abs(pickStats.clutch - oppStats.clutch) >= 2)
-                                  reasons.push(`${pickStats.clutch > oppStats.clutch ? "Höherer" : "Niedrigerer"} Clutch-Faktor (${pickStats.clutch} vs ${oppStats.clutch})`);
-                                if (Math.abs(pickStats.momentum - oppStats.momentum) >= 2)
-                                  reasons.push(`${pickStats.momentum > oppStats.momentum ? "Besseres" : "Schlechteres"} Momentum (${pickStats.momentum} vs ${oppStats.momentum})`);
-                              }
-                              if (ourProb - implProb > 8)
-                                reasons.push(`Buchmacher unterschätzt deutlich (${implProb}% impliziert vs ${ourProb}% Modell)`);
-                              if (reasons.length === 0)
-                                reasons.push("Leichter Gesamtvorteil im kombinierten Modell");
-
-                              return (
-                                <>
-                                  <p style={{ margin: "0 0 8px", color: "#e2e8f0", fontSize: "14px" }}>
-                                    <strong style={{ color: "#22d3ee" }}>{bestPick}</strong> ist die Value Bet — Edge: <strong style={{ color: "#4ade80" }}>+{bestEdge}%</strong>
-                                  </p>
-                                  <p style={{ margin: "0 0 10px", color: "#94a3b8", fontSize: "13px" }}>
-                                    Buchmacher: <strong style={{ color: "#f472b6" }}>{implProb}%</strong> → Unser Modell: <strong style={{ color: "#4ade80" }}>{ourProb}%</strong> — Differenz: +{bestEdge}%
-                                  </p>
-                                  <p style={{ margin: "0 0 6px", color: "#22d3ee", fontSize: "13px", fontWeight: 600 }}>Warum höher bewertet:</p>
-                                  <ul style={{ margin: "0 0 10px", paddingLeft: "18px" }}>
-                                    {reasons.map((r, i) => (
-                                      <li key={i} style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "4px" }}>{r}</li>
-                                    ))}
-                                  </ul>
-                                  <p style={{ margin: "0", color: "#64748b", fontSize: "12px" }}>
-                                    Positiver Edge = langfristig profitabel bei wiederholtem Einsatz. Kein Gewinn garantiert.
-                                  </p>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                  {prediction.playerStats && (
-                    <div className="compareBox">
-                      <h4>Player Compare</h4>
-                      {[
-                        { label: "Serve",    k: "serve" },
-                        { label: "Return",   k: "return" },
-                        { label: "Clutch",   k: "clutch" },
-                        { label: "Momentum", k: "momentum" },
-                      ].map(({ label, k }) => {
-                        const v1 = prediction.playerStats[prediction.player1]?.[k] || 0;
-                        const v2 = prediction.playerStats[prediction.player2]?.[k] || 0;
-                        const better1 = v1 > v2;
-                        return (
-                          <div key={k} style={{ marginBottom: "10px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
-                              <span style={{ color: better1 ? "#4ade80" : "#94a3b8", fontWeight: better1 ? 700 : 400 }}>{v1}</span>
-                              <span style={{ color: "#94a3b8" }}>{label}</span>
-                              <span style={{ color: !better1 ? "#4ade80" : "#94a3b8", fontWeight: !better1 ? 700 : 400 }}>{v2}</span>
-                            </div>
-                            <div style={{ display: "flex", height: "6px", borderRadius: "999px", overflow: "hidden", background: "#1e293b" }}>
-                              <div style={{ width: `${Math.round(v1 / (v1 + v2) * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
-                              <div style={{ flex: 1, background: "#f472b6" }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </Panel>
-          </>
-        )}
-
-
-
-        {tab === "valuepicks" && (
+                {tab === "valuepicks" && (
           <>
             <Header title="Value Picks" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE")}</p>
