@@ -560,5 +560,56 @@ app.get("/api/fixtures/today", async (req, res) => {
   }
 });
 
+
+// ─── MATCH DETAILS ────────────────────────────────────────────────────────────
+app.get("/api/match/:matchKey", async (req, res) => {
+  try {
+    const { matchKey } = req.params;
+
+    // Match-Details + Live-Score parallel holen
+    const [detailRes, liveRes] = await Promise.allSettled([
+      apiGet({ method: "get_fixtures", match_id: matchKey }),
+      apiGet({ method: "get_livescore", match_id: matchKey })
+    ]);
+
+    const detail = detailRes.status === "fulfilled"
+      ? (detailRes.value.data?.result?.[0] || detailRes.value.data?.result || null)
+      : null;
+
+    const live = liveRes.status === "fulfilled"
+      ? (liveRes.value.data?.result?.[0] || null)
+      : null;
+
+    const match = live || detail;
+    if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
+
+    // Sets parsen aus event_final_result z.B. "6-4, 3-6, 7-5"
+    const scoreStr = match.event_final_result || "";
+    const sets = scoreStr.split(",").map(s => s.trim()).filter(Boolean).map(s => {
+      const [s1, s2] = s.split("-");
+      return { p1: s1?.trim(), p2: s2?.trim() };
+    });
+
+    res.json({
+      player1: match.event_first_player,
+      player2: match.event_second_player,
+      score: match.event_final_result || "-",
+      gameScore: match.event_game_result || "-",
+      status: match.event_status || "-",
+      tournament: match.tournament_name || "",
+      category: match.event_type || "",
+      sets,
+      live: match.event_live === "1" || match.event_live === 1,
+      time: match.event_time || "",
+      date: match.event_date || "",
+      round: match.event_round || "",
+      surface: match.event_ground || ""
+    });
+  } catch (err) {
+    console.error("MATCH DETAIL ERROR:", err.message);
+    res.status(500).json({ error: "Fehler beim Laden der Match-Details" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
