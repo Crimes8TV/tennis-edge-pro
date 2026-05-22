@@ -982,11 +982,14 @@ app.get("/api/tournament-predictions", async (req, res) => {
       // Realistischer Ansatz: Rang-basierte Exponentialfunktion
       // #1 hat exponentiell mehr Chance als #10, #10 mehr als #50
       // Ausgeschiedene Spieler aus der Berechnung entfernen
+      // Nur Hauptfeld-Spieler (Rang < 200) berücksichtigen
+      const mainDrawPlayers = playerList.filter(p => p.rank <= 200);
+      const eligiblePlayers = mainDrawPlayers.length > 0 ? mainDrawPlayers : playerList;
       const eliminatedNames = new Set([...tourn.eliminated].map(p => getFullName(p).toLowerCase()));
-      const activePlayers = playerList.filter(p => !eliminatedNames.has(p.name.toLowerCase()));
-      const stillIn = activePlayers.length > 0 ? activePlayers : playerList;
+      const activePlayers = eligiblePlayers.filter(p => !eliminatedNames.has(p.name.toLowerCase()));
+      const stillIn = activePlayers.length > 0 ? activePlayers : eligiblePlayers;
       const top8 = stillIn.slice(0, Math.min(8, stillIn.length));
-      const eliminatedCount = playerList.length - stillIn.length;
+      const eliminatedCount = eligiblePlayers.length - stillIn.length;
       
       // Score = e^(-rank * 0.15) → stärkere Differenzierung
       const scores = top8.map(p => ({
@@ -1030,22 +1033,28 @@ app.get("/api/tournament-predictions", async (req, res) => {
             return getRoundIndex(a.round) - getRoundIndex(b.round);
           })
           .map(r => {
-            // Max matches pro Runde begrenzen
             const maxMatches = {
               "1/64-Finals": 64, "1/32-Finals": 32, "1/16-Finals": 16,
               "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
             };
             const max = maxMatches[r.round] || 999;
-            // Deduplizieren (gleiche Spielerpaarung nur einmal)
+            
+            // Für spätere Runden: nur Spieler unter Rang 200 (echtes Hauptfeld)
+            const rankLimit = { "Semi-Finals": 200, "Final": 200, "Quarter-Finals": 200 }[r.round] || 9999;
+            
+            // Deduplizieren
             const seen = new Set();
-            const unique = r.matches.filter(m => {
+            const filtered = r.matches.filter(m => {
+              // Rang-Filter für spätere Runden
+              if (m.rank1 > rankLimit && m.rank2 > rankLimit) return false;
               const key = [m.player1, m.player2].sort().join("|||");
               if (seen.has(key)) return false;
               seen.add(key);
               return true;
             });
-            // Nach Datum sortieren (älteste zuerst = frühere Runden oben)
-            const sorted = [...unique].sort((a, b) => {
+            
+            // Nach Datum sortieren
+            const sorted = [...filtered].sort((a, b) => {
               if (a.date && b.date) return a.date.localeCompare(b.date);
               return 0;
             });
