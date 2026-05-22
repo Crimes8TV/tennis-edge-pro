@@ -705,6 +705,53 @@ export default function App() {
                   <p className="confidence">Confidence: {prediction.confidence}%</p>
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
+
+                  {/* Set-Win Wahrscheinlichkeit */}
+                  {prediction.setWinProb && (
+                    <div style={{ margin: "16px 0", padding: "16px", borderRadius: "14px", background: "rgba(34,211,238,0.06)", border: "1px solid rgba(34,211,238,0.2)" }}>
+                      <h4 style={{ color: "#22d3ee", margin: "0 0 12px", fontSize: "14px" }}>🎾 Satz-Win Wahrscheinlichkeit</h4>
+                      {[prediction.player1, prediction.player2].map(p => {
+                        const prob = prediction.setWinProb[p];
+                        const isWinner = prob >= 50;
+                        return (
+                          <div key={p} style={{ marginBottom: "10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                              <span style={{ color: "#cbd5e1" }}>{p}</span>
+                              <strong style={{ color: isWinner ? "#4ade80" : "#f472b6" }}>{prob}% pro Satz</strong>
+                            </div>
+                            <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
+                              <div style={{ width: `${prob}%`, height: "100%", background: isWinner ? "linear-gradient(90deg,#22d3ee,#4ade80)" : "#f472b6", borderRadius: "999px" }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#64748b" }}>
+                        Basierend auf Elo, Form, Surface-Erfahrung und Ranking
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Handicap-Empfehlung */}
+                  {prediction.handicap && prediction.handicap.line > 0 && (
+                    <div style={{ margin: "0 0 16px", padding: "16px", borderRadius: "14px", background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.25)" }}>
+                      <h4 style={{ color: "#facc15", margin: "0 0 12px", fontSize: "14px" }}>📊 Handicap-Empfehlung</h4>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                        <span style={{ color: "#e2e8f0", fontWeight: 700, fontSize: "15px" }}>{prediction.handicap.pick}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: "20px", marginBottom: "10px" }}>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "2px" }}>Erw. Games {prediction.handicap.favorite?.split(" ").slice(-1)[0]}</div>
+                          <div style={{ fontSize: "20px", fontWeight: 800, color: "#4ade80" }}>{prediction.handicap.expGames?.[prediction.handicap.favorite]}</div>
+                        </div>
+                        <div style={{ textAlign: "center", alignSelf: "center", color: "#475569", fontSize: "18px" }}>:</div>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "2px" }}>Erw. Games {prediction.handicap.underdog?.split(" ").slice(-1)[0]}</div>
+                          <div style={{ fontSize: "20px", fontWeight: 800, color: "#94a3b8" }}>{prediction.handicap.expGames?.[prediction.handicap.underdog]}</div>
+                        </div>
+                      </div>
+                      <p style={{ margin: "0", fontSize: "13px", color: "#94a3b8" }}>{prediction.handicap.reason}</p>
+                    </div>
+                  )}
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
                     <div style={{ display: "flex", gap: "12px", marginBottom: "12px", alignItems: "center" }}>
