@@ -747,8 +747,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
     end.setDate(today.getDate() + 14);
 
     const dateStart = start.toISOString().split("T")[0];
-    const dateEnd = end.toISOString().split("T")[0];
-    const todayStr = today.toISOString().split("T")[0];
+    const dateEnd   = end.toISOString().split("T")[0];
+    const todayStr  = today.toISOString().split("T")[0];
 
     const [singlesRes, doublesRes, standingsRes] = await Promise.allSettled([
       apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 265 }),
@@ -756,351 +756,286 @@ app.get("/api/tournament-predictions", async (req, res) => {
       apiGet({ method: "get_standings", event_type: "ATP" })
     ]);
 
-    const singles = singlesRes.status === "fulfilled" ? singlesRes.value.data?.result || [] : [];
-    const doubles = doublesRes.status === "fulfilled" ? doublesRes.value.data?.result || [] : [];
+    const singles  = singlesRes.status  === "fulfilled" ? singlesRes.value.data?.result  || [] : [];
+    const doubles  = doublesRes.status  === "fulfilled" ? doublesRes.value.data?.result  || [] : [];
     const standings = standingsRes.status === "fulfilled" ? standingsRes.value.data?.result || [] : [];
-
-    const allFixtures = [
-      ...singles.map(m => ({ ...m, _type: "ATP Singles" })),
-      ...doubles.map(m => ({ ...m, _type: "ATP Doubles" }))
-    ];
 
     // ── Hilfsfunktionen ───────────────────────────────────────────────────────
     const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
 
+    // Nachnamen-basierter Rang-Lookup (API gibt kurze Namen zurück)
+    const rankCache = new Map();
     const getRank = (name) => {
-      const lastName = (name || "").toLowerCase().trim().split(" ").pop();
-      const found = standings.find(p => (p.player || "").toLowerCase().trim().split(" ").pop() === lastName);
-      return found ? parseInt(found.place) || 300 : 300;
+      if (!name) return 300;
+      if (rankCache.has(name)) return rankCache.get(name);
+      const lastName = name.toLowerCase().trim().split(" ").pop();
+      const found = standings.find(p =>
+        (p.player || "").toLowerCase().trim().split(" ").pop() === lastName
+      );
+      const rank = found ? parseInt(found.place) || 300 : 300;
+      rankCache.set(name, rank);
+      return rank;
     };
 
+    const fullNameCache = new Map();
     const getFullName = (shortName) => {
-      if (!shortName) return shortName;
+      if (!shortName) return shortName || "";
+      if (fullNameCache.has(shortName)) return fullNameCache.get(shortName);
       const lastName = shortName.trim().split(" ").pop().toLowerCase();
-      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
-      return found ? found.player : shortName;
+      const found = standings.find(p =>
+        (p.player || "").toLowerCase().split(" ").pop() === lastName
+      );
+      const full = found ? found.player : shortName;
+      fullNameCache.set(shortName, full);
+      return full;
     };
 
-    // ── Prüft ob ein Match abgeschlossen ist ─────────────────────────────────
-    // FIX: Mehrere Erkennungsmethoden kombiniert
-    const isMatchFinished = (m) => {
-      if (m.event_status === "Finished" || m.event_status === "After Extra Time") return true;
-      // event_winner gesetzt und nicht leer/null
-      if (m.event_winner && m.event_winner !== "" && m.event_winner !== "0") return true;
-      // Ergebnis vorhanden und kein laufendes Spiel
-      if (m.event_final_result && m.event_final_result !== "-" && m.event_final_result !== "") {
-        // Live-Matches haben event_live = "1"
-        if (m.event_live === "1" || m.event_live === 1) return false;
-        // Wenn Datum vor heute: definitiv abgeschlossen
-        if (m.event_date && m.event_date < todayStr) return true;
-      }
-      return false;
+    // Runden-Reihenfolge: höhere Zahl = spätere Runde
+    const ROUND_ORDER = {
+      "1/64-finals": 1, "1/32-finals": 2, "1/16-finals": 3,
+      "1/8-finals": 4, "quarter-finals": 5, "semi-finals": 6, "final": 7
     };
 
-    // ── Sieger eines abgeschlossenen Matches ermitteln ────────────────────────
-    // FIX: event_winner allein reicht nicht, auch Score-basierte Erkennung
-    const getMatchWinner = (m, p1FullName, p2FullName) => {
-      if (!isMatchFinished(m)) return null;
-
-      // Methode 1: event_winner Flag
-      if (m.event_winner === "First Player" || m.event_winner === "1") return p1FullName;
-      if (m.event_winner === "Second Player" || m.event_winner === "2") return p2FullName;
-
-      // Methode 2: Score auswerten (z.B. "2-0", "2-1" = Sätze)
-      const scoreStr = m.event_final_result || "";
-      if (scoreStr && scoreStr !== "-") {
-        const parts = scoreStr.replace(/ /g, "").split("-");
-        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-          const s1 = parseInt(parts[0]);
-          const s2 = parseInt(parts[1]);
-          if (s1 > s2) return p1FullName;
-          if (s2 > s1) return p2FullName;
-        }
-      }
-
-      return null;
-    };
-
-    // ── Turnier-Gruppierung ───────────────────────────────────────────────────
-    const tournaments = {};
-    allFixtures.forEach(m => {
-      const discipline = (m._type || "").includes("Doubles") ? "Doubles" : "Singles";
-      const key = `${m.tournament_name || "Unbekannt"}|||${discipline}`;
-      if (!tournaments[key]) {
-        tournaments[key] = {
-          name: m.tournament_name || "Unbekannt",
-          type: m._type,
-          discipline,
-          matches: [],
-          players: new Set(),
-          eliminated: new Set(),
-          dateStart: m.event_date || dateStart,
-        };
-      }
-      tournaments[key].matches.push(m);
-      if (m.event_first_player) tournaments[key].players.add(m.event_first_player);
-      if (m.event_second_player) tournaments[key].players.add(m.event_second_player);
-
-      // FIX: Ausgeschiedene Spieler korrekt ermitteln
-      const p1Full = getFullName(m.event_first_player);
-      const p2Full = getFullName(m.event_second_player);
-      const winner = getMatchWinner(m, p1Full, p2Full);
-      if (winner) {
-        const loser = winner.toLowerCase() === p1Full.toLowerCase() ? p2Full : p1Full;
-        if (loser) tournaments[key].eliminated.add(loser.toLowerCase());
-      }
-    });
-
-    // ─── Rundenname normalisieren ─────────────────────────────────────────────
-    const normalizeRoundName = (roundName) => {
-      if (!roundName) return "Round 1";
-      // Alles vor dem letzten " - " abschneiden
-      const dashIdx = roundName.lastIndexOf(" - ");
-      let clean = dashIdx !== -1 ? roundName.substring(dashIdx + 3).trim() : roundName.trim();
+    const normalizeRoundName = (raw) => {
+      if (!raw) return null;
+      const dashIdx = raw.lastIndexOf(" - ");
+      let clean = dashIdx !== -1 ? raw.substring(dashIdx + 3).trim() : raw.trim();
       const cl = clean.toLowerCase();
-      if (cl === "final" || cl === "finals") return "Final";
-      if (cl.includes("semi")) return "Semi-Finals";
-      if (cl.includes("quarter")) return "Quarter-Finals";
-      if (cl.includes("1/8") || cl === "round of 16" || cl === "r16") return "1/8-Finals";
-      if (cl.includes("1/16") || cl === "round of 32" || cl === "r32" || cl === "round 1" || cl === "r1" || cl === "first round") return "1/16-Finals";
-      if (cl.includes("1/32") || cl === "round of 64") return "1/32-Finals";
-      if (cl.includes("1/64")) return "1/64-Finals";
+      // Qualifikation komplett ignorieren
+      if (cl.includes("qual") || cl.includes("pre-") || cl.includes("qualifying")) return null;
+      if (cl === "final" || cl === "finals")       return "Final";
+      if (cl.includes("semi"))                     return "Semi-Finals";
+      if (cl.includes("quarter"))                  return "Quarter-Finals";
+      if (cl.includes("1/8") || cl === "r16" || cl === "round of 16") return "1/8-Finals";
+      if (cl.includes("1/16")|| cl === "r32" || cl === "round 1" || cl === "r1" || cl === "first round" || cl === "round of 32") return "1/16-Finals";
+      if (cl.includes("1/32")|| cl === "round of 64") return "1/32-Finals";
+      if (cl.includes("1/64"))                     return "1/64-Finals";
       return clean;
     };
 
-    // ─── Runden-Reihenfolge ───────────────────────────────────────────────────
-    const getRoundIndex = (r) => {
-      const lower = (r || "").toLowerCase().trim();
-      if (lower.includes("1/64")) return 1;
-      if (lower.includes("1/32")) return 2;
-      if (lower.includes("1/16")) return 3;
-      if (lower.includes("1/8")) return 4;
-      if (lower.includes("quarter")) return 5;
-      if (lower.includes("semi")) return 6;
-      if (lower === "final" || lower === "finals" || lower.includes("final")) return 7;
-      return 99;
+    const getRoundOrder = (roundName) => {
+      const key = (roundName || "").toLowerCase().replace("-finals","").replace("final","final").trim();
+      return ROUND_ORDER[(roundName || "").toLowerCase()] ||
+             ROUND_ORDER[key] || 0;
     };
 
-    // ─── Pro Turnier verarbeiten ──────────────────────────────────────────────
-    const result = Object.values(tournaments).map(tourn => {
+    // Match ist abgeschlossen wenn:
+    // - event_status === "Finished" ODER
+    // - event_winner gesetzt ODER
+    // - Datum liegt vor heute (nicht live)
+    const isFinished = (m) => {
+      if (m.event_status === "Finished" || m.event_status === "After Extra Time") return true;
+      if (m.event_winner && m.event_winner !== "" && m.event_winner !== "0") return true;
+      if (m.event_live === "1" || m.event_live === 1) return false;
+      if (m.event_date && m.event_date < todayStr) return true;
+      return false;
+    };
 
-      // Alle Spieler mit Rang
-      const playerList = [...tourn.players].map(p => {
-        const fullName = getFullName(p);
-        const rank = getRank(p);
-        const elo = eloFromRank(rank);
-        return { name: fullName, shortName: p, rank, elo };
-      }).sort((a, b) => a.rank - b.rank);
+    // Sieger aus Match-Daten ableiten
+    const getWinner = (m, p1Name, p2Name) => {
+      if (!isFinished(m)) return null;
+      if (m.event_winner === "First Player"  || m.event_winner === "1") return p1Name;
+      if (m.event_winner === "Second Player" || m.event_winner === "2") return p2Name;
+      // Fallback: Score auswerten "2-0", "2-1" = Satz-Stand
+      const score = (m.event_final_result || "").replace(/ /g, "");
+      const parts = score.split("-");
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        const s1 = parseInt(parts[0]), s2 = parseInt(parts[1]);
+        if (s1 > s2) return p1Name;
+        if (s2 > s1) return p2Name;
+      }
+      return null;
+    };
 
-      const favorite = playerList[0] || null;
+    // ── Alle Fixtures nach Turnier + Disziplin gruppieren ─────────────────────
+    const allFixtures = [
+      ...singles.map(m => ({ ...m, _disc: "Singles" })),
+      ...doubles.map(m => ({ ...m, _disc: "Doubles" }))
+    ];
 
-      // ─── Runden-Matches aufbauen ──────────────────────────────────────────
-      const rounds = {};
+    const tournMap = {};
+    allFixtures.forEach(m => {
+      const roundName = normalizeRoundName(m.tournament_round || m.event_round || "");
+      if (!roundName) return; // Qualifikation + unbekannte Runden ignorieren
 
+      const disc  = m._disc;
+      const tKey  = `${m.tournament_name || "Unbekannt"}|||${disc}`;
+
+      if (!tournMap[tKey]) {
+        tournMap[tKey] = {
+          name: m.tournament_name || "Unbekannt",
+          disc,
+          dateStart: m.event_date || dateStart,
+          matches: []           // alle Hauptfeld-Matches
+        };
+      }
+      // Frühestes Datum als Turnierbeginn
+      if (m.event_date && m.event_date < tournMap[tKey].dateStart) {
+        tournMap[tKey].dateStart = m.event_date;
+      }
+      tournMap[tKey].matches.push({ ...m, _roundName: roundName });
+    });
+
+    // ── Pro Turnier: Spieler, Eliminierungen, Win-Prob berechnen ─────────────
+    const result = Object.values(tournMap).map(tourn => {
+
+      // 1) Alle Matches deduplizieren:
+      //    Gleiches Matchup (unabhängig von event_key) → abgeschlossenes bevorzugen
+      const matchDedup = new Map();
       tourn.matches.forEach(m => {
-        const rawRound = m.tournament_round || m.event_round || "Round 1";
-        const roundLower = rawRound.toLowerCase();
-
-        // Qualifikation rausfiltern
-        const isQual = roundLower.includes("qual") ||
-                       roundLower.includes("pre-") ||
-                       roundLower.includes("qualification") ||
-                       roundLower.includes("qualifying");
-        if (isQual) return;
-
-        const eventType = (m.event_type_type || m._type || tourn.type || "").toLowerCase();
-        const discipline = eventType.includes("double") ? "Doubles" : "Singles";
-        const cleanRound = normalizeRoundName(rawRound);
-        const key = `${discipline}|||${cleanRound}`;
-
-        if (!rounds[key]) rounds[key] = { discipline, round: cleanRound, matches: [] };
-
         const p1 = getFullName(m.event_first_player);
         const p2 = getFullName(m.event_second_player);
-        if (!p1 || !p2 || !m.event_first_player || !m.event_second_player) return;
-
-        const r1 = getRank(m.event_first_player);
-        const r2 = getRank(m.event_second_player);
-        const elo1 = eloFromRank(r1);
-        const elo2 = eloFromRank(r2);
-        const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
-
-        const finished = isMatchFinished(m);
-        const actualWinner = getMatchWinner(m, p1, p2);
-        const score = m.event_final_result && m.event_final_result !== "-" ? m.event_final_result : null;
-        const predPick = prob1 > 50 ? p1 : p2;
-
-        // Vergleich über Nachnamen (Namen können leicht abweichen)
-        const winnerLast = actualWinner ? actualWinner.toLowerCase().split(" ").pop() : null;
-        const predLast = predPick ? predPick.toLowerCase().split(" ").pop() : null;
-        const correct = winnerLast && predLast ? winnerLast === predLast : null;
-
-        rounds[key].matches.push({
-          player1: p1,
-          player2: p2,
-          rank1: r1,
-          rank2: r2,
-          prediction: predPick,
-          prob: Math.max(prob1, 100 - prob1),
-          date: m.event_date || "",
-          time: m.event_time || "",
-          actualWinner,
-          score,
-          isFinished: finished,
-          correct
-        });
-      });
-
-      // ─── Turniersieg-Wahrscheinlichkeit ───────────────────────────────────
-      // FIX: Ausgeschiedene korrekt aus aktivem Pool entfernen
-      // Eliminierte Map (lowercase Namen)
-      const eliminatedNames = new Set(tourn.eliminated); // bereits lowercase
-
-      // Hauptfeld-Spieler: Rang ≤ 200
-      // FIX: Kein willkürliches Limit - alle Turnierspieler einschließen
-      const allTournamentPlayers = playerList.filter(p => {
-        // Spieler der nicht ausgeschieden ist
-        const nameLower = p.name.toLowerCase();
-        const shortLower = (p.shortName || "").toLowerCase();
-        const lastNameLower = nameLower.split(" ").pop();
-        return !eliminatedNames.has(nameLower) && !eliminatedNames.has(lastNameLower);
-      });
-
-      // Mindestens die Top-Spieler nehmen (für kleine Turniere)
-      const activePlayers = allTournamentPlayers.length > 0
-        ? allTournamentPlayers
-        : playerList.slice(0, 8);
-
-      // FIX: Nur noch verbliebene Spieler für Win-Probability
-      // Für laufende Turniere: ermitteln wer noch im Draw ist
-      // Ansatz: Spieler der noch kein Finished-Match verloren hat
-      const confirmedEliminated = new Set();
-      tourn.matches.forEach(m => {
-        const p1Full = getFullName(m.event_first_player);
-        const p2Full = getFullName(m.event_second_player);
-        const winner = getMatchWinner(m, p1Full, p2Full);
-        if (winner) {
-          const loser = winner.toLowerCase() === p1Full.toLowerCase() ? p2Full : p1Full;
-          if (loser) confirmedEliminated.add(loser.toLowerCase());
+        if (!p1 || !p2) return;
+        const mKey = [p1, p2].sort().join("|||") + "|||" + m._roundName;
+        if (!matchDedup.has(mKey)) {
+          matchDedup.set(mKey, { ...m, _p1full: p1, _p2full: p2 });
+        } else {
+          // Abgeschlossenes überschreibt geplantes
+          const ex = matchDedup.get(mKey);
+          if (isFinished(m) && !isFinished(ex)) {
+            matchDedup.set(mKey, { ...m, _p1full: p1, _p2full: p2 });
+          }
         }
       });
 
-      const stillInPlayers = playerList.filter(p => {
-        const nameLower = p.name.toLowerCase();
-        const lastNameLower = nameLower.split(" ").pop();
-        // Spieler ist noch dabei wenn er nicht als Verlierer identifiziert wurde
-        return !confirmedEliminated.has(nameLower) && !confirmedEliminated.has(lastNameLower);
+      const dedupedMatches = [...matchDedup.values()];
+
+      // 2) Alle Turnierspieler sammeln
+      const playerSet = new Map(); // name → { name, rank, elo }
+      dedupedMatches.forEach(m => {
+        [m._p1full, m._p2full].forEach(name => {
+          if (!name || playerSet.has(name)) return;
+          const rank = getRank(name);
+          playerSet.set(name, { name, rank, elo: eloFromRank(rank) });
+        });
       });
 
-      // FIX: "Noch dabei" = wer tatsächlich noch nicht ausgeschieden ist
-      // Minimum: mindestens 1 Spieler anzeigen
-      const playersForProb = stillInPlayers.length > 0 ? stillInPlayers : playerList;
+      const allPlayers = [...playerSet.values()].sort((a, b) => a.rank - b.rank);
 
-      // Top 8 für Win-Probability-Anzeige (nach Rang sortiert)
-      const top8 = playersForProb.slice(0, Math.min(8, playersForProb.length));
+      // 3) Eliminierungen aus Ergebnissen ableiten
+      //    Strategie: Wer ein abgeschlossenes Match verloren hat, ist ausgeschieden.
+      //    ABER: Wer danach noch in einer späteren Runde auftaucht, ist NICHT ausgeschieden.
+      //    → Erst alle Sieger je Runde sammeln, dann rückwärts eliminieren.
 
-      // FIX: Wahrscheinlichkeiten basierend auf Elo, aber normalisiert auf 100%
-      // e^(-rank * 0.08) → stärkere Differenzierung
-      const scores = top8.map(p => ({
+      // Alle abgeschlossenen Matches mit Sieger/Verlierer
+      const finishedMatches = dedupedMatches
+        .filter(m => isFinished(m) && getWinner(m, m._p1full, m._p2full))
+        .map(m => ({
+          winner: getWinner(m, m._p1full, m._p2full),
+          loser:  getWinner(m, m._p1full, m._p2full) === m._p1full ? m._p2full : m._p1full,
+          round:  m._roundName,
+          roundOrder: getRoundOrder(m._roundName)
+        }));
+
+      // Letzter bekannter Rundenstand pro Spieler (höchste Runde in der er gespielt hat)
+      const lastRoundPlayed = new Map(); // name → roundOrder
+      dedupedMatches.forEach(m => {
+        const ro = getRoundOrder(m._roundName);
+        [m._p1full, m._p2full].forEach(name => {
+          if (!lastRoundPlayed.has(name) || lastRoundPlayed.get(name) < ro) {
+            lastRoundPlayed.set(name, ro);
+          }
+        });
+      });
+
+      // Verlierer in ihrer letzten Runde → ausgeschieden
+      // Wenn jemand in einer späteren Runde nochmal auftaucht → nicht ausgeschieden
+      const eliminated = new Set();
+      finishedMatches.forEach(({ winner, loser, roundOrder }) => {
+        const loserLastRound = lastRoundPlayed.get(loser) || 0;
+        // Nur als eliminated markieren wenn diese Runde die letzte ist in der er gespielt hat
+        if (loserLastRound <= roundOrder) {
+          eliminated.add(loser.toLowerCase());
+        }
+      });
+
+      // 4) Noch verbleibende Spieler = alle Turnierspieler minus Ausgeschiedene
+      const activePlayers = allPlayers.filter(p =>
+        !eliminated.has(p.name.toLowerCase()) &&
+        !eliminated.has(p.name.toLowerCase().split(" ").pop())
+      );
+
+      // 5) Win-Probability: Elo-basiert, nur für verbleibende Spieler, normalisiert
+      const playersForProb = activePlayers.length > 0 ? activePlayers : allPlayers.slice(0, 8);
+      const top8 = playersForProb.slice(0, 8);
+
+      const rawScores = top8.map(p => ({
         ...p,
         score: Math.exp(-p.rank * 0.08)
       }));
-      const totalScore = scores.reduce((sum, p) => sum + p.score, 0) || 1;
+      const totalScore = rawScores.reduce((s, p) => s + p.score, 0) || 1;
+      const winProbs = rawScores
+        .map(p => ({ ...p, winProb: Math.max(1, Math.round((p.score / totalScore) * 100)) }))
+        .sort((a, b) => b.winProb - a.winProb);
 
-      // FIX: Sicherstellen dass Summe genau 100% ergibt
-      const rawProbs = scores.map(p => ({
-        ...p,
-        winProb: Math.max(1, Math.round((p.score / totalScore) * 100))
-      })).sort((a, b) => b.winProb - a.winProb);
+      // Rundungsfehler korrigieren → exakt 100%
+      const probSum = winProbs.reduce((s, p) => s + p.winProb, 0);
+      if (winProbs.length > 0 && probSum !== 100) winProbs[0].winProb += (100 - probSum);
 
-      // Differenz auf 100% korrigieren (Rundungsfehler)
-      const probSum = rawProbs.reduce((s, p) => s + p.winProb, 0);
-      if (rawProbs.length > 0 && probSum !== 100) {
-        rawProbs[0].winProb += (100 - probSum);
-      }
-      const winProbs = rawProbs;
+      // 6) Runden aufbauen
+      const roundsMap = {};
+      dedupedMatches.forEach(m => {
+        const key = m._roundName;
+        if (!roundsMap[key]) roundsMap[key] = { round: key, matches: [] };
 
-      // ─── Runden-Matches filtern und aufbereiten ───────────────────────────
-      const maxMatchesPerRound = {
+        const r1 = getRank(m._p1full);
+        const r2 = getRank(m._p2full);
+        const elo1 = eloFromRank(r1);
+        const elo2 = eloFromRank(r2);
+        const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
+        const predPick = prob1 >= 50 ? m._p1full : m._p2full;
+        const fin = isFinished(m);
+        const actualWinner = fin ? getWinner(m, m._p1full, m._p2full) : null;
+        const score = m.event_final_result && m.event_final_result !== "-" ? m.event_final_result : null;
+
+        const winnerLast = actualWinner ? actualWinner.toLowerCase().split(" ").pop() : null;
+        const predLast   = predPick     ? predPick.toLowerCase().split(" ").pop()     : null;
+        const correct    = winnerLast && predLast ? winnerLast === predLast : null;
+
+        roundsMap[key].matches.push({
+          player1: m._p1full, player2: m._p2full,
+          rank1: r1, rank2: r2,
+          prediction: predPick,
+          prob: Math.max(prob1, 100 - prob1),
+          date: m.event_date || "", time: m.event_time || "",
+          actualWinner, score, isFinished: fin, correct
+        });
+      });
+
+      // Runden sortieren und Max-Matches begrenzen
+      const MAX_PER_ROUND = {
         "1/64-Finals": 64, "1/32-Finals": 32, "1/16-Finals": 16,
-        "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
+        "1/8-Finals": 8,   "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
       };
 
-      // FIX: Rank-Filter großzügiger gestalten – kein Spieler darf wegen
-      // zu hohem Rang aus echten Hauptfeld-Runden herausgefiltert werden.
-      // Nur offensichtliche Qualifikations-Matches entfernen.
-      const rankLimitsForFilter = {
-        "Final": 300,
-        "Semi-Finals": 300,
-        "Quarter-Finals": 300,
-        "1/8-Finals": 300,
-        "1/16-Finals": 300,
-        "1/32-Finals": 500,
-        "1/64-Finals": 500
-      };
-
-      const sortedRounds = Object.values(rounds)
-        .sort((a, b) => {
-          if (a.discipline !== b.discipline) return a.discipline === "Singles" ? -1 : 1;
-          return getRoundIndex(a.round) - getRoundIndex(b.round);
-        })
+      const sortedRounds = Object.values(roundsMap)
+        .sort((a, b) => getRoundOrder(a.round) - getRoundOrder(b.round))
         .map(r => {
-          const maxMatches = maxMatchesPerRound[r.round] || 999;
-          const rankLimit = rankLimitsForFilter[r.round] || 500;
-
-          // FIX: Deduplizierung – selbes Matchup nur einmal behalten
-          // Bei Duplikaten: das abgeschlossene Match bevorzugen
-          const matchMap = new Map();
-          r.matches.forEach(m => {
-            const key = [m.player1, m.player2].sort().join("|||");
-            if (!matchMap.has(key)) {
-              matchMap.set(key, m);
-            } else {
-              // Bereits vorhandenes Match: abgeschlossenes bevorzugen
-              const existing = matchMap.get(key);
-              if (m.isFinished && !existing.isFinished) {
-                matchMap.set(key, m);
-              }
-            }
-          });
-
-          const deduped = [...matchMap.values()];
-
-          // FIX: Rank-Filter nur für klare Qualifikations-Matches
-          // Mindestens ein Spieler muss unter dem Limit sein
-          const filtered = deduped.filter(m => {
-            const minRank = Math.min(m.rank1, m.rank2);
-            return minRank <= rankLimit;
-          });
-
-          // Nach Datum sortieren, dann nach Status (abgeschlossen zuerst)
-          const sorted = [...filtered].sort((a, b) => {
-            // Abgeschlossene zuerst
+          const max = MAX_PER_ROUND[r.round] || 999;
+          const sorted = [...r.matches].sort((a, b) => {
             if (a.isFinished && !b.isFinished) return -1;
-            if (!a.isFinished && b.isFinished) return 1;
-            if (a.date && b.date) return a.date.localeCompare(b.date);
-            return 0;
+            if (!a.isFinished && b.isFinished)  return  1;
+            return (a.date || "").localeCompare(b.date || "");
           });
-
-          return { ...r, matches: sorted.slice(0, maxMatches) };
+          return { ...r, matches: sorted.slice(0, max) };
         })
-        // FIX: Leere Runden nicht anzeigen
         .filter(r => r.matches.length > 0);
+
+      const favorite = allPlayers[0] || null;
 
       return {
         name: tourn.name,
-        type: tourn.type,
+        type: tourn.disc === "Doubles" ? "ATP Doubles" : "ATP Singles",
         dateStart: tourn.dateStart,
-        playerCount: playerList.length,
+        playerCount: allPlayers.length,
         favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
         winProbs: winProbs.slice(0, 5),
         rounds: sortedRounds,
-        drawSet: playerList.length > 0,
-        // FIX: Korrekte Zählung verbleibender Spieler
-        eliminatedCount: confirmedEliminated.size,
-        activePlayerCount: stillInPlayers.length,
+        drawSet: allPlayers.length > 0,
+        eliminatedCount: eliminated.size,
+        activePlayerCount: activePlayers.length,
         isLive: tourn.matches.some(m => m.event_live === "1" || m.event_live === 1),
-        hasStarted: confirmedEliminated.size > 0
+        hasStarted: eliminated.size > 0
       };
     }).sort((a, b) => a.dateStart.localeCompare(b.dateStart));
 
