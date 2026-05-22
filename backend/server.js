@@ -941,15 +941,28 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
 
         if (p1 && p2) {
+          // Tatsächliches Ergebnis falls vorhanden
+          const isFinished = m.event_status === "Finished" || m.event_winner;
+          const actualWinner = isFinished && m.event_winner
+            ? (m.event_winner === "First Player" ? p1 : p2)
+            : null;
+          const score = m.event_final_result || null;
+          const predPick = prob1 > 50 ? p1 : p2;
+          const correct = actualWinner ? (predPick === actualWinner) : null;
+
           rounds[key].matches.push({
             player1: p1,
             player2: p2,
             rank1: r1,
             rank2: r2,
-            prediction: prob1 > 50 ? p1 : p2,
+            prediction: predPick,
             prob: Math.max(prob1, 100 - prob1),
             date: m.event_date || "",
-            time: m.event_time || ""
+            time: m.event_time || "",
+            actualWinner,
+            score,
+            isFinished,
+            correct
           });
         }
       });
