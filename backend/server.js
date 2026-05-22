@@ -290,10 +290,21 @@ app.get("/api/valuepicks", async (req, res) => {
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
 
-    const getRank = (name) => {
-      const short = name.split(" ").pop().toLowerCase();
+    // Vollständigen Namen aus Standings finden anhand Nachname
+    const getFullName = (shortName) => {
+      const parts = shortName.trim().split(" ");
+      const lastName = parts[parts.length - 1].toLowerCase();
       const found = standings.find(p =>
-        (p.player || "").toLowerCase().includes(short)
+        (p.player || "").toLowerCase().split(" ").pop() === lastName
+      );
+      return found ? found.player : shortName;
+    };
+
+    const getRank = (name) => {
+      const parts = name.trim().split(" ");
+      const lastName = parts[parts.length - 1].toLowerCase();
+      const found = standings.find(p =>
+        (p.player || "").toLowerCase().split(" ").pop() === lastName
       );
       return found ? parseInt(found.place) || 100 : 100;
     };
@@ -303,12 +314,15 @@ app.get("/api/valuepicks", async (req, res) => {
     const valuePicks = [];
 
     for (const match of matches.slice(0, 15)) {
-      const p1 = match.event_first_player;
-      const p2 = match.event_second_player;
-      if (!p1 || !p2) continue;
+      const p1Short = match.event_first_player;
+      const p2Short = match.event_second_player;
+      if (!p1Short || !p2Short) continue;
 
-      const rank1 = getRank(p1);
-      const rank2 = getRank(p2);
+      const p1 = getFullName(p1Short);
+      const p2 = getFullName(p2Short);
+
+      const rank1 = getRank(p1Short);
+      const rank2 = getRank(p2Short);
       const elo1 = eloFromRank(rank1);
       const elo2 = eloFromRank(rank2);
 
