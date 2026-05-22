@@ -115,40 +115,37 @@ function MatchCard({ m, onClick }) {
       {/* Score Tabelle */}
       {(isLive || isFinished) ? (
         <div style={{ marginBottom: "8px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: `1fr${sets.length > 0 ? " " + sets.map(() => "28px").join(" ") : " 28px 28px"}${isLive && gameParts ? " 40px" : ""}`, gap: "4px 8px", alignItems: "center" }}>
-            {/* Headers */}
-            <div />
-            {sets.length > 0
-              ? sets.map((_, i) => (
-                  <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>
-                ))
-              : [<div key="s1" style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S1</div>,
-                 <div key="s2" style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S2</div>]
-            }
-            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
+          {sets.length > 0 ? (
+            // Individuelle Set-Ergebnisse
+            <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "28px").join(" ")}${isLive && gameParts ? " 40px" : ""}`, gap: "4px 8px", alignItems: "center" }}>
+              <div />
+              {sets.map((_, i) => <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>)}
+              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
 
-            {/* Player 1 */}
-            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
-            {sets.length > 0
-              ? sets.map((s, i) => (
-                  <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>
-                ))
-              : [<div key="s1" style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: setCount?.p1 > setCount?.p2 ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>,
-                 <div key="s2" style={{ textAlign: "center", fontSize: "13px", color: "#475569" }}>-</div>]
-            }
-            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
+              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
+              {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>)}
+              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
 
-            {/* Player 2 */}
-            <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
-            {sets.length > 0
-              ? sets.map((s, i) => (
-                  <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>
-                ))
-              : [<div key="s1" style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: setCount?.p2 > setCount?.p1 ? "#4ade80" : "#94a3b8" }}>{setCount?.p2 ?? "-"}</div>,
-                 <div key="s2" style={{ textAlign: "center", fontSize: "13px", color: "#475569" }}>-</div>]
-            }
-            {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
-          </div>
+              <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
+              {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>)}
+              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
+            </div>
+          ) : (
+            // Fallback: Satz-Stand + Game Score
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 50px", gap: "4px 12px", alignItems: "center" }}>
+              <div style={{ fontSize: "10px", color: "#475569" }} />
+              <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sätze</div>
+              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
+
+              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
+              <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p1) > parseInt(setCount?.p2) ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>
+              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
+
+              <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
+              <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p2) > parseInt(setCount?.p1) ? "#4ade80" : "#94a3b8" }}>{setCount?.p2 ?? "-"}</div>
+              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ marginBottom: "8px" }}>
