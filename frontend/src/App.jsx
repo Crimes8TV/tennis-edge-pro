@@ -1586,3 +1586,4 @@ function Kpis({ data }) {
 function Card({ label, value }) {
   return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
 }
+trigger
