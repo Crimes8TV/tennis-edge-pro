@@ -953,11 +953,53 @@ app.get("/api/tournament-predictions", async (req, res) => {
         }
       });
 
-      // 4) Noch verbleibende Spieler = alle Turnierspieler minus Ausgeschiedene
-      const activePlayers = allPlayers.filter(p =>
-        !eliminated.has(p.name.toLowerCase()) &&
-        !eliminated.has(p.name.toLowerCase().split(" ").pop())
+      // 4) Noch verbleibende Spieler
+      // Strategie: Wer in der höchsten Runde gewonnen hat ist noch dabei.
+      // Wer in irgendeiner Runde verloren hat ist ausgeschieden.
+      // Bei unentschiedenen/ausstehenden Matches: beide Spieler noch dabei.
+
+      // Höchste abgeschlossene Runde ermitteln
+      const maxFinishedRound = finishedMatches.reduce((max, m) => 
+        Math.max(max, m.roundOrder), 0);
+
+      // Sieger der höchsten abgeschlossenen Runde
+      const winnersOfHighestRound = new Set(
+        finishedMatches
+          .filter(m => m.roundOrder === maxFinishedRound)
+          .map(m => m.winner.toLowerCase())
       );
+
+      // Alle Verlierer (in jeder Runde)
+      const allLosers = new Set(
+        finishedMatches.map(m => m.loser.toLowerCase())
+      );
+
+      // Aktive Spieler = haben noch nie verloren
+      // Falls finale schon gespielt: nur Turniersieger
+      // Falls Halbfinale gespielt: Halbfinalsieger
+      // Falls noch kein Match: alle Spieler
+      let activePlayers;
+      if (maxFinishedRound === 0) {
+        // Noch keine Matches gespielt
+        activePlayers = allPlayers;
+      } else if (maxFinishedRound === 7) {
+        // Finale gespielt → nur Turniersieger
+        activePlayers = allPlayers.filter(p =>
+          winnersOfHighestRound.has(p.name.toLowerCase())
+        );
+      } else {
+        // Turnier läuft → alle die noch nie verloren haben
+        activePlayers = allPlayers.filter(p => {
+          const nameLow = p.name.toLowerCase();
+          const lastLow = nameLow.split(" ").pop();
+          return !allLosers.has(nameLow) && !allLosers.has(lastLow);
+        });
+      }
+
+      // Fallback falls keine aktiven Spieler gefunden
+      if (activePlayers.length === 0) {
+        activePlayers = allPlayers.slice(0, 8);
+      }
 
       // 5) Win-Probability: Elo-basiert, nur für verbleibende Spieler, normalisiert
       const playersForProb = activePlayers.length > 0 ? activePlayers : allPlayers.slice(0, 8);
