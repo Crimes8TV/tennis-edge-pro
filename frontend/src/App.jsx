@@ -42,33 +42,13 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
     <div ref={ref} className="playerSearchWrapper">
       <span className="playerSearchLabel">Spieler {playerNum}</span>
       <div style={{ position: "relative" }}>
-        <Search
-          size={15}
-          style={{
-            position: "absolute", left: "13px", top: "50%",
-            transform: "translateY(-50%)", color: "#22d3ee", pointerEvents: "none"
-          }}
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={handleChange}
-          onFocus={() => setOpen(true)}
-          placeholder={label}
-          className="playerSearchInput"
-        />
+        <Search size={15} style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", color: "#22d3ee", pointerEvents: "none" }} />
+        <input type="text" value={query} onChange={handleChange} onFocus={() => setOpen(true)} placeholder={label} className="playerSearchInput" />
       </div>
-
       {open && filtered.length > 0 && (
         <ul className="playerDropdown">
           {filtered.map(name => (
-            <li
-              key={name}
-              className={name === value ? "active" : ""}
-              onMouseDown={() => handleSelect(name)}
-            >
-              {name}
-            </li>
+            <li key={name} className={name === value ? "active" : ""} onMouseDown={() => handleSelect(name)}>{name}</li>
           ))}
         </ul>
       )}
@@ -80,19 +60,11 @@ function MatchCard({ m, onClick }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
-
   const sets = Array.isArray(m.sets) && m.sets.length > 0 ? m.sets : [];
-  
   const setCount = sets.length === 0 && m.score && m.score !== "-"
-    ? (() => {
-        const parts = m.score.replace(/ /g, "").split("-");
-        return { p1: parts[0], p2: parts[1] };
-      })()
+    ? (() => { const parts = m.score.replace(/ /g, "").split("-"); return { p1: parts[0], p2: parts[1] }; })()
     : null;
-
-  const gameParts = m.gameScore && m.gameScore !== "-"
-    ? m.gameScore.split("-").map(s => s.trim())
-    : null;
+  const gameParts = m.gameScore && m.gameScore !== "-" ? m.gameScore.split("-").map(s => s.trim()) : null;
 
   return (
     <div className="matchCard" onClick={onClick}>
@@ -100,15 +72,11 @@ function MatchCard({ m, onClick }) {
         <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
-          {isLive
-            ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
-            : isFinished
-            ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Beendet</span>
-            : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>
-          }
+          {isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
+            : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Beendet</span>
+            : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>}
         </div>
       </div>
-
       {(isLive || isFinished) ? (
         <div style={{ marginBottom: "8px" }}>
           {sets.length > 0 ? (
@@ -116,11 +84,9 @@ function MatchCard({ m, onClick }) {
               <div />
               {sets.map((_, i) => <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>)}
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
-
               <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
               {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>)}
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
-
               <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
               {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>)}
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
@@ -130,11 +96,9 @@ function MatchCard({ m, onClick }) {
               <div style={{ fontSize: "10px", color: "#475569" }} />
               <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sätze</div>
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
-
               <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
               <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p1) > parseInt(setCount?.p2) ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
-
               <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
               <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p2) > parseInt(setCount?.p1) ? "#4ade80" : "#94a3b8" }}>{setCount?.p2 ?? "-"}</div>
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
@@ -147,7 +111,6 @@ function MatchCard({ m, onClick }) {
           <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
         </div>
       )}
-
       <div className="matchCardMeta">{m.tournament}</div>
     </div>
   );
@@ -175,10 +138,8 @@ export default function App() {
   const [matchDetailLoading, setMatchDetailLoading] = useState(false);
   const [selectedMatchKey, setSelectedMatchKey] = useState(null);
   const [prediction, setPrediction] = useState(null);
-
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
-
   const [odds1, setOdds1] = useState(1.7);
   const [odds2, setOdds2] = useState(2.2);
   const [liveMatches, setLiveMatches] = useState([]);
@@ -188,19 +149,18 @@ export default function App() {
   const [fixturesLoading, setFixturesLoading] = useState(true);
   const [collapsedTournaments, setCollapsedTournaments] = useState({});
   const [collapsedCategories, setCollapsedCategories] = useState({});
-
   const toggleTournament = (key) => setCollapsedTournaments(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCategory = (cat) => setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
   const [surface, setSurface] = useState("hard");
+  // Turnier-Tab: aktiv/beendet
+  const [tournamentSection, setTournamentSection] = useState("active");
 
   const safePlayers = Array.isArray(players) ? players : [];
-
-  const getPlayerName = (p) =>
-    typeof p.name === "string" ? p.name : p.name?.name || "";
-
+  const getPlayerName = (p) => typeof p.name === "string" ? p.name : p.name?.name || "";
   const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
   const active = safePlayers.find(p => getPlayerName(p) === player) || {};
   const compareActive = safePlayers.find(p => getPlayerName(p) === comparePlayer) || {};
+
   const findPlayer = (name) => {
     if (!name) return null;
     const lower = name.toLowerCase();
@@ -212,14 +172,13 @@ export default function App() {
     found = safePlayers.find(p => getPlayerName(p).toLowerCase().includes(lastName));
     return found || null;
   };
+
   const p1Data = findPlayer(p1);
   const p2Data = findPlayer(p2);
 
   const winner =
-    prediction?.prediction?.[prediction?.player1] >
-    prediction?.prediction?.[prediction?.player2]
-      ? prediction?.player1
-      : prediction?.player2;
+    prediction?.prediction?.[prediction?.player1] > prediction?.prediction?.[prediction?.player2]
+      ? prediction?.player1 : prediction?.player2;
 
   useEffect(() => {
     fetch("https://tennis-edge-backend.onrender.com/api/players")
@@ -228,10 +187,7 @@ export default function App() {
         const formatted = Array.isArray(data) ? data : [];
         setPlayers(formatted);
         if (formatted.length > 0) setPlayer(getPlayerName(formatted[0]));
-        if (formatted.length > 1) {
-          setP1(getPlayerName(formatted[0]));
-          setP2(getPlayerName(formatted[1]));
-        }
+        if (formatted.length > 1) { setP1(getPlayerName(formatted[0])); setP2(getPlayerName(formatted[1])); }
       })
       .catch(err => console.error("FEHLER PLAYERS:", err));
   }, []);
@@ -239,29 +195,21 @@ export default function App() {
   useEffect(() => {
     if (!player) return;
     fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(player)}`)
-      .then(res => res.json())
-      .then(data => setPlayerStats(data))
-      .catch(err => console.error(err));
+      .then(res => res.json()).then(data => setPlayerStats(data)).catch(err => console.error(err));
   }, [player]);
 
   useEffect(() => {
     if (!comparePlayer) return;
     fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(comparePlayer)}`)
-      .then(res => res.json())
-      .then(data => setCompareStats(data))
-      .catch(err => console.error(err));
+      .then(res => res.json()).then(data => setCompareStats(data)).catch(err => console.error(err));
     fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(comparePlayer)}`)
-      .then(res => res.json())
-      .then(data => setCompareNews(data))
-      .catch(err => console.error(err));
+      .then(res => res.json()).then(data => setCompareNews(data)).catch(err => console.error(err));
   }, [comparePlayer]);
 
   useEffect(() => {
     if (!player) return;
     fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player)}`)
-      .then(res => res.json())
-      .then(data => setPlayerNews(data))
-      .catch(err => console.error(err));
+      .then(res => res.json()).then(data => setPlayerNews(data)).catch(err => console.error(err));
   }, [player]);
 
   const loadTournamentPreds = () => {
@@ -308,29 +256,21 @@ export default function App() {
     if (tab === "predictor" && p1Data && p2Data && !prediction) {
       setTimeout(() => {
         fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
-          .then(res => res.json())
-          .then(data => setPrediction(data))
-          .catch(err => console.error(err));
+          .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
       }, 100);
     }
   }, [tab, p1, p2]);
 
   const predictMatch = () => {
     if (!p1 || !p2 || !p1Data || !p2Data) return;
-    fetch(
-      `https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`
-    )
-      .then(res => res.json())
-      .then(data => setPrediction(data))
-      .catch(err => console.error(err));
+    fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
+      .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
   };
 
   useEffect(() => {
     const interval = setInterval(() => {
       fetch("https://tennis-edge-backend.onrender.com/api/live")
-        .then(res => res.json())
-        .then(data => setLiveMatches(Array.isArray(data) ? data : []))
-        .catch(err => console.error(err));
+        .then(res => res.json()).then(data => setLiveMatches(Array.isArray(data) ? data : [])).catch(err => console.error(err));
     }, 3000);
     return () => clearInterval(interval);
   }, []);
@@ -347,12 +287,7 @@ export default function App() {
     const loadFixtures = () => {
       fetch("https://tennis-edge-backend.onrender.com/api/fixtures/today")
         .then(res => { if (!res.ok) throw new Error("Fehler"); return res.json(); })
-        .then(data => {
-          const arr = Array.isArray(data) ? data : [];
-          console.log("Fixtures:", arr.length, "Live:", arr.filter(m=>m.live).length);
-          setFixtures(arr);
-          setFixturesLoading(false);
-        })
+        .then(data => { const arr = Array.isArray(data) ? data : []; setFixtures(arr); setFixturesLoading(false); })
         .catch(err => { console.error("Fixtures Fehler:", err); setFixtures([]); setFixturesLoading(false); });
     };
     setFixturesLoading(true);
@@ -363,14 +298,24 @@ export default function App() {
 
   const formData = (active.form || []).map((v, i) => ({ match: `M-${6 - i}`, form: v }));
 
-  const radarData = [
-    { stat: "Serve", value: active.serve || 0 },
-    { stat: "Return", value: active.return || 0 },
-    { stat: "Clutch", value: active.clutch || 0 },
-    { stat: "Momentum", value: active.momentum || 0 },
-    { stat: "Hard", value: active.hard || 0 },
-    { stat: "Clay", value: active.clay || 0 },
-  ];
+  // Turniere aufteilen: aktiv/laufend vs. abgeschlossen
+  const activeTournaments = tournamentPreds.filter(t => {
+    // Abgeschlossen = hasStarted && activePlayerCount <= 1 && kein isLive
+    // ODER: alle Runden haben isFinished matches und keine offenen
+    const isFinished = t.hasStarted && (t.activePlayerCount === 0) && !t.isLive;
+    const hasAllMatchesFinished = t.rounds?.length > 0 &&
+      t.rounds.every(r => r.matches.every(m => m.isFinished));
+    return !isFinished && !hasAllMatchesFinished;
+  });
+
+  const finishedTournaments = tournamentPreds.filter(t => {
+    const isFinished = t.hasStarted && (t.activePlayerCount === 0) && !t.isLive;
+    const hasAllMatchesFinished = t.rounds?.length > 0 &&
+      t.rounds.every(r => r.matches.every(m => m.isFinished));
+    return isFinished || hasAllMatchesFinished;
+  });
+
+  const displayedTournaments = tournamentSection === "active" ? activeTournaments : finishedTournaments;
 
   if (playerNames.length === 0) {
     return <div className="app"><main><h2>Lade Backend-Daten...</h2></main></div>;
@@ -418,7 +363,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-
               <div>
                 <div className="dashSectionHeader" style={{justifyContent:"space-between"}}>
                   <span>💰 Top Value Picks</span>
@@ -470,12 +414,9 @@ export default function App() {
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
               📅 Heute — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
               {fixtures.filter(m => m.live).length > 0 && (
-                <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>
-                  🔴 {fixtures.filter(m => m.live).length} Live
-                </span>
+                <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>🔴 {fixtures.filter(m => m.live).length} Live</span>
               )}
             </p>
-
             <div>
               {fixturesLoading ? (
                 <p style={{color:"#94a3b8"}}>⏳ Lade Matches...</p>
@@ -483,7 +424,6 @@ export default function App() {
                 <p style={{color:"#94a3b8"}}>Keine Matches heute gefunden.</p>
               ) : (() => {
                 const categoryOrder = ["ATP Singles", "ATP Doubles", "Challenger Singles", "Challenger Doubles"];
-                
                 const grouped = {};
                 fixtures.forEach(m => {
                   const cat = m.category || "Sonstige";
@@ -492,7 +432,6 @@ export default function App() {
                   if (!grouped[key]) grouped[key] = { cat, tourn, matches: [] };
                   grouped[key].matches.push(m);
                 });
-
                 const sortedKeys = Object.keys(grouped).sort((a, b) => {
                   const catA = grouped[a].cat;
                   const catB = grouped[b].cat;
@@ -501,52 +440,39 @@ export default function App() {
                   if (idxA !== idxB) return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
                   return grouped[a].tourn.localeCompare(grouped[b].tourn);
                 });
-
                 const byCategory = {};
                 sortedKeys.forEach(key => {
                   const { cat } = grouped[key];
                   if (!byCategory[cat]) byCategory[cat] = [];
                   byCategory[cat].push(key);
                 });
-
                 return Object.entries(byCategory).map(([cat, keys]) => {
                   const isATP = cat.includes("ATP");
                   const liveInCat = keys.flatMap(k => grouped[k].matches).filter(m => m.live).length;
                   return (
                     <div key={cat} style={{ marginBottom: "32px" }}>
-                      <div
-                        style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", paddingBottom: "10px", borderBottom: `2px solid ${isATP ? "rgba(34,211,238,0.3)" : "rgba(250,204,21,0.3)"}`, cursor: "pointer", userSelect: "none" }}
-                        onClick={() => toggleCategory(cat)}
-                      >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", paddingBottom: "10px", borderBottom: `2px solid ${isATP ? "rgba(34,211,238,0.3)" : "rgba(250,204,21,0.3)"}`, cursor: "pointer", userSelect: "none" }} onClick={() => toggleCategory(cat)}>
                         <span style={{ fontSize: "16px", color: isATP ? "#22d3ee" : "#facc15", transition: "transform 0.2s", display: "inline-block", transform: collapsedCategories[cat] ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
                         <span style={{ fontSize: "18px", fontWeight: 800, color: isATP ? "#22d3ee" : "#facc15" }}>{cat}</span>
                         {liveInCat > 0 && (
                           <span style={{ display: "flex", alignItems: "center", gap: "5px", background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "20px", padding: "2px 10px", fontSize: "11px", color: "#f87171", fontWeight: 700 }}>
-                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block" }} />
-                            {liveInCat} Live
+                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block" }} />{liveInCat} Live
                           </span>
                         )}
-                        <span style={{ fontSize: "12px", color: "#475569" }}>
-                          {keys.flatMap(k => grouped[k].matches).length} Matches
-                        </span>
+                        <span style={{ fontSize: "12px", color: "#475569" }}>{keys.flatMap(k => grouped[k].matches).length} Matches</span>
                       </div>
-
                       {!collapsedCategories[cat] && keys.map(key => {
                         const { tourn, matches } = grouped[key];
                         const liveInTourn = matches.filter(m => m.live).length;
                         const isColl = collapsedTournaments[key];
                         return (
                           <div key={key} style={{ marginBottom: "16px", background: "rgba(255,255,255,0.02)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
-                            <div
-                              style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 16px", cursor: "pointer", userSelect: "none" }}
-                              onClick={() => toggleTournament(key)}
-                            >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 16px", cursor: "pointer", userSelect: "none" }} onClick={() => toggleTournament(key)}>
                               <span style={{ fontSize: "13px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isColl ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
                               <span style={{ fontSize: "14px", fontWeight: 700, color: "#cbd5e1" }}>🏆 {tourn}</span>
                               {liveInTourn > 0 && (
                                 <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#f87171", fontWeight: 700 }}>
-                                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block" }} />
-                                  {liveInTourn} Live
+                                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", display: "inline-block" }} />{liveInTourn} Live
                                 </span>
                               )}
                               <span style={{ fontSize: "11px", color: "#475569", marginLeft: "auto" }}>{matches.length} Matches</span>
@@ -575,7 +501,6 @@ export default function App() {
           <>
             <Header title="Value Picks" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})}</p>
-
             <div>
               <div className="dashSectionHeader">💰 Value Picks heute</div>
               {valuePicksLoading ? (
@@ -627,30 +552,15 @@ export default function App() {
             <div className="grid two">
               {playerStats && (
                 <Panel title={`📊 ${player}`}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Win Rate</span>
-                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.winRate}%</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Titles</span>
-                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.titles}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-                    <span style={{ color: "#94a3b8" }}>Ranking Points</span>
-                    <strong style={{ color: "#22d3ee" }}>{playerStats.stats?.points}</strong>
-                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span style={{ color: "#94a3b8" }}>Win Rate</span><strong style={{ color: "#22d3ee" }}>{playerStats.stats?.winRate}%</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span style={{ color: "#94a3b8" }}>Titles</span><strong style={{ color: "#22d3ee" }}>{playerStats.stats?.titles}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}><span style={{ color: "#94a3b8" }}>Ranking Points</span><strong style={{ color: "#22d3ee" }}>{playerStats.stats?.points}</strong></div>
                   <h4 style={{ color: "#22d3ee", marginBottom: "12px" }}>Belag Win-%</h4>
-                  {[
-                    { label: "🏟️ Hard", value: playerStats.surfaces?.hard },
-                    { label: "🧱 Clay", value: playerStats.surfaces?.clay },
-                    { label: "🌿 Grass", value: playerStats.surfaces?.grass },
-                  ].map(s => (
+                  {[{ label: "🏟️ Hard", value: playerStats.surfaces?.hard }, { label: "🧱 Clay", value: playerStats.surfaces?.clay }, { label: "🌿 Grass", value: playerStats.surfaces?.grass }].map(s => (
                     <div key={s.label} style={{ marginBottom: "12px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
                         <span style={{ color: "#cbd5e1" }}>{s.label}</span>
-                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>
-                          {s.value !== "-" ? `${s.value}%` : "–"}
-                        </strong>
+                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>{s.value !== "-" ? `${s.value}%` : "–"}</strong>
                       </div>
                       <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
                         <div style={{ width: `${s.value !== "-" ? s.value : 0}%`, height: "100%", background: s.value >= 60 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : s.value >= 45 ? "#facc15" : "#f87171", borderRadius: "999px" }} />
@@ -660,55 +570,29 @@ export default function App() {
                   <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Formkurve</h4>
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={formData}>
-                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} />
-                      <Tooltip />
+                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} /><YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} /><Tooltip />
                       <Line type="monotone" dataKey="form" stroke="#22d3ee" strokeWidth={3} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                   <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Performance Radar</h4>
                   <ResponsiveContainer width="100%" height={200}>
-                    <RadarChart data={[
-                      { stat: "Serve", value: active.serve || 0 },
-                      { stat: "Return", value: active.return || 0 },
-                      { stat: "Clutch", value: active.clutch || 0 },
-                      { stat: "Momentum", value: active.momentum || 0 },
-                      { stat: "Hard", value: active.hard || 0 },
-                      { stat: "Clay", value: active.clay || 0 },
-                    ]}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                      <Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.3} />
+                    <RadarChart data={[{ stat: "Serve", value: active.serve || 0 }, { stat: "Return", value: active.return || 0 }, { stat: "Clutch", value: active.clutch || 0 }, { stat: "Momentum", value: active.momentum || 0 }, { stat: "Hard", value: active.hard || 0 }, { stat: "Clay", value: active.clay || 0 }]}>
+                      <PolarGrid /><PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} /><Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.3} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </Panel>
               )}
               {compareStats && (
                 <Panel title={`📊 ${comparePlayer}`}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Win Rate</span>
-                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.winRate}%</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ color: "#94a3b8" }}>Titles</span>
-                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.titles}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-                    <span style={{ color: "#94a3b8" }}>Ranking Points</span>
-                    <strong style={{ color: "#22d3ee" }}>{compareStats.stats?.points}</strong>
-                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span style={{ color: "#94a3b8" }}>Win Rate</span><strong style={{ color: "#22d3ee" }}>{compareStats.stats?.winRate}%</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}><span style={{ color: "#94a3b8" }}>Titles</span><strong style={{ color: "#22d3ee" }}>{compareStats.stats?.titles}</strong></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}><span style={{ color: "#94a3b8" }}>Ranking Points</span><strong style={{ color: "#22d3ee" }}>{compareStats.stats?.points}</strong></div>
                   <h4 style={{ color: "#22d3ee", marginBottom: "12px" }}>Belag Win-%</h4>
-                  {[
-                    { label: "🏟️ Hard", value: compareStats.surfaces?.hard },
-                    { label: "🧱 Clay", value: compareStats.surfaces?.clay },
-                    { label: "🌿 Grass", value: compareStats.surfaces?.grass },
-                  ].map(s => (
+                  {[{ label: "🏟️ Hard", value: compareStats.surfaces?.hard }, { label: "🧱 Clay", value: compareStats.surfaces?.clay }, { label: "🌿 Grass", value: compareStats.surfaces?.grass }].map(s => (
                     <div key={s.label} style={{ marginBottom: "12px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
                         <span style={{ color: "#cbd5e1" }}>{s.label}</span>
-                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>
-                          {s.value !== "-" ? `${s.value}%` : "–"}
-                        </strong>
+                        <strong style={{ color: s.value >= 60 ? "#4ade80" : s.value >= 45 ? "#facc15" : "#f87171" }}>{s.value !== "-" ? `${s.value}%` : "–"}</strong>
                       </div>
                       <div style={{ height: "8px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
                         <div style={{ width: `${s.value !== "-" ? s.value : 0}%`, height: "100%", background: s.value >= 60 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : s.value >= 45 ? "#facc15" : "#f87171", borderRadius: "999px" }} />
@@ -718,25 +602,14 @@ export default function App() {
                   <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Formkurve</h4>
                   <ResponsiveContainer width="100%" height={160}>
                     <LineChart data={formData}>
-                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} />
-                      <Tooltip />
+                      <XAxis dataKey="match" stroke="#475569" tick={{ fontSize: 11 }} /><YAxis domain={[60, 100]} stroke="#475569" tick={{ fontSize: 11 }} /><Tooltip />
                       <Line type="monotone" dataKey="form" stroke="#f472b6" strokeWidth={3} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                   <h4 style={{ color: "#22d3ee", marginTop: "20px", marginBottom: "8px" }}>Performance Radar</h4>
                   <ResponsiveContainer width="100%" height={200}>
-                    <RadarChart data={[
-                      { stat: "Serve", value: compareActive.serve || 0 },
-                      { stat: "Return", value: compareActive.return || 0 },
-                      { stat: "Clutch", value: compareActive.clutch || 0 },
-                      { stat: "Momentum", value: compareActive.momentum || 0 },
-                      { stat: "Hard", value: compareActive.hard || 0 },
-                      { stat: "Clay", value: compareActive.clay || 0 },
-                    ]}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                      <Radar dataKey="value" stroke="#f472b6" fill="#f472b6" fillOpacity={0.3} />
+                    <RadarChart data={[{ stat: "Serve", value: compareActive.serve || 0 }, { stat: "Return", value: compareActive.return || 0 }, { stat: "Clutch", value: compareActive.clutch || 0 }, { stat: "Momentum", value: compareActive.momentum || 0 }, { stat: "Hard", value: compareActive.hard || 0 }, { stat: "Clay", value: compareActive.clay || 0 }]}>
+                      <PolarGrid /><PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: "#94a3b8" }} /><Radar dataKey="value" stroke="#f472b6" fill="#f472b6" fillOpacity={0.3} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </Panel>
@@ -747,13 +620,9 @@ export default function App() {
                 {playerNews.length > 0 && (
                   <Panel title={`📰 News: ${player}`}>
                     {playerNews.map((n, i) => (
-                      <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
-                        style={{ display: "block", textDecoration: "none", padding: "10px 0", borderBottom: i < playerNews.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                      <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" style={{ display: "block", textDecoration: "none", padding: "10px 0", borderBottom: i < playerNews.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                         <div style={{ fontSize: "13px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", lineHeight: 1.4 }}>{n.title}</div>
-                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "#475569" }}>
-                          {n.source && <span>{n.source}</span>}
-                          {n.pubDate && <span>{n.pubDate}</span>}
-                        </div>
+                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "#475569" }}>{n.source && <span>{n.source}</span>}{n.pubDate && <span>{n.pubDate}</span>}</div>
                       </a>
                     ))}
                   </Panel>
@@ -761,27 +630,18 @@ export default function App() {
                 {compareNews.length > 0 && (
                   <Panel title={`📰 News: ${comparePlayer}`}>
                     {compareNews.map((n, i) => (
-                      <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
-                        style={{ display: "block", textDecoration: "none", padding: "10px 0", borderBottom: i < compareNews.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                      <a key={i} href={n.link} target="_blank" rel="noopener noreferrer" style={{ display: "block", textDecoration: "none", padding: "10px 0", borderBottom: i < compareNews.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                         <div style={{ fontSize: "13px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", lineHeight: 1.4 }}>{n.title}</div>
-                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "#475569" }}>
-                          {n.source && <span>{n.source}</span>}
-                          {n.pubDate && <span>{n.pubDate}</span>}
-                        </div>
+                        <div style={{ display: "flex", gap: "10px", fontSize: "11px", color: "#475569" }}>{n.source && <span>{n.source}</span>}{n.pubDate && <span>{n.pubDate}</span>}</div>
                       </a>
                     ))}
                   </Panel>
                 )}
               </div>
             )}
-
             {playerStats && compareStats && (
               <Panel title="⚔️ Direktvergleich Belag">
-                {[
-                  { label: "🏟️ Hard Court", v1: playerStats.surfaces?.hard, v2: compareStats.surfaces?.hard },
-                  { label: "🧱 Clay Court", v1: playerStats.surfaces?.clay, v2: compareStats.surfaces?.clay },
-                  { label: "🌿 Grass Court", v1: playerStats.surfaces?.grass, v2: compareStats.surfaces?.grass },
-                ].map(s => {
+                {[{ label: "🏟️ Hard Court", v1: playerStats.surfaces?.hard, v2: compareStats.surfaces?.hard }, { label: "🧱 Clay Court", v1: playerStats.surfaces?.clay, v2: compareStats.surfaces?.clay }, { label: "🌿 Grass Court", v1: playerStats.surfaces?.grass, v2: compareStats.surfaces?.grass }].map(s => {
                   const v1 = s.v1 !== "-" ? s.v1 : 0;
                   const v2 = s.v2 !== "-" ? s.v2 : 0;
                   const total = v1 + v2 || 1;
@@ -812,24 +672,17 @@ export default function App() {
               <PlayerAutocomplete label="Name eingeben..." playerNum={2} value={p2} onChange={setP2} players={playerNames} />
             </div>
             <div className="surfaceSelector">
-              {[
-                { value: "hard", icon: "🏟️", label: "Hard" },
-                { value: "clay", icon: "🧱", label: "Clay" },
-                { value: "grass", icon: "🌿", label: "Grass" }
-              ].map(s => (
+              {[{ value: "hard", icon: "🏟️", label: "Hard" }, { value: "clay", icon: "🧱", label: "Clay" }, { value: "grass", icon: "🌿", label: "Grass" }].map(s => (
                 <button key={s.value} className={`surfaceBtn ${surface === s.value ? "active" : ""}`} onClick={() => {
                   setSurface(s.value);
                   if (prediction && p1Data && p2Data) {
                     setTimeout(() => {
                       fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${s.value}&surface1=${p1Data?.[s.value] || 0}&surface2=${p2Data?.[s.value] || 0}`)
-                        .then(res => res.json())
-                        .then(data => setPrediction(data))
-                        .catch(err => console.error(err));
+                        .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
                     }, 50);
                   }
                 }}>
-                  <span className="surfaceIcon">{s.icon}</span>
-                  <span className="surfaceLabel">{s.label}</span>
+                  <span className="surfaceIcon">{s.icon}</span><span className="surfaceLabel">{s.label}</span>
                 </button>
               ))}
             </div>
@@ -852,7 +705,6 @@ export default function App() {
                   <p className="confidence">Confidence: {prediction.confidence}%</p>
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
-
                   {prediction.setWinProb && (
                     <div style={{ margin: "16px 0", padding: "16px", borderRadius: "14px", background: "rgba(34,211,238,0.06)", border: "1px solid rgba(34,211,238,0.2)" }}>
                       <h4 style={{ color: "#22d3ee", margin: "0 0 12px", fontSize: "14px" }}>🎾 Satz-Win Wahrscheinlichkeit</h4>
@@ -871,12 +723,9 @@ export default function App() {
                           </div>
                         );
                       })}
-                      <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#64748b" }}>
-                        Basierend auf Elo, Form, Surface-Erfahrung und Ranking
-                      </p>
+                      <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#64748b" }}>Basierend auf Elo, Form, Surface-Erfahrung und Ranking</p>
                     </div>
                   )}
-
                   {prediction.handicap && (
                     <div style={{ margin: "0 0 16px", padding: "16px", borderRadius: "14px", background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.25)" }}>
                       <h4 style={{ color: "#facc15", margin: "0 0 12px", fontSize: "14px" }}>📊 Handicap-Empfehlung</h4>
@@ -919,10 +768,7 @@ export default function App() {
                       return (
                         <>
                           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
-                            {[
-                              { name: prediction.player1, edge: edge1, odds: odds1 },
-                              { name: prediction.player2, edge: edge2, odds: odds2 }
-                            ].map(({ name, edge, odds }) => (
+                            {[{ name: prediction.player1, edge: edge1, odds: odds1 }, { name: prediction.player2, edge: edge2, odds: odds2 }].map(({ name, edge, odds }) => (
                               <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: "10px", background: edge > 0 ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)", border: `1px solid ${edge > 0 ? "rgba(74,222,128,0.3)" : "rgba(248,113,113,0.3)"}` }}>
                                 <span style={{ color: "#cbd5e1", fontSize: "13px" }}>{name}</span>
                                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -936,10 +782,7 @@ export default function App() {
                             <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>🧠 Fazit</div>
                             {(() => {
                               if (!bestPick) return (
-                                <>
-                                  <p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}><strong style={{ color: "#f87171" }}>Kein Value erkennbar.</strong></p>
-                                  <p style={{ margin: "0", color: "#94a3b8", fontSize: "13px" }}>Die Buchmacher-Quoten sind fairer bewertet. Bei negativem Edge zahlt die Wette langfristig nicht — besser passen.</p>
-                                </>
+                                <><p style={{ margin: "0 0 6px", color: "#e2e8f0", fontSize: "14px" }}><strong style={{ color: "#f87171" }}>Kein Value erkennbar.</strong></p><p style={{ margin: "0", color: "#94a3b8", fontSize: "13px" }}>Die Buchmacher-Quoten sind fairer bewertet.</p></>
                               );
                               const isP1 = bestPick === prediction.player1;
                               const implProb = Math.round(100 / (isP1 ? odds1 : odds2));
@@ -954,12 +797,8 @@ export default function App() {
                               const pickStats = prediction.playerStats?.[bestPick];
                               const oppStats = prediction.playerStats?.[oppName];
                               const reasons = [];
-                              if (rankVal && rankOpp && rankVal !== rankOpp)
-                                reasons.push(rankVal < rankOpp ? `Besseres Weltranking (#${rankVal} vs #${rankOpp})` : `Niedrigeres Ranking (#${rankVal} vs #${rankOpp}), aber Elo gleicht aus`);
-                              if (eloVal && eloOpp) {
-                                const diff = eloVal - eloOpp;
-                                if (Math.abs(diff) > 10) reasons.push(`${diff > 0 ? "Höherer" : "Niedrigerer"} Elo-Wert (${eloVal} vs ${eloOpp}, Δ ${Math.abs(diff)})`);
-                              }
+                              if (rankVal && rankOpp && rankVal !== rankOpp) reasons.push(rankVal < rankOpp ? `Besseres Weltranking (#${rankVal} vs #${rankOpp})` : `Niedrigeres Ranking (#${rankVal} vs #${rankOpp}), aber Elo gleicht aus`);
+                              if (eloVal && eloOpp) { const diff = eloVal - eloOpp; if (Math.abs(diff) > 10) reasons.push(`${diff > 0 ? "Höherer" : "Niedrigerer"} Elo-Wert (${eloVal} vs ${eloOpp}, Δ ${Math.abs(diff)})`); }
                               if (pickStats && oppStats) {
                                 if (Math.abs(pickStats.serve - oppStats.serve) >= 2) reasons.push(`${pickStats.serve > oppStats.serve ? "Stärkerer" : "Schwächerer"} Aufschlag (${pickStats.serve} vs ${oppStats.serve})`);
                                 if (Math.abs(pickStats.return - oppStats.return) >= 2) reasons.push(`${pickStats.return > oppStats.return ? "Stärkeres" : "Schwächeres"} Return (${pickStats.return} vs ${oppStats.return})`);
@@ -973,9 +812,7 @@ export default function App() {
                                   <p style={{ margin: "0 0 8px", color: "#e2e8f0", fontSize: "14px" }}><strong style={{ color: "#22d3ee" }}>{bestPick}</strong> ist die Value Bet — Edge: <strong style={{ color: "#4ade80" }}>+{bestEdge}%</strong></p>
                                   <p style={{ margin: "0 0 10px", color: "#94a3b8", fontSize: "13px" }}>Buchmacher: <strong style={{ color: "#f472b6" }}>{implProb}%</strong> → Unser Modell: <strong style={{ color: "#4ade80" }}>{ourProb}%</strong> — Differenz: +{bestEdge}%</p>
                                   <p style={{ margin: "0 0 6px", color: "#22d3ee", fontSize: "13px", fontWeight: 600 }}>Warum höher bewertet:</p>
-                                  <ul style={{ margin: "0 0 10px", paddingLeft: "18px" }}>
-                                    {reasons.map((r, i) => (<li key={i} style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "4px" }}>{r}</li>))}
-                                  </ul>
+                                  <ul style={{ margin: "0 0 10px", paddingLeft: "18px" }}>{reasons.map((r, i) => (<li key={i} style={{ color: "#94a3b8", fontSize: "13px", marginBottom: "4px" }}>{r}</li>))}</ul>
                                   <p style={{ margin: "0", color: "#64748b", fontSize: "12px" }}>Positiver Edge = langfristig profitabel bei wiederholtem Einsatz. Kein Gewinn garantiert.</p>
                                 </>
                               );
@@ -988,12 +825,7 @@ export default function App() {
                   {prediction.playerStats && (
                     <div className="compareBox">
                       <h4>Player Compare</h4>
-                      {[
-                        { label: "Serve", k: "serve" },
-                        { label: "Return", k: "return" },
-                        { label: "Clutch", k: "clutch" },
-                        { label: "Momentum", k: "momentum" },
-                      ].map(({ label, k }) => {
+                      {[{ label: "Serve", k: "serve" }, { label: "Return", k: "return" }, { label: "Clutch", k: "clutch" }, { label: "Momentum", k: "momentum" }].map(({ label, k }) => {
                         const v1 = prediction.playerStats[prediction.player1]?.[k] || 0;
                         const v2 = prediction.playerStats[prediction.player2]?.[k] || 0;
                         const better1 = v1 > v2;
@@ -1025,12 +857,10 @@ export default function App() {
               <h2 style={{ margin: 0, color: "#67e8f9" }}>Match Detail</h2>
               {matchDetail?.live && (
                 <span style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "20px", padding: "4px 12px", fontSize: "12px", color: "#f87171", fontWeight: 700 }}>
-                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite" }} />
-                  LIVE
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite" }} />LIVE
                 </span>
               )}
             </div>
-
             {matchDetailLoading ? (
               <p style={{ color: "#94a3b8" }}>⏳ Lade Match-Details...</p>
             ) : !matchDetail ? (
@@ -1043,7 +873,6 @@ export default function App() {
                       Belag: {matchDetail.surface === "clay" ? "🧱 Clay" : matchDetail.surface === "grass" ? "🌿 Grass" : "🏟️ Hard"}
                     </p>
                   )}
-
                   {(() => {
                     const sets = matchDetail.sets || [];
                     const showGame = matchDetail.live && matchDetail.gameScore && matchDetail.gameScore !== "-";
@@ -1076,23 +905,14 @@ export default function App() {
                       </div>
                     );
                   })()}
-
                   <div style={{ display: "flex", gap: "12px" }}>
-                    <button className="predictBtn" style={{ flex: 1, padding: "12px" }}
-                      onClick={() => { setP1(matchDetail.player1); setP2(matchDetail.player2); setTab("predictor"); }}>
-                      ⚡ Match Prediction
-                    </button>
-                    <button className="predictBtn" style={{ flex: 1, padding: "12px", background: "linear-gradient(135deg,#8b5cf6,#6366f1)" }}
-                      onClick={() => { setH2hP1(matchDetail.player1); setH2hP2(matchDetail.player2); setTab("h2h"); fetchH2H(); }}>
-                      ⚔️ H2H laden
-                    </button>
+                    <button className="predictBtn" style={{ flex: 1, padding: "12px" }} onClick={() => { setP1(matchDetail.player1); setP2(matchDetail.player2); setTab("predictor"); }}>⚡ Match Prediction</button>
+                    <button className="predictBtn" style={{ flex: 1, padding: "12px", background: "linear-gradient(135deg,#8b5cf6,#6366f1)" }} onClick={() => { setH2hP1(matchDetail.player1); setH2hP2(matchDetail.player2); setTab("h2h"); fetchH2H(); }}>⚔️ H2H laden</button>
                   </div>
                 </Panel>
-
                 {matchDetail.statistics?.length > 0 && (() => {
                   const matchStats = matchDetail.statistics.filter(s => s.stat_period === "match");
                   const keyStats = ["1st serve percentage", "1st serve points won", "2nd serve points won", "Break Points Converted", "Return Points Won", "Winners", "Unforced errors", "Total Points Won"];
-
                   return (
                     <Panel title="📊 Match Statistiken" style={{ marginTop: "20px" }}>
                       {keyStats.map(statName => {
@@ -1105,423 +925,4 @@ export default function App() {
                         const n2 = parseFloat(v2.replace("%","")) || 0;
                         const total = n1 + n2 || 1;
                         return (
-                          <div key={statName} style={{ marginBottom: "16px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                              <strong style={{ color: n1 >= n2 ? "#4ade80" : "#94a3b8", fontSize: "14px", minWidth: "60px" }}>{v1}</strong>
-                              <span style={{ color: "#64748b", fontSize: "12px", textAlign: "center", flex: 1 }}>{statName}</span>
-                              <strong style={{ color: n2 > n1 ? "#4ade80" : "#94a3b8", fontSize: "14px", minWidth: "60px", textAlign: "right" }}>{v2}</strong>
-                            </div>
-                            <div style={{ display: "flex", height: "8px", borderRadius: "999px", overflow: "hidden", background: "#1e293b" }}>
-                              <div style={{ width: `${Math.round(n1/total*100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)", borderRadius: "999px 0 0 999px" }} />
-                              <div style={{ flex: 1, background: "#f472b6", borderRadius: "0 999px 999px 0" }} />
-                            </div>
-                          </div>
-                        );
-                      }).filter(Boolean)}
-                    </Panel>
-                  );
-                })()}
-              </>
-            )}
-          </>
-        )}
-
-        {tab === "tournamentpred" && (
-          <>
-            <Header title="Turnier Prediction" />
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"-16px",marginBottom:"24px"}}>
-              <p style={{color:"#94a3b8",margin:0}}>
-                ATP Turniere · Aktuell + Nächste 2 Wochen · {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}
-              </p>
-              <button onClick={loadTournamentPreds} disabled={tournamentPredsLoading}
-                style={{background:"rgba(34,211,238,0.1)",border:"1px solid rgba(34,211,238,0.3)",color:"#22d3ee",padding:"6px 14px",borderRadius:"8px",cursor:"pointer",fontSize:"12px",fontWeight:600}}>
-                {tournamentPredsLoading ? "⏳ Lädt..." : "🔄 Aktualisieren"}
-              </button>
-            </div>
-
-            {tournamentPredsLoading ? (
-              <p style={{color:"#94a3b8"}}>⏳ Lade Turnier-Daten...</p>
-            ) : tournamentPreds.length === 0 ? (
-              <div style={{textAlign:"center",padding:"40px 0"}}>
-                <p style={{color:"#94a3b8",marginBottom:"16px"}}>Noch keine Turnierdaten für die nächsten 2 Wochen verfügbar.</p>
-                <button className="predictBtn" style={{width:"auto",padding:"12px 32px"}}
-                  onClick={loadTournamentPreds}>
-                  🔄 Turnierdaten laden
-                </button>
-              </div>
-            ) : (
-              tournamentPreds.map((tourn, ti) => {
-                const isExpanded = expandedTournament === ti;
-                const isATP = tourn.type?.includes("ATP");
-                return (
-                  <div key={ti} style={{ marginBottom: "16px", background: "#0f172a", borderRadius: "16px", overflow: "hidden", border: `1px solid ${isATP ? "rgba(34,211,238,0.2)" : "rgba(250,204,21,0.2)"}` }}>
-                    <div style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px" }}
-                      onClick={() => setExpandedTournament(isExpanded ? null : ti)}>
-                      <span style={{ fontSize: "13px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
-                          <span style={{ fontSize: "16px", fontWeight: 800, color: isATP ? "#22d3ee" : "#facc15" }}>🏆 {tourn.name}</span>
-                          <span className={`matchCardBadge ${isATP ? "atp" : "challenger"}`}>{tourn.type}</span>
-                          {tourn.discipline && (
-                            <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>
-                              {tourn.discipline === "Singles" ? "👤 Singles" : "👥 Doubles"}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#475569", flexWrap: "wrap" }}>
-                          <span>{tourn.dateStart}</span>
-                          <span>·</span>
-                          {tourn.hasStarted ? (
-                            <>
-                              <span style={{ color: "#4ade80", fontWeight: 600 }}>
-                                🎾 Läuft
-                                {tourn.activePlayerCount > 1
-                                  ? ` — ${tourn.activePlayerCount} Spieler noch dabei`
-                                  : tourn.activePlayerCount === 1
-                                  ? ` — Finale`
-                                  : ``}
-                              </span>
-                              {tourn.eliminatedCount > 0 && (
-                                <span style={{ color: "#f87171" }}>({tourn.eliminatedCount} ausgeschieden)</span>
-                              )}
-                            </>
-                          ) : (
-                            <span>{tourn.playerCount} Spieler im Draw</span>
-                          )}
-                          {tourn.isLive && <span style={{ color: "#f87171", fontWeight: 700 }}>🔴 Live</span>}
-                        </div>
-                      </div>
-                      {tourn.favorite && (
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "2px" }}>Favorit</div>
-                          <div style={{ fontSize: "14px", fontWeight: 700, color: "#4ade80" }}>{tourn.favorite.name}</div>
-                          <div style={{ fontSize: "11px", color: "#475569" }}>#{tourn.favorite.rank}</div>
-                        </div>
-                      )}
-                    </div>
-
-                    {isExpanded && (
-                      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "16px 20px" }}>
-                        
-                        {tourn.winProbs?.length > 0 && (
-                          <div style={{ marginBottom: "20px" }}>
-                            <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>🏅 Turniersieg-Wahrscheinlichkeit</h4>
-                            {tourn.winProbs.map((p, i) => (
-                              <div key={i} style={{ marginBottom: "10px", display: "flex", alignItems: "center", gap: "12px" }}>
-                                <span style={{ width: "36px", fontSize: "11px", color: "#475569", flexShrink: 0, textAlign: "right" }}>#{p.rank}</span>
-                                <span style={{ width: "160px", fontSize: "13px", color: i === 0 ? "#4ade80" : "#cbd5e1", flexShrink: 0, fontWeight: i === 0 ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {i === 0 && "⭐ "}{p.name}
-                                </span>
-                                <div style={{ flex: 1, height: "6px", background: "#1e293b", borderRadius: "999px", overflow: "hidden" }}>
-                                  <div style={{ width: `${p.winProb}%`, height: "100%", background: i === 0 ? "linear-gradient(90deg,#22d3ee,#4ade80)" : i === 1 ? "#6366f1" : "#334155", borderRadius: "999px", transition: "width 0.4s ease" }} />
-                                </div>
-                                <strong style={{ width: "40px", textAlign: "right", fontSize: "13px", color: i === 0 ? "#4ade80" : "#94a3b8", flexShrink: 0 }}>{p.winProb}%</strong>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {tourn.rounds?.length > 0 && (
-                          <div>
-                            <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>📋 Runden-Predictions</h4>
-                            {tourn.rounds.map((r, ri) => {
-                              const roundKey = `${ti}-${ri}`;
-                              const isRoundCollapsed = collapsedRounds[roundKey];
-                              return (
-                                <div key={ri} style={{ marginBottom: "8px", background: "rgba(255,255,255,0.02)", borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", cursor: "pointer", userSelect: "none" }}
-                                    onClick={() => toggleRound(roundKey)}>
-                                    <span style={{ fontSize: "11px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isRoundCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
-                                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                                      <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{r.round}</span>
-                                    </div>
-                                    <span style={{ fontSize: "11px", color: "#475569" }}>{r.matches.length} Matches</span>
-                                  </div>
-                                  {!isRoundCollapsed && (
-                                    <div style={{ padding: "0 10px 10px" }}>
-                                      {r.matches.map((m, mi) => (
-                                        <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", marginBottom: "4px", background: m.isFinished ? (m.correct ? "rgba(74,222,128,0.05)" : m.correct === false ? "rgba(248,113,113,0.05)" : "rgba(255,255,255,0.03)") : "rgba(255,255,255,0.03)", borderRadius: "8px", cursor: "pointer", border: m.isFinished ? `1px solid ${m.correct ? "rgba(74,222,128,0.2)" : m.correct === false ? "rgba(248,113,113,0.2)" : "rgba(255,255,255,0.05)"}` : "1px solid rgba(255,255,255,0.05)" }}
-                                          onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                                          <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                              {m.actualWinner === m.player1 && <span style={{ fontSize: "10px" }}>🏆</span>}
-                                              <span style={{ fontSize: "13px", fontWeight: m.prediction === m.player1 || m.actualWinner === m.player1 ? 700 : 400, color: m.actualWinner === m.player1 ? "#4ade80" : m.prediction === m.player1 ? "#22d3ee" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</span>
-                                              <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank1}</span>
-                                            </div>
-                                            <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "3px" }}>
-                                              {m.actualWinner === m.player2 && <span style={{ fontSize: "10px" }}>🏆</span>}
-                                              <span style={{ fontSize: "13px", fontWeight: m.prediction === m.player2 || m.actualWinner === m.player2 ? 700 : 400, color: m.actualWinner === m.player2 ? "#4ade80" : m.prediction === m.player2 ? "#22d3ee" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</span>
-                                              <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank2}</span>
-                                            </div>
-                                          </div>
-
-                                          <div style={{ textAlign: "center", flexShrink: 0, margin: "0 12px", minWidth: "60px" }}>
-                                            {m.isFinished && m.score ? (
-                                              <span style={{ fontSize: "11px", color: "#64748b" }}>{m.score}</span>
-                                            ) : m.time ? (
-                                              <span style={{ fontSize: "11px", color: "#475569" }}>🕐 {m.time}</span>
-                                            ) : null}
-                                          </div>
-
-                                          <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                            <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "2px" }}>Pick {m.prob}%</div>
-                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "#22d3ee" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
-                                            {m.isFinished && (
-                                              <div style={{ fontSize: "11px", marginTop: "2px" }}>
-                                                {m.correct === true && <span style={{ color: "#4ade80" }}>✅ Korrekt</span>}
-                                                {m.correct === false && <span style={{ color: "#f87171" }}>❌ Falsch</span>}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {!tourn.drawSet && (
-                          <p style={{ color: "#475569", fontSize: "13px", textAlign: "center", padding: "16px 0" }}>
-                            ⏳ Draw noch nicht vollständig — Predictions werden aktualisiert sobald alle Spieler feststehen.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </>
-        )}
-
-        {tab === "h2h" && (
-          <>
-            <Header title="H2H Intelligence" />
-
-            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
-              <PlayerAutocomplete label="Spieler 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} />
-              <PlayerAutocomplete label="Spieler 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} />
-            </div>
-
-            <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1 || !h2hP2} style={{ marginBottom: "24px" }}>
-              ⚡ H2H laden
-            </button>
-
-            {h2hLoading && <p style={{ color: "#94a3b8" }}>⏳ Lade H2H-Daten...</p>}
-
-            {h2hData && !h2hLoading && (
-              <>
-                <Panel title={`⚔️ ${h2hP1} vs ${h2hP2}`}>
-                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "40px", padding: "20px 0" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: "48px", fontWeight: 900, color: "#22d3ee" }}>{h2hData.p1_wins}</div>
-                      <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>{h2hP1}</div>
-                    </div>
-                    <div style={{ fontSize: "24px", color: "#475569", fontWeight: 700 }}>:</div>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: "48px", fontWeight: 900, color: "#f472b6" }}>{h2hData.p2_wins}</div>
-                      <div style={{ color: "#94a3b8", fontSize: "13px", marginTop: "4px" }}>{h2hP2}</div>
-                    </div>
-                  </div>
-
-                  {h2hData.p1_wins + h2hData.p2_wins > 0 && (
-                    <div style={{ marginTop: "8px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#94a3b8", marginBottom: "4px" }}>
-                        <span>{Math.round(h2hData.p1_wins / (h2hData.p1_wins + h2hData.p2_wins) * 100)}%</span>
-                        <span>H2H Bilanz</span>
-                        <span>{Math.round(h2hData.p2_wins / (h2hData.p1_wins + h2hData.p2_wins) * 100)}%</span>
-                      </div>
-                      <div style={{ display: "flex", height: "10px", borderRadius: "999px", overflow: "hidden" }}>
-                        <div style={{ width: `${Math.round(h2hData.p1_wins / (h2hData.p1_wins + h2hData.p2_wins) * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
-                        <div style={{ flex: 1, background: "#f472b6" }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {h2hData.h2h_matches?.length > 0 && (() => {
-                    const getSurface = (tn) => {
-                      const t = (tn || "").toLowerCase();
-                      if (t.includes("clay") || t.includes("roland") || t.includes("french") || t.includes("monte") || t.includes("madrid") || t.includes("rome") || t.includes("barcelona")) return "clay";
-                      if (t.includes("grass") || t.includes("wimbledon") || t.includes("halle") || t.includes("queens")) return "grass";
-                      return "hard";
-                    };
-                    const surfaces = ["hard","clay","grass"];
-                    const icons = { hard: "🏟️", clay: "🧱", grass: "🌿" };
-                    const colors = { hard: "#22d3ee", clay: "#ef4444", grass: "#4ade80" };
-                    const surfaceStats = surfaces.map(s => {
-                      const matches = h2hData.h2h_matches.filter(m => getSurface(m.tournament_name) === s);
-                      const w1 = matches.filter(m => m.event_winner === "First Player").length;
-                      const w2 = matches.filter(m => m.event_winner === "Second Player").length;
-                      return { s, w1, w2, total: matches.length };
-                    }).filter(x => x.total > 0);
-                    return surfaceStats.length > 0 ? (
-                      <div style={{ marginTop: "20px", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "12px" }}>
-                        {surfaceStats.map(({ s, w1, w2, total }) => (
-                          <div key={s} style={{ background: `${colors[s]}11`, border: `1px solid ${colors[s]}33`, borderRadius: "14px", padding: "14px", textAlign: "center" }}>
-                            <div style={{ fontSize: "20px", marginBottom: "4px" }}>{icons[s]}</div>
-                            <div style={{ fontSize: "11px", color: colors[s], textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px", fontWeight: 700 }}>{s}</div>
-                            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px" }}>
-                              <span style={{ fontSize: "22px", fontWeight: 900, color: "#22d3ee" }}>{w1}</span>
-                              <span style={{ color: "#475569" }}>:</span>
-                              <span style={{ fontSize: "22px", fontWeight: 900, color: "#f472b6" }}>{w2}</span>
-                            </div>
-                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "4px" }}>{total} Spiele</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null;
-                  })()}
-                </Panel>
-
-                {h2hData.h2h_matches?.length > 0 && (
-                  <Panel title="📋 Letzte Begegnungen" style={{ marginTop: "20px" }}>
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-                        <thead>
-                          <tr style={{ color: "#94a3b8", borderBottom: "1px solid rgba(34,211,238,0.2)" }}>
-                            <th style={{ padding: "8px", textAlign: "left" }}>Datum</th>
-                            <th style={{ padding: "8px", textAlign: "left" }}>Turnier</th>
-                            <th style={{ padding: "8px", textAlign: "left" }}>Belag</th>
-                            <th style={{ padding: "8px", textAlign: "left" }}>Ergebnis</th>
-                            <th style={{ padding: "8px", textAlign: "left" }}>Sieger</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {h2hData.h2h_matches.map((m, i) => {
-                            const p1Won = m.event_winner === "First Player";
-                            const tn = (m.tournament_name || "").toLowerCase();
-                            const surface = tn.includes("clay") || tn.includes("roland") || tn.includes("french") || tn.includes("monte") || tn.includes("madrid") || tn.includes("rome") || tn.includes("barcelona")
-                              ? { label: "Clay", icon: "🧱", color: "#ef4444" }
-                              : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens") || tn.includes("eastbourne")
-                              ? { label: "Grass", icon: "🌿", color: "#4ade80" }
-                              : { label: "Hard", icon: "🏟️", color: "#22d3ee" };
-                            return (
-                              <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                                <td style={{ padding: "8px", color: "#64748b" }}>{m.event_date}</td>
-                                <td style={{ padding: "8px", color: "#cbd5e1" }}>{m.tournament_name}</td>
-                                <td style={{ padding: "8px" }}>
-                                  <span style={{ background: `${surface.color}22`, color: surface.color, border: `1px solid ${surface.color}44`, borderRadius: "6px", padding: "2px 8px", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap" }}>
-                                    {surface.icon} {surface.label}
-                                  </span>
-                                </td>
-                                <td style={{ padding: "8px", color: "#94a3b8" }}>{m.event_final_result}</td>
-                                <td style={{ padding: "8px" }}>
-                                  <span style={{ color: p1Won ? "#22d3ee" : "#f472b6", fontWeight: 700 }}>
-                                    {p1Won ? m.event_first_player : m.event_second_player}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </Panel>
-                )}
-
-                {h2hData.h2h_matches?.length === 0 && (
-                  <Panel title="📋 Begegnungen">
-                    <p style={{ color: "#94a3b8" }}>Keine direkten Begegnungen in der Datenbank gefunden.</p>
-                  </Panel>
-                )}
-
-                <div className="grid two" style={{ marginTop: "20px" }}>
-                  <Panel title={`📈 Letzte Spiele: ${h2hP1}`}>
-                    {h2hData.p1_recent?.length > 0 ? h2hData.p1_recent.map((m, i) => {
-                      const won = m.event_winner === "First Player";
-                      const tn = (m.tournament_name || "").toLowerCase();
-                      const surface = tn.includes("clay") || tn.includes("roland") || tn.includes("french") || tn.includes("monte") || tn.includes("madrid") || tn.includes("rome") || tn.includes("barcelona")
-                        ? { icon: "🧱", color: "#ef4444" }
-                        : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens")
-                        ? { icon: "🌿", color: "#4ade80" }
-                        : { icon: "🏟️", color: "#22d3ee" };
-                      return (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
-                          <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
-                          <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
-                          <span style={{ color: "#cbd5e1", flex: 1 }}>{
-                            (() => {
-                              const name = h2hP1.toLowerCase();
-                              const p1l = (m.event_first_player||"").toLowerCase();
-                              const p2l = (m.event_second_player||"").toLowerCase();
-                              const p1last = p1l.split(" ").pop();
-                              const p2last = p2l.split(" ").pop();
-                              const namelast = name.split(" ").pop();
-                              return namelast === p1last ? m.event_second_player : m.event_first_player;
-                            })()
-                          }</span>
-                          <span style={{ color: "#64748b", fontSize: "11px" }}>{m.event_date}</span>
-                        </div>
-                      );
-                    }) : <p style={{ color: "#94a3b8" }}>Keine Daten</p>}
-                  </Panel>
-
-                  <Panel title={`📈 Letzte Spiele: ${h2hP2}`}>
-                    {h2hData.p2_recent?.length > 0 ? h2hData.p2_recent.map((m, i) => {
-                      const won = m.event_winner === "Second Player";
-                      const tn = (m.tournament_name || "").toLowerCase();
-                      const surface = tn.includes("clay") || tn.includes("roland") || tn.includes("french") || tn.includes("monte") || tn.includes("madrid") || tn.includes("rome") || tn.includes("barcelona")
-                        ? { icon: "🧱", color: "#ef4444" }
-                        : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens")
-                        ? { icon: "🌿", color: "#4ade80" }
-                        : { icon: "🏟️", color: "#22d3ee" };
-                      return (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: "13px" }}>
-                          <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
-                          <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
-                          <span style={{ color: "#cbd5e1", flex: 1 }}>{
-                            (() => {
-                              const name = h2hP2.toLowerCase();
-                              const p1l = (m.event_first_player||"").toLowerCase();
-                              const p2l = (m.event_second_player||"").toLowerCase();
-                              const p1last = p1l.split(" ").pop();
-                              const p2last = p2l.split(" ").pop();
-                              const namelast = name.split(" ").pop();
-                              return namelast === p2last ? m.event_first_player : m.event_second_player;
-                            })()
-                          }</span>
-                          <span style={{ color: "#64748b", fontSize: "11px" }}>{m.event_date}</span>
-                        </div>
-                      );
-                    }) : <p style={{ color: "#94a3b8" }}>Keine Daten</p>}
-                  </Panel>
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function Header({ title }) { return <h2>{title}</h2>; }
-
-function Panel({ title, children }) {
-  return (
-    <div className="panel">
-      <h3>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Kpis({ data }) {
-  return (
-    <div className="grid kpis">
-      <Card label="Elo Rating" value={data.elo || "-"} />
-      <Card label="Serve" value={data.serve || "-"} />
-      <Card label="Return" value={data.return || "-"} />
-      <Card label="Clutch" value={data.clutch || "-"} />
-      <Card label="Momentum" value={data.momentum || "-"} />
-      <Card label="Rank" value={data.rank ? `#${data.rank}` : "-"} />
-    </div>
-  );
-}
-
-function Card({ label, value }) {
-  return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
-}
+                          <div key={statName} style={{ margi
