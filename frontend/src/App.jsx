@@ -81,10 +81,8 @@ function MatchCard({ m, onClick }) {
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
 
-  // Sets direkt vom Backend (individuelle Set-Ergebnisse)
   const sets = Array.isArray(m.sets) && m.sets.length > 0 ? m.sets : [];
   
-  // Set-Zähler aus score "1 - 1" als Fallback
   const setCount = sets.length === 0 && m.score && m.score !== "-"
     ? (() => {
         const parts = m.score.replace(/ /g, "").split("-");
@@ -92,7 +90,6 @@ function MatchCard({ m, onClick }) {
       })()
     : null;
 
-  // Game Score aufteilen z.B. "40 - 30"
   const gameParts = m.gameScore && m.gameScore !== "-"
     ? m.gameScore.split("-").map(s => s.trim())
     : null;
@@ -112,11 +109,9 @@ function MatchCard({ m, onClick }) {
         </div>
       </div>
 
-      {/* Score Tabelle */}
       {(isLive || isFinished) ? (
         <div style={{ marginBottom: "8px" }}>
           {sets.length > 0 ? (
-            // Individuelle Set-Ergebnisse
             <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "36px").join(" ")}${isLive && gameParts ? " 44px" : ""}`, gap: "4px 10px", alignItems: "center" }}>
               <div />
               {sets.map((_, i) => <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>)}
@@ -131,7 +126,6 @@ function MatchCard({ m, onClick }) {
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
             </div>
           ) : (
-            // Fallback: Satz-Stand + Game Score
             <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 50px", gap: "4px 12px", alignItems: "center" }}>
               <div style={{ fontSize: "10px", color: "#475569" }} />
               <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sätze</div>
@@ -210,14 +204,11 @@ export default function App() {
   const findPlayer = (name) => {
     if (!name) return null;
     const lower = name.toLowerCase();
-    // 1. Exact match
     let found = safePlayers.find(p => getPlayerName(p).toLowerCase() === lower);
     if (found) return found;
-    // 2. Last name match (handles "I. Ivashka" → "Ilya Ivashka")
     const lastName = lower.split(" ").pop();
     found = safePlayers.find(p => getPlayerName(p).toLowerCase().split(" ").pop() === lastName);
     if (found) return found;
-    // 3. Contains match
     found = safePlayers.find(p => getPlayerName(p).toLowerCase().includes(lastName));
     return found || null;
   };
@@ -253,7 +244,6 @@ export default function App() {
       .catch(err => console.error(err));
   }, [player]);
 
-
   useEffect(() => {
     if (!comparePlayer) return;
     fetch(`https://tennis-edge-backend.onrender.com/api/player/${encodeURIComponent(comparePlayer)}`)
@@ -285,7 +275,6 @@ export default function App() {
   useEffect(() => {
     if (tab === "tournamentpred") {
       if (tournamentPreds.length === 0) loadTournamentPreds();
-      // Auto-Refresh alle 5 Minuten wenn Tab offen
       const interval = setInterval(loadTournamentPreds, 5 * 60 * 1000);
       return () => clearInterval(interval);
     }
@@ -315,7 +304,6 @@ export default function App() {
       .catch(err => { console.error(err); setH2hLoading(false); });
   };
 
-  // Auto-predict when players change via value pick click
   useEffect(() => {
     if (tab === "predictor" && p1Data && p2Data && !prediction) {
       setTimeout(() => {
@@ -476,7 +464,7 @@ export default function App() {
           </>
         )}
 
-                {tab === "matches" && (
+        {tab === "matches" && (
           <>
             <Header title="Matches" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
@@ -494,10 +482,8 @@ export default function App() {
               ) : fixtures.length === 0 ? (
                 <p style={{color:"#94a3b8"}}>Keine Matches heute gefunden.</p>
               ) : (() => {
-                // Nach Kategorie + Turnier gruppieren
                 const categoryOrder = ["ATP Singles", "ATP Doubles", "Challenger Singles", "Challenger Doubles"];
                 
-                // Erst nach Kategorie, dann nach Turnier gruppieren
                 const grouped = {};
                 fixtures.forEach(m => {
                   const cat = m.category || "Sonstige";
@@ -507,7 +493,6 @@ export default function App() {
                   grouped[key].matches.push(m);
                 });
 
-                // Sortieren: ATP zuerst, dann Challenger
                 const sortedKeys = Object.keys(grouped).sort((a, b) => {
                   const catA = grouped[a].cat;
                   const catB = grouped[b].cat;
@@ -517,7 +502,6 @@ export default function App() {
                   return grouped[a].tourn.localeCompare(grouped[b].tourn);
                 });
 
-                // Nach Kategorie gruppieren für Überschriften
                 const byCategory = {};
                 sortedKeys.forEach(key => {
                   const { cat } = grouped[key];
@@ -530,7 +514,6 @@ export default function App() {
                   const liveInCat = keys.flatMap(k => grouped[k].matches).filter(m => m.live).length;
                   return (
                     <div key={cat} style={{ marginBottom: "32px" }}>
-                      {/* Kategorie-Header */}
                       <div
                         style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", paddingBottom: "10px", borderBottom: `2px solid ${isATP ? "rgba(34,211,238,0.3)" : "rgba(250,204,21,0.3)"}`, cursor: "pointer", userSelect: "none" }}
                         onClick={() => toggleCategory(cat)}
@@ -548,14 +531,12 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* Turniere innerhalb der Kategorie */}
                       {!collapsedCategories[cat] && keys.map(key => {
                         const { tourn, matches } = grouped[key];
                         const liveInTourn = matches.filter(m => m.live).length;
                         const isColl = collapsedTournaments[key];
                         return (
                           <div key={key} style={{ marginBottom: "16px", background: "rgba(255,255,255,0.02)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
-                            {/* Turnier-Header */}
                             <div
                               style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 16px", cursor: "pointer", userSelect: "none" }}
                               onClick={() => toggleTournament(key)}
@@ -570,7 +551,6 @@ export default function App() {
                               )}
                               <span style={{ fontSize: "11px", color: "#475569", marginLeft: "auto" }}>{matches.length} Matches</span>
                             </div>
-                            {/* Match-Karten */}
                             {!isColl && (
                               <div style={{ padding: "0 12px 12px" }}>
                                 <div className="matchCardGrid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))" }}>
@@ -591,7 +571,7 @@ export default function App() {
           </>
         )}
 
-                {tab === "valuepicks" && (
+        {tab === "valuepicks" && (
           <>
             <Header title="Value Picks" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE", {day:"2-digit",month:"2-digit",year:"numeric"})}</p>
@@ -762,7 +742,6 @@ export default function App() {
                 </Panel>
               )}
             </div>
-            {/* News Panels */}
             {(playerNews.length > 0 || compareNews.length > 0) && (
               <div className="grid two" style={{ marginTop: "20px" }}>
                 {playerNews.length > 0 && (
@@ -874,7 +853,6 @@ export default function App() {
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
 
-                  {/* Set-Win Wahrscheinlichkeit */}
                   {prediction.setWinProb && (
                     <div style={{ margin: "16px 0", padding: "16px", borderRadius: "14px", background: "rgba(34,211,238,0.06)", border: "1px solid rgba(34,211,238,0.2)" }}>
                       <h4 style={{ color: "#22d3ee", margin: "0 0 12px", fontSize: "14px" }}>🎾 Satz-Win Wahrscheinlichkeit</h4>
@@ -899,7 +877,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Handicap-Empfehlung */}
                   {prediction.handicap && (
                     <div style={{ margin: "0 0 16px", padding: "16px", borderRadius: "14px", background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.25)" }}>
                       <h4 style={{ color: "#facc15", margin: "0 0 12px", fontSize: "14px" }}>📊 Handicap-Empfehlung</h4>
@@ -1067,7 +1044,6 @@ export default function App() {
                     </p>
                   )}
 
-                  {/* Score Board */}
                   {(() => {
                     const sets = matchDetail.sets || [];
                     const showGame = matchDetail.live && matchDetail.gameScore && matchDetail.gameScore !== "-";
@@ -1101,7 +1077,6 @@ export default function App() {
                     );
                   })()}
 
-                  {/* Quick Actions */}
                   <div style={{ display: "flex", gap: "12px" }}>
                     <button className="predictBtn" style={{ flex: 1, padding: "12px" }}
                       onClick={() => { setP1(matchDetail.player1); setP2(matchDetail.player2); setTab("predictor"); }}>
@@ -1114,9 +1089,7 @@ export default function App() {
                   </div>
                 </Panel>
 
-                {/* Statistics */}
                 {matchDetail.statistics?.length > 0 && (() => {
-                  // Stats für Match-Ebene filtern
                   const matchStats = matchDetail.statistics.filter(s => s.stat_period === "match");
                   const keyStats = ["1st serve percentage", "1st serve points won", "2nd serve points won", "Break Points Converted", "Return Points Won", "Winners", "Unforced errors", "Total Points Won"];
 
@@ -1182,7 +1155,6 @@ export default function App() {
                 const isATP = tourn.type?.includes("ATP");
                 return (
                   <div key={ti} style={{ marginBottom: "16px", background: "#0f172a", borderRadius: "16px", overflow: "hidden", border: `1px solid ${isATP ? "rgba(34,211,238,0.2)" : "rgba(250,204,21,0.2)"}` }}>
-                    {/* Turnier Header */}
                     <div style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px" }}
                       onClick={() => setExpandedTournament(isExpanded ? null : ti)}>
                       <span style={{ fontSize: "13px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)" }}>▼</span>
@@ -1201,8 +1173,17 @@ export default function App() {
                           <span>·</span>
                           {tourn.hasStarted ? (
                             <>
-                              <span style={{ color: "#4ade80", fontWeight: 600 }}>🎾 Läuft — {tourn.activePlayerCount} Spieler noch dabei</span>
-                              {tourn.eliminatedCount > 0 && <span style={{ color: "#f87171" }}>({tourn.eliminatedCount} ausgeschieden)</span>}
+                              <span style={{ color: "#4ade80", fontWeight: 600 }}>
+                                🎾 Läuft
+                                {tourn.activePlayerCount > 1
+                                  ? ` — ${tourn.activePlayerCount} Spieler noch dabei`
+                                  : tourn.activePlayerCount === 1
+                                  ? ` — Finale`
+                                  : ``}
+                              </span>
+                              {tourn.eliminatedCount > 0 && (
+                                <span style={{ color: "#f87171" }}>({tourn.eliminatedCount} ausgeschieden)</span>
+                              )}
                             </>
                           ) : (
                             <span>{tourn.playerCount} Spieler im Draw</span>
@@ -1219,11 +1200,9 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* Turnier Details */}
                     {isExpanded && (
                       <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "16px 20px" }}>
                         
-                        {/* Gewinn-Wahrscheinlichkeiten */}
                         {tourn.winProbs?.length > 0 && (
                           <div style={{ marginBottom: "20px" }}>
                             <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>🏅 Turniersieg-Wahrscheinlichkeit</h4>
@@ -1242,7 +1221,6 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Runden-Predictions */}
                         {tourn.rounds?.length > 0 && (
                           <div>
                             <h4 style={{ color: "#22d3ee", marginBottom: "12px", fontSize: "14px" }}>📋 Runden-Predictions</h4>
@@ -1251,30 +1229,25 @@ export default function App() {
                               const isRoundCollapsed = collapsedRounds[roundKey];
                               return (
                                 <div key={ri} style={{ marginBottom: "8px", background: "rgba(255,255,255,0.02)", borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
-                                  {/* Runden-Header klickbar */}
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", cursor: "pointer", userSelect: "none" }}
                                     onClick={() => toggleRound(roundKey)}>
                                     <span style={{ fontSize: "11px", color: "#64748b", transition: "transform 0.2s", display: "inline-block", transform: isRoundCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}>▼</span>
                                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-
                                       <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{r.round}</span>
                                     </div>
                                     <span style={{ fontSize: "11px", color: "#475569" }}>{r.matches.length} Matches</span>
                                   </div>
-                                  {/* Matches */}
                                   {!isRoundCollapsed && (
                                     <div style={{ padding: "0 10px 10px" }}>
                                       {r.matches.map((m, mi) => (
                                         <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", marginBottom: "4px", background: m.isFinished ? (m.correct ? "rgba(74,222,128,0.05)" : m.correct === false ? "rgba(248,113,113,0.05)" : "rgba(255,255,255,0.03)") : "rgba(255,255,255,0.03)", borderRadius: "8px", cursor: "pointer", border: m.isFinished ? `1px solid ${m.correct ? "rgba(74,222,128,0.2)" : m.correct === false ? "rgba(248,113,113,0.2)" : "rgba(255,255,255,0.05)"}` : "1px solid rgba(255,255,255,0.05)" }}
                                           onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
                                           <div style={{ flex: 1, minWidth: 0 }}>
-                                            {/* Player 1 */}
                                             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                                               {m.actualWinner === m.player1 && <span style={{ fontSize: "10px" }}>🏆</span>}
                                               <span style={{ fontSize: "13px", fontWeight: m.prediction === m.player1 || m.actualWinner === m.player1 ? 700 : 400, color: m.actualWinner === m.player1 ? "#4ade80" : m.prediction === m.player1 ? "#22d3ee" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</span>
                                               <span style={{ color: "#475569", fontSize: "10px", flexShrink: 0 }}>#{m.rank1}</span>
                                             </div>
-                                            {/* Player 2 */}
                                             <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "3px" }}>
                                               {m.actualWinner === m.player2 && <span style={{ fontSize: "10px" }}>🏆</span>}
                                               <span style={{ fontSize: "13px", fontWeight: m.prediction === m.player2 || m.actualWinner === m.player2 ? 700 : 400, color: m.actualWinner === m.player2 ? "#4ade80" : m.prediction === m.player2 ? "#22d3ee" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</span>
@@ -1282,7 +1255,6 @@ export default function App() {
                                             </div>
                                           </div>
 
-                                          {/* Mitte: Score oder Zeit */}
                                           <div style={{ textAlign: "center", flexShrink: 0, margin: "0 12px", minWidth: "60px" }}>
                                             {m.isFinished && m.score ? (
                                               <span style={{ fontSize: "11px", color: "#64748b" }}>{m.score}</span>
@@ -1291,7 +1263,6 @@ export default function App() {
                                             ) : null}
                                           </div>
 
-                                          {/* Rechts: Prediction + Ergebnis */}
                                           <div style={{ textAlign: "right", flexShrink: 0 }}>
                                             <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "2px" }}>Pick {m.prob}%</div>
                                             <div style={{ fontSize: "12px", fontWeight: 700, color: "#22d3ee" }}>{m.prediction?.split(" ").slice(-1)[0]}</div>
@@ -1331,28 +1302,11 @@ export default function App() {
             <Header title="H2H Intelligence" />
 
             <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
-              <PlayerAutocomplete
-                label="Spieler 1..."
-                playerNum={1}
-                value={h2hP1}
-                onChange={setH2hP1}
-                players={playerNames}
-              />
-              <PlayerAutocomplete
-                label="Spieler 2..."
-                playerNum={2}
-                value={h2hP2}
-                onChange={setH2hP2}
-                players={playerNames}
-              />
+              <PlayerAutocomplete label="Spieler 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} />
+              <PlayerAutocomplete label="Spieler 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} />
             </div>
 
-            <button
-              className="predictBtn"
-              onClick={fetchH2H}
-              disabled={!h2hP1 || !h2hP2}
-              style={{ marginBottom: "24px" }}
-            >
+            <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1 || !h2hP2} style={{ marginBottom: "24px" }}>
               ⚡ H2H laden
             </button>
 
@@ -1443,33 +1397,19 @@ export default function App() {
                               ? { label: "Clay", icon: "🧱", color: "#ef4444" }
                               : tn.includes("grass") || tn.includes("wimbledon") || tn.includes("halle") || tn.includes("queens") || tn.includes("eastbourne")
                               ? { label: "Grass", icon: "🌿", color: "#4ade80" }
-                              : tn.includes("indoor") || tn.includes("hard") || tn.includes("australian") || tn.includes("us open") || tn.includes("miami") || tn.includes("indian wells") || tn.includes("cincinnati")
-                              ? { label: "Hard", icon: "🏟️", color: "#22d3ee" }
                               : { label: "Hard", icon: "🏟️", color: "#22d3ee" };
                             return (
                               <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                                 <td style={{ padding: "8px", color: "#64748b" }}>{m.event_date}</td>
                                 <td style={{ padding: "8px", color: "#cbd5e1" }}>{m.tournament_name}</td>
                                 <td style={{ padding: "8px" }}>
-                                  <span style={{
-                                    background: `${surface.color}22`,
-                                    color: surface.color,
-                                    border: `1px solid ${surface.color}44`,
-                                    borderRadius: "6px",
-                                    padding: "2px 8px",
-                                    fontSize: "11px",
-                                    fontWeight: 700,
-                                    whiteSpace: "nowrap"
-                                  }}>
+                                  <span style={{ background: `${surface.color}22`, color: surface.color, border: `1px solid ${surface.color}44`, borderRadius: "6px", padding: "2px 8px", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap" }}>
                                     {surface.icon} {surface.label}
                                   </span>
                                 </td>
                                 <td style={{ padding: "8px", color: "#94a3b8" }}>{m.event_final_result}</td>
                                 <td style={{ padding: "8px" }}>
-                                  <span style={{
-                                    color: p1Won ? "#22d3ee" : "#f472b6",
-                                    fontWeight: 700
-                                  }}>
+                                  <span style={{ color: p1Won ? "#22d3ee" : "#f472b6", fontWeight: 700 }}>
                                     {p1Won ? m.event_first_player : m.event_second_player}
                                   </span>
                                 </td>
@@ -1503,7 +1443,6 @@ export default function App() {
                           <span style={{ color: won ? "#4ade80" : "#f87171", fontWeight: 700, minWidth: "24px" }}>{won ? "W" : "L"}</span>
                           <span style={{ fontSize: "14px" }} title={surface.label}>{surface.icon}</span>
                           <span style={{ color: "#cbd5e1", flex: 1 }}>{
-                            // Zeige den Gegner (nicht den gesuchten Spieler selbst)
                             (() => {
                               const name = h2hP1.toLowerCase();
                               const p1l = (m.event_first_player||"").toLowerCase();
@@ -1586,4 +1525,3 @@ function Kpis({ data }) {
 function Card({ label, value }) {
   return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
 }
-trigger
