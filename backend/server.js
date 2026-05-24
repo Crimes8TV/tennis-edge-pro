@@ -997,6 +997,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
       }
 
       // Fallback falls keine aktiven Spieler gefunden
+      const atpActivePlayers = activePlayers.filter(p => p.rank <= 120);
+      if (atpActivePlayers.length >= 2) { activePlayers = atpActivePlayers; }
       if (activePlayers.length === 0) {
         activePlayers = allPlayers.slice(0, 8);
       }
