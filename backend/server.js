@@ -742,7 +742,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
   try {
     const today = new Date();
     const start = new Date(today);
-    start.setDate(today.getDate() - 28);
+    start.setDate(today.getDate() - 1);
     const end = new Date(today);
     end.setDate(today.getDate() + 14);
 
@@ -1103,7 +1103,7 @@ app.get("/api/debug-tournament", async (req, res) => {
   try {
     const tournName = (req.query.name || "").toLowerCase();
     const today = new Date();
-    const start = new Date(today); start.setDate(today.getDate() - 28);
+    const start = new Date(today); start.setDate(today.getDate() - 1);
     const end   = new Date(today); end.setDate(today.getDate() + 14);
     const dateStart = start.toISOString().split("T")[0];
     const dateEnd   = end.toISOString().split("T")[0];
