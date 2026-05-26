@@ -200,7 +200,11 @@ export default function App() {
     const lastName = lower.split(" ").pop();
     found = safePlayers.find(p => getPlayerName(p).toLowerCase().split(" ").pop() === lastName);
     if (found) return found;
-    return safePlayers.find(p => getPlayerName(p).toLowerCase().includes(lastName)) || null;
+    found = safePlayers.find(p => getPlayerName(p).toLowerCase().includes(lastName)) || null;
+    if (found) return found;
+    // Fallback: return a placeholder so prediction still works
+    if (name.length > 1) return { name, rank: 100, elo: 1800, hard: 0, clay: 0, grass: 0 };
+    return null;
   };
   const p1Data = findPlayer(p1);
   const p2Data = findPlayer(p2);
@@ -282,8 +286,10 @@ export default function App() {
   }, [tab, p1, p2]);
 
   const predictMatch = () => {
-    if (!p1 || !p2 || !p1Data || !p2Data) return;
-    fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}&bo=${bestOf}`)
+    if (!p1 || !p2) return;
+    const r1 = p1Data?.rank || 100;
+    const r2 = p2Data?.rank || 100;
+    fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${r1}&rank2=${r2}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}&bo=${bestOf}`)
       .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
   };
 
@@ -719,7 +725,7 @@ export default function App() {
               {bestOf===5 && <span style={{fontSize:"11px",color:"#f59e0b",marginLeft:"4px"}}>Grand Slam Mode</span>}
             </div>
 
-            <button className="predictBtn" onClick={predictMatch} disabled={!p1Data||!p2Data}>⚡ Calculate Prediction</button>
+            <button className="predictBtn" onClick={predictMatch} disabled={!p1||!p2}>⚡ Calculate Prediction</button>
             <Panel title="Prediction Engine">
               {prediction && (
                 <>
