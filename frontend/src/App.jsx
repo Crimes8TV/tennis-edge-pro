@@ -1048,6 +1048,25 @@ export default function App() {
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
 
+                  {/* Hand Matchup */}
+                  {prediction.hand && (() => {
+                    const h1 = prediction.hand[prediction.player1];
+                    const h2 = prediction.hand[prediction.player2];
+                    if (!h1 && !h2) return null;
+                    const handLabel = (h) => h === "L" ? "Left-handed" : h === "R" ? "Right-handed" : "Unknown";
+                    const isLvsR = (h1 === "L" && h2 === "R") || (h1 === "R" && h2 === "L");
+                    const leftie = h1 === "L" ? prediction.player1 : h2 === "L" ? prediction.player2 : null;
+                    return (
+                      <div style={{display:"flex",alignItems:"center",gap:"12px",padding:"8px 12px",borderRadius:"10px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",marginTop:"8px",flexWrap:"wrap"}}>
+                        <span style={{fontSize:"12px",color:"#64748b",fontWeight:700}}>✋ Handedness</span>
+                        <span style={{fontSize:"12px",color:"#e2e8f0"}}>{prediction.player1.split(" ").pop()}: <strong style={{color:h1==="L"?"#facc15":"#22d3ee"}}>{handLabel(h1)}</strong></span>
+                        <span style={{color:"#334155"}}>·</span>
+                        <span style={{fontSize:"12px",color:"#e2e8f0"}}>{prediction.player2.split(" ").pop()}: <strong style={{color:h2==="L"?"#facc15":"#22d3ee"}}>{handLabel(h2)}</strong></span>
+                        {isLvsR && leftie && <span style={{fontSize:"11px",color:"#facc15",background:"rgba(250,204,21,0.1)",border:"1px solid rgba(250,204,21,0.2)",borderRadius:"6px",padding:"2px 8px"}}>⚡ Left-hand edge: {leftie.split(" ").pop()}</span>}
+                      </div>
+                    );
+                  })()}
+
                   {/* Recent Form Display */}
                   {prediction.formData && (
                     <div style={{margin:"12px 0",padding:"14px 16px",borderRadius:"12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)"}}>
