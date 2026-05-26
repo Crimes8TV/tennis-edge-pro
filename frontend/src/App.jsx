@@ -485,9 +485,9 @@ export default function App() {
         <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
           <div style={{marginBottom:"32px"}}>
             <h1 style={{fontSize:"52px",fontWeight:900,background:"linear-gradient(135deg,#22d3ee,#4ade80)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:0,letterSpacing:"-1px",padding:"4px 8px",lineHeight:1.2}}>
-              TennisEdge Pro
+              CourtsideIQ
             </h1>
-            <p style={{color:"#475569",fontSize:"13px",marginTop:"8px",letterSpacing:"3px",textTransform:"uppercase"}}>Advanced Tennis Analytics Platform</p>
+            <p style={{color:"#475569",fontSize:"13px",marginTop:"8px",letterSpacing:"3px",textTransform:"uppercase"}}>Smart Tennis Analytics</p>
           </div>
 
           <p style={{color:"#64748b",fontSize:"15px",marginBottom:"36px",lineHeight:1.7}}>
@@ -526,8 +526,8 @@ export default function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <h1>TennisEdge&nbsp;Pro</h1>
-        <p>Advanced Tennis Analytics</p>
+        <h1>CourtsideIQ</h1>
+        <p>Smart Tennis Analytics</p>
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
         <button onClick={() => setTab("matches")}><Calendar /> Matches</button>
         <button onClick={() => setTab("valuepicks")}><TrendingUp /> Value Picks</button>
@@ -577,7 +577,7 @@ export default function App() {
       <main>
         {/* Mobile Header */}
         <div className="mobile-header">
-          <h1>TennisEdge Pro</h1>
+          <h1>CourtsideIQ</h1>
           {fixtures.some(m=>m.live) && (
             <span style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"4px 10px",fontSize:"11px",color:"#f87171",fontWeight:700}}>
               <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />
