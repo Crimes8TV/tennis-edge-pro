@@ -60,7 +60,7 @@ app.get("/api/players", async (req, res) => {
     res.json([...atpPlayers, ...challengerPlayers]);
   } catch (err) {
     console.error("STANDINGS ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Spielerliste" });
+    res.status(500).json({ error: "Error loading player list" });
   }
 });
 
@@ -76,7 +76,7 @@ app.get("/api/player/:name", async (req, res) => {
     }
     const playerRes = await apiGet({ method: "get_players", player_key: found.player_key });
     const playerData = playerRes.data?.result?.[0];
-    if (!playerData) throw new Error("Keine Spielerdaten");
+    if (!playerData) throw new Error("No player data");
     const stats = playerData.stats?.find(s => s.type === "singles") || {};
     const hardWon = parseInt(stats.hard_won) || 0, hardLost = parseInt(stats.hard_lost) || 0;
     const clayWon = parseInt(stats.clay_won) || 0, clayLost = parseInt(stats.clay_lost) || 0;
@@ -95,7 +95,7 @@ app.get("/api/player/:name", async (req, res) => {
     });
   } catch (err) {
     console.error("PLAYER ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Spielerdaten" });
+    res.status(500).json({ error: "Error loading player data" });
   }
 });
 
@@ -115,7 +115,7 @@ app.get("/api/live", async (req, res) => {
 app.get("/api/h2h", async (req, res) => {
   try {
     const { p1_key, p2_key } = req.query;
-    if (!p1_key || !p2_key) return res.status(400).json({ error: "Spieler-Keys fehlen" });
+    if (!p1_key || !p2_key) return res.status(400).json({ error: "Player keys missing" });
     const response = await apiGet({ method: "get_H2H", first_player_key: p1_key, second_player_key: p2_key });
     const result = response.data?.result || {};
     const h2h = result.H2H || [];
@@ -134,7 +134,7 @@ app.get("/api/h2h", async (req, res) => {
       return true;
     }).slice(0, 5);
     res.json({ h2h_matches: h2h.slice(0, 10), p1_wins: p1Wins, p2_wins: p2Wins, p1_recent: filterSelfMatches(p1Results), p2_recent: filterSelfMatches(p2Results) });
-  } catch (err) { console.error("H2H ERROR:", err.message); res.status(500).json({ error: "Fehler beim Laden der H2H-Daten" }); }
+  } catch (err) { console.error("H2H ERROR:", err.message); res.status(500).json({ error: "Error loading H2H data" }); }
 });
 
 // ─── ODDS ─────────────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ app.get("/api/odds/:match_key", async (req, res) => {
   try {
     const response = await apiGet({ method: "get_odds", match_key: req.params.match_key });
     res.json(response.data?.result || {});
-  } catch (err) { console.error("ODDS ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
+  } catch (err) { console.error("ODDS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ app.get("/api/predict", async (req, res) => {
 
   const handicapLine = Math.round((expFav-expDog)*2)/2;
   const handicapPick = handicapLine>=2?`${favorite} -${handicapLine} Games`:handicapLine>=0.5?`${favorite} -${handicapLine} Games (knapp)`:`Kein klares Handicap`;
-  const handicapReason = handicapLine>=2?`${favorite} dominiert erwartungsgemäß um ~${handicapLine} Games.`:handicapLine>=0.5?`Kleiner Vorteil für ${favorite}.`:`Zu ausgeglichen.`;
+  const handicapReason = handicapLine>=2?`${favorite} dominates by an expected ~${handicapLine} Games.`:handicapLine>=0.5?`Slight advantage for ${favorite}.`:`Too close to call.`;
   res.json({
     player1:p1, player2:p2, surface,
     bo, format: bo === 5 ? "Best of 5 (Grand Slam)" : "Best of 3",
@@ -220,8 +220,8 @@ app.get("/api/predict", async (req, res) => {
     setWinProb:{[p1]:Math.round(setWinP1*100),[p2]:Math.round(setWinP2*100)},
     handicap:{line:handicapLine,favorite,underdog,pick:handicapPick,reason:handicapReason,expGames:{[favorite]:Math.round(expFav*10)/10,[underdog]:Math.round(expDog*10)/10}},
     factors:{ranking:Math.round(rankingFactor),form:Math.round(formFactor),clutch:Math.round(clutchFactor),momentum:Math.round(momentumFactor),surface},
-    explain:p1Win>60?`${p1} hat klare Vorteile.`:p1Win<40?`${p2} hat klare Vorteile.`:`Sehr ausgeglichen.`,
-    edge:p1Win>65?`${p1} klar überlegen`:p1Win>55?`${p1} leichter Vorteil`:p1Win<35?`${p2} klar überlegen`:p1Win<45?`${p2} leichter Vorteil`:"sehr ausgeglichen"
+    explain:p1Win>60?`${p1} hat klare Vorteile.`:p1Win<40?`${p2} hat klare Vorteile.`:`Very evenly matched.`,
+    edge:p1Win>65?`${p1} clearly superior`:p1Win>55?`${p1} slight advantage`:p1Win<35?`${p2} clearly superior`:p1Win<45?`${p2} slight advantage`:"very even"
   });
 });
 
@@ -276,7 +276,7 @@ app.get("/api/valuepicks", async (req, res) => {
     }
     valuePicks.sort((a,b)=>b.edge-a.edge);
     res.json(valuePicks.slice(0,10));
-  } catch(err) { console.error("VALUE PICKS ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
+  } catch(err) { console.error("VALUE PICKS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
 // ─── HEUTIGE FIXTURES ────────────────────────────────────────────────────────
@@ -322,7 +322,7 @@ app.get("/api/fixtures/today", async (req, res) => {
       return a.time>b.time?1:-1;
     });
     res.json(formatted);
-  } catch(err) { console.error("FIXTURES TODAY ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
+  } catch(err) { console.error("FIXTURES TODAY ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
 // ─── MATCH DETAILS ────────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ app.get("/api/match/:matchKey", async (req, res) => {
         }
       }
     }
-    if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
+    if (!match) return res.status(404).json({ error: "Match not found" });
     const extractSets = (m) => {
       const sets = [];
       if (Array.isArray(m.scores)&&m.scores.length>0) {
@@ -377,7 +377,7 @@ app.get("/api/match/:matchKey", async (req, res) => {
       statistics:match.statistics||[], pointbypoint:match.pointbypoint||[],
       server, live:isLive, time:match.event_time||"", date:match.event_date||"", surface:match.event_ground||""
     });
-  } catch(err) { console.error("MATCH DETAIL ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
+  } catch(err) { console.error("MATCH DETAIL ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
 // ─── PLAYER NEWS ──────────────────────────────────────────────────────────────
@@ -622,7 +622,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
     }).sort((a,b)=>a.dateStart.localeCompare(b.dateStart));
 
     res.json(result);
-  } catch(err) { console.error("TOURNAMENT PREDICTIONS ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
+  } catch(err) { console.error("TOURNAMENT PREDICTIONS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
 // ─── DEBUG ────────────────────────────────────────────────────────────────────
@@ -643,4 +643,4 @@ app.get("/api/debug-tournament", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Backend läuft auf Port ${PORT}`));
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
