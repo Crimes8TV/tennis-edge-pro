@@ -25,7 +25,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
   };
   return (
     <div ref={ref} className="playerSearchWrapper">
-      <span className="playerSearchLabel">Spieler {playerNum}</span>
+      <span className="playerSearchLabel">Player {playerNum}</span>
       <div style={{ position: "relative" }}>
         <Search size={15} style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", color: "#22d3ee", pointerEvents: "none" }} />
         <input type="text" value={query} onChange={handleChange} onFocus={() => setOpen(true)} placeholder={label} className="playerSearchInput" />
@@ -54,7 +54,7 @@ function MatchCard({ m, onClick }) {
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
           {isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
-            : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Beendet</span>
+            : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Finished</span>
             : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>}
         </div>
       </div>
@@ -75,7 +75,7 @@ function MatchCard({ m, onClick }) {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 50px", gap: "4px 12px", alignItems: "center" }}>
               <div style={{ fontSize: "10px", color: "#475569" }} />
-              <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sätze</div>
+              <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sets</div>
               {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
               <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
               <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p1) > parseInt(setCount?.p2) ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>
@@ -277,7 +277,7 @@ export default function App() {
   });
   const displayedTournaments = tournamentSection === "active" ? activeTournaments : finishedTournaments;
 
-  if (playerNames.length === 0) return <div className="app"><main><h2>Lade Backend-Daten...</h2></main></div>;
+  if (playerNames.length === 0) return <div className="app"><main><h2>Loading data...</h2></main></div>;
 
   return (
     <div className="app">
@@ -290,7 +290,7 @@ export default function App() {
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
         <button onClick={() => setTab("h2h")}><Trophy /> H2H Intelligence</button>
-        <button onClick={() => setTab("tournamentpred")}><Star /> Turnier Prediction</button>
+        <button onClick={() => setTab("tournamentpred")}><Star /> Tournament Prediction</button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
       </aside>
       <main>
@@ -302,23 +302,23 @@ export default function App() {
               <div>
                 <div className="dashSectionHeader">
                   {fixtures.some(m => m.live)
-                    ? <><span className="liveDot" />{fixtures.filter(m=>m.live).length} Live · Heute {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}</>
-                    : <>📅 Heute — {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}</>}
+                    ? <><span className="liveDot" />{fixtures.filter(m=>m.live).length} Live · Today {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</>
+                    : <>📅 Today — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</>}
                 </div>
-                {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Lade Matches...</p>
-                  : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>Keine Matches heute.</p>
+                {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
+                  : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
                   : <div className="matchCardGrid">
                       {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
-                      {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} weitere → alle anzeigen</p>}
+                      {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
                     </div>}
               </div>
               <div>
                 <div className="dashSectionHeader" style={{justifyContent:"space-between"}}>
                   <span>💰 Top Value Picks</span>
-                  <span style={{fontSize:"12px",color:"#22d3ee",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>Alle anzeigen →</span>
+                  <span style={{fontSize:"12px",color:"#22d3ee",cursor:"pointer"}} onClick={() => setTab("valuepicks")}>Show all →</span>
                 </div>
-                {valuePicksLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Berechne Value Picks...</p>
-                  : valuePicks.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>Keine Value Picks heute.</p>
+                {valuePicksLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Calculating value picks...</p>
+                  : valuePicks.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No value picks today.</p>
                   : valuePicks.slice(0,3).map((pick,i) => (
                     <div key={i} className="valuePickCardMini" onClick={() => {setP1(pick.match.split(" vs ")[0]);setP2(pick.match.split(" vs ")[1]);setTab("predictor");}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -327,11 +327,11 @@ export default function App() {
                       </div>
                       <div style={{display:"flex",gap:"12px",marginTop:"6px",fontSize:"12px"}}>
                         <span style={{color:"#4ade80"}}>✅ {pick.pick}</span>
-                        {pick.bestOdds && <span style={{color:"#facc15"}}>Quote: {pick.bestOdds}</span>}
+                        {pick.bestOdds && <span style={{color:"#facc15"}}>Odds: {pick.bestOdds}</span>}
                         {pick.time && <span style={{color:"#64748b"}}>🕐 {pick.time}</span>}
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"6px"}}>
-                        <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Unser Modell</span>
+                        <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Our Model</span>
                         <div style={{flex:1,height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
                           <div style={{width:`${pick.ourProb}%`,height:"100%",background:"linear-gradient(90deg,#22d3ee,#4ade80)"}} />
                         </div>
@@ -339,7 +339,7 @@ export default function App() {
                       </div>
                       {pick.impliedProb && (
                         <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"4px"}}>
-                          <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Buchmacher</span>
+                          <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Bookmaker</span>
                           <div style={{flex:1,height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
                             <div style={{width:`${pick.impliedProb}%`,height:"100%",background:"#f472b6"}} />
                           </div>
@@ -357,12 +357,12 @@ export default function App() {
           <>
             <Header title="Matches" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              📅 Heute — {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
+              📅 Today — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
               {fixtures.filter(m=>m.live).length > 0 && <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>🔴 {fixtures.filter(m=>m.live).length} Live</span>}
             </p>
             <div>
-              {fixturesLoading ? <p style={{color:"#94a3b8"}}>⏳ Lade Matches...</p>
-                : fixtures.length === 0 ? <p style={{color:"#94a3b8"}}>Keine Matches heute gefunden.</p>
+              {fixturesLoading ? <p style={{color:"#94a3b8"}}>⏳ Loading matches...</p>
+                : fixtures.length === 0 ? <p style={{color:"#94a3b8"}}>No matches found today.</p>
                 : (() => {
                     const categoryOrder = ["ATP Singles","ATP Doubles","Challenger Singles","Challenger Doubles"];
                     const grouped = {};
@@ -421,22 +421,22 @@ export default function App() {
         {tab === "valuepicks" && (
           <>
             <Header title="Value Picks" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Tagesaktuelle Value Bets — {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}</p>
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Daily Value Bets — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</p>
             <div>
-              <div className="dashSectionHeader">💰 Value Picks heute</div>
-              {valuePicksLoading ? <p style={{color:"#94a3b8"}}>⏳ Berechne...</p>
-                : valuePicks.length === 0 ? <p style={{color:"#94a3b8"}}>Keine Value Picks heute.</p>
+              <div className="dashSectionHeader">💰 Value Picks today</div>
+              {valuePicksLoading ? <p style={{color:"#94a3b8"}}>⏳ Calculating...</p>
+                : valuePicks.length === 0 ? <p style={{color:"#94a3b8"}}>No value picks today.</p>
                 : valuePicks.map((pick,i) => (
                   <div key={i} className="valuePickRow" onClick={() => {setP1(pick.match.split(" vs ")[0]);setP2(pick.match.split(" vs ")[1]);setTab("predictor");}}>
                     <div className="valuePickTop"><span className="valuePickRank">#{i+1}</span><span className="valuePickMatch">{pick.match}</span><span className="valuePickEdge">+{pick.edge}% Edge</span></div>
                     <div className="valuePickBottom">
                       <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
-                      {pick.bestOdds && <span className="valuePickOdds">Quote: {pick.bestOdds}</span>}
+                      {pick.bestOdds && <span className="valuePickOdds">Odds: {pick.bestOdds}</span>}
                       {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
                     </div>
                     <div className="valuePickProbBar">
-                      <div className="valuePickProbItem"><span className="valuePickProbLabel">Unser Modell</span><div className="valuePickProbTrack"><div className="valuePickProbFill ourFill" style={{width:`${pick.ourProb}%`}} /></div><span className="valuePickProbValue our">{pick.ourProb}%</span></div>
-                      {pick.impliedProb && <div className="valuePickProbItem"><span className="valuePickProbLabel">Buchmacher</span><div className="valuePickProbTrack"><div className="valuePickProbFill bookFill" style={{width:`${pick.impliedProb}%`}} /></div><span className="valuePickProbValue book">{pick.impliedProb}%</span></div>}
+                      <div className="valuePickProbItem"><span className="valuePickProbLabel">Our Model</span><div className="valuePickProbTrack"><div className="valuePickProbFill ourFill" style={{width:`${pick.ourProb}%`}} /></div><span className="valuePickProbValue our">{pick.ourProb}%</span></div>
+                      {pick.impliedProb && <div className="valuePickProbItem"><span className="valuePickProbLabel">Bookmaker</span><div className="valuePickProbTrack"><div className="valuePickProbFill bookFill" style={{width:`${pick.impliedProb}%`}} /></div><span className="valuePickProbValue book">{pick.impliedProb}%</span></div>}
                     </div>
                     {pick.tournament && <div className="valuePickTournament">{pick.tournament}</div>}
                   </div>
@@ -449,8 +449,8 @@ export default function App() {
           <>
             <Header title="Player Analyzer" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
-              <PlayerAutocomplete label="Spieler 1 suchen..." playerNum={1} value={player} onChange={setPlayer} players={playerNames} />
-              <PlayerAutocomplete label="Spieler 2 vergleichen..." playerNum={2} value={comparePlayer} onChange={setComparePlayer} players={playerNames} />
+              <PlayerAutocomplete label="Search player 1..." playerNum={1} value={player} onChange={setPlayer} players={playerNames} />
+              <PlayerAutocomplete label="Compare player 2..." playerNum={2} value={comparePlayer} onChange={setComparePlayer} players={playerNames} />
             </div>
             <div className="grid two">
               {playerStats && (
@@ -458,14 +458,14 @@ export default function App() {
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}><span style={{color:"#94a3b8"}}>Win Rate</span><strong style={{color:"#22d3ee"}}>{playerStats.stats?.winRate}%</strong></div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}><span style={{color:"#94a3b8"}}>Titles</span><strong style={{color:"#22d3ee"}}>{playerStats.stats?.titles}</strong></div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:"20px"}}><span style={{color:"#94a3b8"}}>Ranking Points</span><strong style={{color:"#22d3ee"}}>{playerStats.stats?.points}</strong></div>
-                  <h4 style={{color:"#22d3ee",marginBottom:"12px"}}>Belag Win-%</h4>
+                  <h4 style={{color:"#22d3ee",marginBottom:"12px"}}>Surface Win-%</h4>
                   {[{label:"🏟️ Hard",value:playerStats.surfaces?.hard},{label:"🧱 Clay",value:playerStats.surfaces?.clay},{label:"🌿 Grass",value:playerStats.surfaces?.grass}].map(s => (
                     <div key={s.label} style={{marginBottom:"12px"}}>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"4px"}}><span style={{color:"#cbd5e1"}}>{s.label}</span><strong style={{color:s.value>=60?"#4ade80":s.value>=45?"#facc15":"#f87171"}}>{s.value!=="-"?`${s.value}%`:"–"}</strong></div>
                       <div style={{height:"8px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${s.value!=="-"?s.value:0}%`,height:"100%",background:s.value>=60?"linear-gradient(90deg,#22d3ee,#4ade80)":s.value>=45?"#facc15":"#f87171",borderRadius:"999px"}} /></div>
                     </div>
                   ))}
-                  <h4 style={{color:"#22d3ee",marginTop:"20px",marginBottom:"8px"}}>Formkurve</h4>
+                  <h4 style={{color:"#22d3ee",marginTop:"20px",marginBottom:"8px"}}>Form Curve</h4>
                   <ResponsiveContainer width="100%" height={160}><LineChart data={formData}><XAxis dataKey="match" stroke="#475569" tick={{fontSize:11}} /><YAxis domain={[60,100]} stroke="#475569" tick={{fontSize:11}} /><Tooltip /><Line type="monotone" dataKey="form" stroke="#22d3ee" strokeWidth={3} dot={false} /></LineChart></ResponsiveContainer>
                   <h4 style={{color:"#22d3ee",marginTop:"20px",marginBottom:"8px"}}>Performance Radar</h4>
                   <ResponsiveContainer width="100%" height={200}><RadarChart data={[{stat:"Serve",value:active.serve||0},{stat:"Return",value:active.return||0},{stat:"Clutch",value:active.clutch||0},{stat:"Momentum",value:active.momentum||0},{stat:"Hard",value:active.hard||0},{stat:"Clay",value:active.clay||0}]}><PolarGrid /><PolarAngleAxis dataKey="stat" tick={{fontSize:11,fill:"#94a3b8"}} /><Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.3} /></RadarChart></ResponsiveContainer>
@@ -476,14 +476,14 @@ export default function App() {
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}><span style={{color:"#94a3b8"}}>Win Rate</span><strong style={{color:"#22d3ee"}}>{compareStats.stats?.winRate}%</strong></div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}><span style={{color:"#94a3b8"}}>Titles</span><strong style={{color:"#22d3ee"}}>{compareStats.stats?.titles}</strong></div>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:"20px"}}><span style={{color:"#94a3b8"}}>Ranking Points</span><strong style={{color:"#22d3ee"}}>{compareStats.stats?.points}</strong></div>
-                  <h4 style={{color:"#22d3ee",marginBottom:"12px"}}>Belag Win-%</h4>
+                  <h4 style={{color:"#22d3ee",marginBottom:"12px"}}>Surface Win-%</h4>
                   {[{label:"🏟️ Hard",value:compareStats.surfaces?.hard},{label:"🧱 Clay",value:compareStats.surfaces?.clay},{label:"🌿 Grass",value:compareStats.surfaces?.grass}].map(s => (
                     <div key={s.label} style={{marginBottom:"12px"}}>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"4px"}}><span style={{color:"#cbd5e1"}}>{s.label}</span><strong style={{color:s.value>=60?"#4ade80":s.value>=45?"#facc15":"#f87171"}}>{s.value!=="-"?`${s.value}%`:"–"}</strong></div>
                       <div style={{height:"8px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${s.value!=="-"?s.value:0}%`,height:"100%",background:s.value>=60?"linear-gradient(90deg,#22d3ee,#4ade80)":s.value>=45?"#facc15":"#f87171",borderRadius:"999px"}} /></div>
                     </div>
                   ))}
-                  <h4 style={{color:"#22d3ee",marginTop:"20px",marginBottom:"8px"}}>Formkurve</h4>
+                  <h4 style={{color:"#22d3ee",marginTop:"20px",marginBottom:"8px"}}>Form Curve</h4>
                   <ResponsiveContainer width="100%" height={160}><LineChart data={formData}><XAxis dataKey="match" stroke="#475569" tick={{fontSize:11}} /><YAxis domain={[60,100]} stroke="#475569" tick={{fontSize:11}} /><Tooltip /><Line type="monotone" dataKey="form" stroke="#f472b6" strokeWidth={3} dot={false} /></LineChart></ResponsiveContainer>
                   <h4 style={{color:"#22d3ee",marginTop:"20px",marginBottom:"8px"}}>Performance Radar</h4>
                   <ResponsiveContainer width="100%" height={200}><RadarChart data={[{stat:"Serve",value:compareActive.serve||0},{stat:"Return",value:compareActive.return||0},{stat:"Clutch",value:compareActive.clutch||0},{stat:"Momentum",value:compareActive.momentum||0},{stat:"Hard",value:compareActive.hard||0},{stat:"Clay",value:compareActive.clay||0}]}><PolarGrid /><PolarAngleAxis dataKey="stat" tick={{fontSize:11,fill:"#94a3b8"}} /><Radar dataKey="value" stroke="#f472b6" fill="#f472b6" fillOpacity={0.3} /></RadarChart></ResponsiveContainer>
@@ -497,7 +497,7 @@ export default function App() {
               </div>
             )}
             {playerStats && compareStats && (
-              <Panel title="⚔️ Direktvergleich Belag">
+              <Panel title="⚔️ Surface Head-to-Head">
                 {[{label:"🏟️ Hard Court",v1:playerStats.surfaces?.hard,v2:compareStats.surfaces?.hard},{label:"🧱 Clay Court",v1:playerStats.surfaces?.clay,v2:compareStats.surfaces?.clay},{label:"🌿 Grass Court",v1:playerStats.surfaces?.grass,v2:compareStats.surfaces?.grass}].map(s => {
                   const v1=s.v1!=="-"?s.v1:0; const v2=s.v2!=="-"?s.v2:0; const total=v1+v2||1;
                   return (<div key={s.label} style={{marginBottom:"16px"}}><div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"6px"}}><strong style={{color:v1>=v2?"#4ade80":"#94a3b8"}}>{player}: {v1}%</strong><span style={{color:"#94a3b8"}}>{s.label}</span><strong style={{color:v2>v1?"#4ade80":"#94a3b8"}}>{comparePlayer}: {v2}%</strong></div><div style={{display:"flex",height:"10px",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${Math.round(v1/total*100)}%`,background:"linear-gradient(90deg,#22d3ee,#4ade80)"}} /><div style={{flex:1,background:"#f472b6"}} /></div></div>);
@@ -511,8 +511,8 @@ export default function App() {
           <>
             <Header title="Match Predictor" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
-              <PlayerAutocomplete label="Name eingeben..." playerNum={1} value={p1} onChange={setP1} players={playerNames} />
-              <PlayerAutocomplete label="Name eingeben..." playerNum={2} value={p2} onChange={setP2} players={playerNames} />
+              <PlayerAutocomplete label="Enter name..." playerNum={1} value={p1} onChange={setP1} players={playerNames} />
+              <PlayerAutocomplete label="Enter name..." playerNum={2} value={p2} onChange={setP2} players={playerNames} />
             </div>
             <div className="surfaceSelector">
               {[{value:"hard",icon:"🏟️",label:"Hard"},{value:"clay",icon:"🧱",label:"Clay"},{value:"grass",icon:"🌿",label:"Grass"}].map(s => (
@@ -546,10 +546,10 @@ export default function App() {
                   {bo===5 ? "🏆 Best of 5" : "⚡ Best of 3"}
                 </button>
               ))}
-              {bestOf===5 && <span style={{fontSize:"11px",color:"#f59e0b",marginLeft:"4px"}}>Grand Slam Modus</span>}
+              {bestOf===5 && <span style={{fontSize:"11px",color:"#f59e0b",marginLeft:"4px"}}>Grand Slam Mode</span>}
             </div>
 
-            <button className="predictBtn" onClick={predictMatch} disabled={!p1Data||!p2Data}>⚡ Prediction berechnen</button>
+            <button className="predictBtn" onClick={predictMatch} disabled={!p1Data||!p2Data}>⚡ Calculate Prediction</button>
             <Panel title="Prediction Engine">
               {prediction && (
                 <>
@@ -567,22 +567,22 @@ export default function App() {
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
                   {prediction.setWinProb && (
                     <div style={{margin:"16px 0",padding:"16px",borderRadius:"14px",background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.2)"}}>
-                      <h4 style={{color:"#22d3ee",margin:"0 0 12px",fontSize:"14px"}}>🎾 Satz-Win Wahrscheinlichkeit</h4>
+                      <h4 style={{color:"#22d3ee",margin:"0 0 12px",fontSize:"14px"}}>🎾 Set Win Probability</h4>
                       {[prediction.player1,prediction.player2].map(p => {
                         const prob=prediction.setWinProb[p]; const isWinner=prob>=50;
-                        return (<div key={p} style={{marginBottom:"10px"}}><div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"4px"}}><span style={{color:"#cbd5e1"}}>{p}</span><strong style={{color:isWinner?"#4ade80":"#f472b6"}}>{prob}% pro Satz</strong></div><div style={{height:"8px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${prob}%`,height:"100%",background:isWinner?"linear-gradient(90deg,#22d3ee,#4ade80)":"#f472b6",borderRadius:"999px"}} /></div></div>);
+                        return (<div key={p} style={{marginBottom:"10px"}}><div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"4px"}}><span style={{color:"#cbd5e1"}}>{p}</span><strong style={{color:isWinner?"#4ade80":"#f472b6"}}>{prob}%  per set</strong></div><div style={{height:"8px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${prob}%`,height:"100%",background:isWinner?"linear-gradient(90deg,#22d3ee,#4ade80)":"#f472b6",borderRadius:"999px"}} /></div></div>);
                       })}
-                      <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Basierend auf Elo, Form, Surface-Erfahrung und Ranking</p>
+                      <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Based on Elo, form, surface experience and ranking</p>
                     </div>
                   )}
                   {prediction.handicap && (
                     <div style={{margin:"0 0 16px",padding:"16px",borderRadius:"14px",background:"rgba(250,204,21,0.06)",border:"1px solid rgba(250,204,21,0.25)"}}>
-                      <h4 style={{color:"#facc15",margin:"0 0 12px",fontSize:"14px"}}>📊 Handicap-Empfehlung</h4>
+                      <h4 style={{color:"#facc15",margin:"0 0 12px",fontSize:"14px"}}>📊 Handicap Recommendation</h4>
                       <span style={{color:"#e2e8f0",fontWeight:700,fontSize:"15px"}}>{prediction.handicap.pick}</span>
                       <div style={{display:"flex",gap:"20px",margin:"10px 0"}}>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Erw. Games {prediction.handicap.favorite?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#4ade80"}}>{prediction.handicap.expGames?.[prediction.handicap.favorite]}</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Exp. Games {prediction.handicap.favorite?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#4ade80"}}>{prediction.handicap.expGames?.[prediction.handicap.favorite]}</div></div>
                         <div style={{textAlign:"center",alignSelf:"center",color:"#475569",fontSize:"18px"}}>:</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Erw. Games {prediction.handicap.underdog?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#94a3b8"}}>{prediction.handicap.expGames?.[prediction.handicap.underdog]}</div></div>
+                        <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Exp. Games {prediction.handicap.underdog?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#94a3b8"}}>{prediction.handicap.expGames?.[prediction.handicap.underdog]}</div></div>
                       </div>
                       <p style={{margin:0,fontSize:"13px",color:"#94a3b8"}}>{prediction.handicap.reason}</p>
                     </div>
@@ -590,8 +590,8 @@ export default function App() {
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
                     <div style={{display:"flex",gap:"12px",marginBottom:"12px"}}>
-                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player1} Quote</div><input type="number" step="0.01" value={odds1} onChange={e=>setOdds1(Number(e.target.value))} style={{width:"100%",boxSizing:"border-box"}} /></div>
-                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player2} Quote</div><input type="number" step="0.01" value={odds2} onChange={e=>setOdds2(Number(e.target.value))} style={{width:"100%",boxSizing:"border-box"}} /></div>
+                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player1} Odds</div><input type="number" step="0.01" value={odds1} onChange={e=>setOdds1(Number(e.target.value))} style={{width:"100%",boxSizing:"border-box"}} /></div>
+                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player2} Odds</div><input type="number" step="0.01" value={odds2} onChange={e=>setOdds2(Number(e.target.value))} style={{width:"100%",boxSizing:"border-box"}} /></div>
                     </div>
                     {(() => {
                       const edge1=parseFloat((prediction.prediction[prediction.player1]-100/odds1).toFixed(1));
@@ -609,10 +609,10 @@ export default function App() {
                             ))}
                           </div>
                           <div style={{padding:"14px 16px",borderRadius:"12px",background:bestPick?"rgba(34,211,238,0.08)":"rgba(100,116,139,0.1)",border:`1px solid ${bestPick?"rgba(34,211,238,0.3)":"rgba(100,116,139,0.2)"}`}}>
-                            <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>🧠 Fazit</div>
-                            {!bestPick ? <p style={{margin:0,color:"#94a3b8",fontSize:"13px"}}><strong style={{color:"#f87171"}}>Kein Value erkennbar.</strong> Die Buchmacher-Quoten sind fairer bewertet.</p> : (
+                            <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>🧠 Summary</div>
+                            {!bestPick ? <p style={{margin:0,color:"#94a3b8",fontSize:"13px"}}><strong style={{color:"#f87171"}}>No value detected.</strong> Die Bookmaker-Quoten sind fairer bewertet.</p> : (
                               <>
-                                <p style={{margin:"0 0 8px",color:"#e2e8f0",fontSize:"14px"}}><strong style={{color:"#22d3ee"}}>{bestPick}</strong> ist die Value Bet — Edge: <strong style={{color:"#4ade80"}}>+{bestEdge}%</strong></p>
+                                <p style={{margin:"0 0 8px",color:"#e2e8f0",fontSize:"14px"}}><strong style={{color:"#22d3ee"}}>{bestPick}</strong> is the value bet — Edge: <strong style={{color:"#4ade80"}}>+{bestEdge}%</strong></p>
                                 <p style={{margin:0,color:"#64748b",fontSize:"12px"}}>Positiver Edge = langfristig profitabel. Kein Gewinn garantiert.</p>
                               </>
                             )}
@@ -642,12 +642,12 @@ export default function App() {
               <h2 style={{margin:0,color:"#67e8f9"}}>Match Detail</h2>
               {matchDetail?.live && <span style={{display:"flex",alignItems:"center",gap:"6px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"4px 12px",fontSize:"12px",color:"#f87171",fontWeight:700}}><span style={{width:"7px",height:"7px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",animation:"pulse 1.5s infinite"}} />LIVE</span>}
             </div>
-            {matchDetailLoading ? <p style={{color:"#94a3b8"}}>⏳ Lade Match-Details...</p>
-              : !matchDetail ? <p style={{color:"#94a3b8"}}>Keine Daten verfügbar.</p>
+            {matchDetailLoading ? <p style={{color:"#94a3b8"}}>⏳ Loading match details...</p>
+              : !matchDetail ? <p style={{color:"#94a3b8"}}>No data available.</p>
               : (
                 <>
                   <Panel title={`${matchDetail.tournament}${matchDetail.round?" · "+matchDetail.round:""}`}>
-                    {matchDetail.surface && <p style={{color:"#94a3b8",fontSize:"13px",marginTop:0}}>Belag: {matchDetail.surface==="clay"?"🧱 Clay":matchDetail.surface==="grass"?"🌿 Grass":"🏟️ Hard"}</p>}
+                    {matchDetail.surface && <p style={{color:"#94a3b8",fontSize:"13px",marginTop:0}}>Surface: {matchDetail.surface==="clay"?"🧱 Clay":matchDetail.surface==="grass"?"🌿 Grass":"🏟️ Hard"}</p>}
                     {(() => {
                       const sets=matchDetail.sets||[]; const showGame=matchDetail.live&&matchDetail.gameScore&&matchDetail.gameScore!=="-";
                       const gp=showGame?matchDetail.gameScore.split("-").map(s=>s.trim()):[];
@@ -656,7 +656,7 @@ export default function App() {
                       const numStyle=(color)=>({width:colW,flexShrink:0,textAlign:"center",fontSize:"22px",fontWeight:900,color});
                       return (
                         <div style={{background:"#0f172a",borderRadius:"16px",overflow:"hidden",marginBottom:"20px"}}>
-                          <div style={{...rowStyle,background:"#0a0f1e",padding:"8px 24px"}}><div style={{flex:1,minWidth:0}} />{sets.map((s,i)=><div key={i} style={{width:colW,flexShrink:0,textAlign:"center",fontSize:"11px",color:"#64748b",fontWeight:700}}>{s.isTotalSets?"Sätze":`S${i+1}`}</div>)}{showGame&&<div style={{width:colW,flexShrink:0,textAlign:"center",fontSize:"11px",color:"#f87171",fontWeight:700}}>GAME</div>}</div>
+                          <div style={{...rowStyle,background:"#0a0f1e",padding:"8px 24px"}}><div style={{flex:1,minWidth:0}} />{sets.map((s,i)=><div key={i} style={{width:colW,flexShrink:0,textAlign:"center",fontSize:"11px",color:"#64748b",fontWeight:700}}>{s.isTotalSets?"Sets":`S${i+1}`}</div>)}{showGame&&<div style={{width:colW,flexShrink:0,textAlign:"center",fontSize:"11px",color:"#f87171",fontWeight:700}}>GAME</div>}</div>
                           <div style={{...rowStyle,borderBottom:"1px solid rgba(255,255,255,0.05)"}}><div style={nameStyle}>{matchDetail.server===1&&<span style={{color:"#facc15",fontSize:"10px",marginRight:"6px"}}>●</span>}{matchDetail.player1}</div>{sets.map((s,i)=><div key={i} style={numStyle(parseInt(s.p1)>parseInt(s.p2)?"#4ade80":"#475569")}>{s.p1}</div>)}{showGame&&<div style={numStyle("#facc15")}>{gp[0]||"0"}</div>}</div>
                           <div style={rowStyle}><div style={nameStyle}>{matchDetail.server===2&&<span style={{color:"#facc15",fontSize:"10px",marginRight:"6px"}}>●</span>}{matchDetail.player2}</div>{sets.map((s,i)=><div key={i} style={numStyle(parseInt(s.p2)>parseInt(s.p1)?"#4ade80":"#475569")}>{s.p2}</div>)}{showGame&&<div style={numStyle("#facc15")}>{gp[1]||"0"}</div>}</div>
                           <div style={{...rowStyle,background:"#0a0f1e",padding:"8px 24px"}}>{matchDetail.live&&<span style={{width:"7px",height:"7px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block",marginRight:"8px"}} />}<span style={{fontSize:"12px",color:matchDetail.live?"#f87171":"#64748b",fontWeight:600}}>{matchDetail.status}</span></div>
@@ -665,14 +665,14 @@ export default function App() {
                     })()}
                     <div style={{display:"flex",gap:"12px"}}>
                       <button className="predictBtn" style={{flex:1,padding:"12px"}} onClick={() => {setP1(matchDetail.player1);setP2(matchDetail.player2);setTab("predictor");}}>⚡ Match Prediction</button>
-                      <button className="predictBtn" style={{flex:1,padding:"12px",background:"linear-gradient(135deg,#8b5cf6,#6366f1)"}} onClick={() => {setH2hP1(matchDetail.player1);setH2hP2(matchDetail.player2);setTab("h2h");fetchH2H();}}>⚔️ H2H laden</button>
+                      <button className="predictBtn" style={{flex:1,padding:"12px",background:"linear-gradient(135deg,#8b5cf6,#6366f1)"}} onClick={() => {setH2hP1(matchDetail.player1);setH2hP2(matchDetail.player2);setTab("h2h");fetchH2H();}}>⚔️ Load H2H</button>
                     </div>
                   </Panel>
                   {matchDetail.statistics?.length > 0 && (() => {
                     const matchStats=matchDetail.statistics.filter(s=>s.stat_period==="match");
                     const keyStats=["1st serve percentage","1st serve points won","2nd serve points won","Break Points Converted","Return Points Won","Winners","Unforced errors","Total Points Won"];
                     return (
-                      <Panel title="📊 Match Statistiken" style={{marginTop:"20px"}}>
+                      <Panel title="📊 Match Statistics" style={{marginTop:"20px"}}>
                         {keyStats.map(statName => {
                           const p1stat=matchStats.find(s=>s.stat_name===statName&&s.player_key===matchDetail.statistics[0]?.player_key);
                           const p2stat=matchStats.find(s=>s.stat_name===statName&&s.player_key!==matchDetail.statistics[0]?.player_key);
@@ -696,32 +696,32 @@ export default function App() {
 
         {tab === "tournamentpred" && (
           <>
-            <Header title="Turnier Prediction" />
+            <Header title="Tournament Prediction" />
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"-16px",marginBottom:"20px"}}>
-              <p style={{color:"#94a3b8",margin:0}}>ATP Turniere · Aktuell + Nächste 2 Wochen · {new Date().toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}</p>
+              <p style={{color:"#94a3b8",margin:0}}>ATP Tournaments · Current + Next 2 Weeks · {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</p>
               <button onClick={loadTournamentPreds} disabled={tournamentPredsLoading} style={{background:"rgba(34,211,238,0.1)",border:"1px solid rgba(34,211,238,0.3)",color:"#22d3ee",padding:"6px 14px",borderRadius:"8px",cursor:"pointer",fontSize:"12px",fontWeight:600}}>
-                {tournamentPredsLoading?"⏳ Lädt...":"🔄 Aktualisieren"}
+                {tournamentPredsLoading?"⏳ Loading...":"🔄 Refresh"}
               </button>
             </div>
 
-            {/* Aktiv / Beendet Toggle */}
+            {/* Active / Finished Toggle */}
             <div style={{display:"flex",gap:"8px",marginBottom:"24px"}}>
               <button onClick={() => setTournamentSection("active")} style={{padding:"8px 20px",borderRadius:"10px",fontWeight:700,fontSize:"13px",cursor:"pointer",border:"none",background:tournamentSection==="active"?"linear-gradient(135deg,#22d3ee,#4ade80)":"rgba(255,255,255,0.05)",color:tournamentSection==="active"?"#0f172a":"#94a3b8",transition:"all 0.2s"}}>
-                🎾 Aktiv / Laufend {activeTournaments.length > 0 && <span style={{marginLeft:"6px",background:"rgba(0,0,0,0.2)",borderRadius:"999px",padding:"1px 7px",fontSize:"11px"}}>{activeTournaments.length}</span>}
+                🎾 Active / Live {activeTournaments.length > 0 && <span style={{marginLeft:"6px",background:"rgba(0,0,0,0.2)",borderRadius:"999px",padding:"1px 7px",fontSize:"11px"}}>{activeTournaments.length}</span>}
               </button>
               <button onClick={() => setTournamentSection("finished")} style={{padding:"8px 20px",borderRadius:"10px",fontWeight:700,fontSize:"13px",cursor:"pointer",border:"none",background:tournamentSection==="finished"?"rgba(100,116,139,0.3)":"rgba(255,255,255,0.05)",color:tournamentSection==="finished"?"#e2e8f0":"#94a3b8",transition:"all 0.2s"}}>
-                ✅ Beendet {finishedTournaments.length > 0 && <span style={{marginLeft:"6px",background:"rgba(100,116,139,0.3)",borderRadius:"999px",padding:"1px 7px",fontSize:"11px"}}>{finishedTournaments.length}</span>}
+                ✅ Finished {finishedTournaments.length > 0 && <span style={{marginLeft:"6px",background:"rgba(100,116,139,0.3)",borderRadius:"999px",padding:"1px 7px",fontSize:"11px"}}>{finishedTournaments.length}</span>}
               </button>
             </div>
 
-            {tournamentPredsLoading ? <p style={{color:"#94a3b8"}}>⏳ Lade Turnier-Daten...</p>
+            {tournamentPredsLoading ? <p style={{color:"#94a3b8"}}>⏳ Loading tournament data...</p>
               : tournamentPreds.length === 0 ? (
                 <div style={{textAlign:"center",padding:"40px 0"}}>
-                  <p style={{color:"#94a3b8",marginBottom:"16px"}}>Noch keine Turnierdaten verfügbar.</p>
-                  <button className="predictBtn" style={{width:"auto",padding:"12px 32px"}} onClick={loadTournamentPreds}>🔄 Turnierdaten laden</button>
+                  <p style={{color:"#94a3b8",marginBottom:"16px"}}>No tournament data available yet.</p>
+                  <button className="predictBtn" style={{width:"auto",padding:"12px 32px"}} onClick={loadTournamentPreds}>🔄 Load tournament data</button>
                 </div>
               ) : displayedTournaments.length === 0 ? (
-                <p style={{color:"#64748b",fontSize:"14px",textAlign:"center",padding:"32px 0"}}>{tournamentSection==="active"?"Keine aktiven Turniere gerade.":"Keine beendeten Turniere."}</p>
+                <p style={{color:"#64748b",fontSize:"14px",textAlign:"center",padding:"32px 0"}}>{tournamentSection==="active"?"No active tournaments right now.":"No finished tournaments."}</p>
               ) : displayedTournaments.map((tourn) => {
                 const globalIdx=tournamentPreds.indexOf(tourn);
                 const isExpanded=expandedTournament===globalIdx;
@@ -741,21 +741,21 @@ export default function App() {
                           {tourn.hasStarted ? (
                             <>
                               <span style={{color:"#4ade80",fontWeight:600}}>
-                                🎾 Läuft{tourn.activePlayerCount>1?` — ${tourn.activePlayerCount} Spieler noch dabei`:tourn.activePlayerCount===1?" — Finale":""}
+                                🎾 Live{tourn.activePlayerCount>1?` — ${tourn.activePlayerCount} players remaining`:tourn.activePlayerCount===1?" — Finale":""}
                               </span>
-                              {tourn.eliminatedCount>0&&<span style={{color:"#f87171"}}>({tourn.eliminatedCount} ausgeschieden)</span>}
+                              {tourn.eliminatedCount>0&&<span style={{color:"#f87171"}}>({tourn.eliminatedCount} (eliminated))</span>}
                             </>
-                          ) : <span>{tourn.playerCount} Spieler im Draw</span>}
+                          ) : <span>{tourn.playerCount} players in draw</span>}
                           {tourn.isLive&&<span style={{color:"#f87171",fontWeight:700}}>🔴 Live</span>}
                         </div>
                       </div>
-                      {tourn.favorite && <div style={{textAlign:"right"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Favorit</div><div style={{fontSize:"14px",fontWeight:700,color:"#4ade80"}}>{tourn.favorite.name}</div><div style={{fontSize:"11px",color:"#475569"}}>#{tourn.favorite.rank}</div></div>}
+                      {tourn.favorite && <div style={{textAlign:"right"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Favorite</div><div style={{fontSize:"14px",fontWeight:700,color:"#4ade80"}}>{tourn.favorite.name}</div><div style={{fontSize:"11px",color:"#475569"}}>#{tourn.favorite.rank}</div></div>}
                     </div>
                     {isExpanded && (
                       <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",padding:"16px 20px"}}>
                         {tourn.winProbs?.length>0 && (
                           <div style={{marginBottom:"20px"}}>
-                            <h4 style={{color:"#22d3ee",marginBottom:"12px",fontSize:"14px"}}>🏅 Turniersieg-Wahrscheinlichkeit</h4>
+                            <h4 style={{color:"#22d3ee",marginBottom:"12px",fontSize:"14px"}}>🏅 Tournament Win Probability</h4>
                             {tourn.winProbs.map((p,i) => (
                               <div key={i} style={{marginBottom:"10px",display:"flex",alignItems:"center",gap:"12px"}}>
                                 <span style={{width:"36px",fontSize:"11px",color:"#475569",flexShrink:0,textAlign:"right"}}>#{p.rank}</span>
@@ -768,7 +768,7 @@ export default function App() {
                         )}
                         {tourn.rounds?.length>0 && (
                           <div>
-                            <h4 style={{color:"#22d3ee",marginBottom:"12px",fontSize:"14px"}}>📋 Runden-Predictions</h4>
+                            <h4 style={{color:"#22d3ee",marginBottom:"12px",fontSize:"14px"}}>📋 Round Predictions</h4>
                             {tourn.rounds.map((r,ri) => {
                               const roundKey=`${globalIdx}-${ri}`; const isRoundCollapsed=collapsedRounds[roundKey];
                               return (
@@ -807,8 +807,8 @@ export default function App() {
                                           <div style={{textAlign:"right",flexShrink:0}}>
                                             {!m.isWalkover&&<div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Pick {m.prob}%</div>}
                                             {!m.isWalkover&&<div style={{fontSize:"12px",fontWeight:700,color:"#22d3ee"}}>{m.prediction?.split(" ").slice(-1)[0]}</div>}
-                                            {m.isFinished&&!m.isWalkover&&<div style={{fontSize:"11px",marginTop:"2px"}}>{m.correct===true&&<span style={{color:"#4ade80"}}>✅ Korrekt</span>}{m.correct===false&&<span style={{color:"#f87171"}}>❌ Falsch</span>}</div>}
-                                            {m.isWalkover&&<div style={{fontSize:"11px",color:"#facc15"}}>⚠️ Aufgabe</div>}
+                                            {m.isFinished&&!m.isWalkover&&<div style={{fontSize:"11px",marginTop:"2px"}}>{m.correct===true&&<span style={{color:"#4ade80"}}>✅ Correct</span>}{m.correct===false&&<span style={{color:"#f87171"}}>❌ Wrong</span>}</div>}
+                                            {m.isWalkover&&<div style={{fontSize:"11px",color:"#facc15"}}>⚠️ Retirement</div>}
                                           </div>
                                         </div>
                                       ))}
@@ -819,7 +819,7 @@ export default function App() {
                             })}
                           </div>
                         )}
-                        {!tourn.drawSet && <p style={{color:"#475569",fontSize:"13px",textAlign:"center",padding:"16px 0"}}>⏳ Draw noch nicht vollständig — Predictions werden aktualisiert sobald alle Spieler feststehen.</p>}
+                        {!tourn.drawSet && <p style={{color:"#475569",fontSize:"13px",textAlign:"center",padding:"16px 0"}}>⏳ Draw not yet complete — predictions will update once all players are set.</p>}
                       </div>
                     )}
                   </div>
@@ -832,11 +832,11 @@ export default function App() {
           <>
             <Header title="H2H Intelligence" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
-              <PlayerAutocomplete label="Spieler 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} />
-              <PlayerAutocomplete label="Spieler 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} />
+              <PlayerAutocomplete label="Player 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} />
+              <PlayerAutocomplete label="Player 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} />
             </div>
-            <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1||!h2hP2} style={{marginBottom:"24px"}}>⚡ H2H laden</button>
-            {h2hLoading && <p style={{color:"#94a3b8"}}>⏳ Lade H2H-Daten...</p>}
+            <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1||!h2hP2} style={{marginBottom:"24px"}}>⚡ Load H2H</button>
+            {h2hLoading && <p style={{color:"#94a3b8"}}>⏳ Loading H2H data...</p>}
             {h2hData && !h2hLoading && (
               <>
                 <Panel title={`⚔️ ${h2hP1} vs ${h2hP2}`}>
@@ -847,7 +847,7 @@ export default function App() {
                   </div>
                   {h2hData.p1_wins+h2hData.p2_wins>0 && (
                     <div style={{marginTop:"8px"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",fontSize:"12px",color:"#94a3b8",marginBottom:"4px"}}><span>{Math.round(h2hData.p1_wins/(h2hData.p1_wins+h2hData.p2_wins)*100)}%</span><span>H2H Bilanz</span><span>{Math.round(h2hData.p2_wins/(h2hData.p1_wins+h2hData.p2_wins)*100)}%</span></div>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:"12px",color:"#94a3b8",marginBottom:"4px"}}><span>{Math.round(h2hData.p1_wins/(h2hData.p1_wins+h2hData.p2_wins)*100)}%</span><span>H2H Record</span><span>{Math.round(h2hData.p2_wins/(h2hData.p1_wins+h2hData.p2_wins)*100)}%</span></div>
                       <div style={{display:"flex",height:"10px",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${Math.round(h2hData.p1_wins/(h2hData.p1_wins+h2hData.p2_wins)*100)}%`,background:"linear-gradient(90deg,#22d3ee,#4ade80)"}} /><div style={{flex:1,background:"#f472b6"}} /></div>
                     </div>
                   )}
@@ -859,22 +859,22 @@ export default function App() {
                   })()}
                 </Panel>
                 {h2hData.h2h_matches?.length>0&&(
-                  <Panel title="📋 Letzte Begegnungen" style={{marginTop:"20px"}}>
+                  <Panel title="📋 Recent Matches" style={{marginTop:"20px"}}>
                     <div style={{overflowX:"auto"}}>
                       <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px"}}>
-                        <thead><tr style={{color:"#94a3b8",borderBottom:"1px solid rgba(34,211,238,0.2)"}}><th style={{padding:"8px",textAlign:"left"}}>Datum</th><th style={{padding:"8px",textAlign:"left"}}>Turnier</th><th style={{padding:"8px",textAlign:"left"}}>Belag</th><th style={{padding:"8px",textAlign:"left"}}>Ergebnis</th><th style={{padding:"8px",textAlign:"left"}}>Sieger</th></tr></thead>
+                        <thead><tr style={{color:"#94a3b8",borderBottom:"1px solid rgba(34,211,238,0.2)"}}><th style={{padding:"8px",textAlign:"left"}}>Date</th><th style={{padding:"8px",textAlign:"left"}}>Tournament</th><th style={{padding:"8px",textAlign:"left"}}>Surface</th><th style={{padding:"8px",textAlign:"left"}}>Result</th><th style={{padding:"8px",textAlign:"left"}}>Winner</th></tr></thead>
                         <tbody>{h2hData.h2h_matches.map((m,i)=>{const p1Won=m.event_winner==="First Player";const tn=(m.tournament_name||"").toLowerCase();const surf=tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("monte")||tn.includes("madrid")||tn.includes("rome")||tn.includes("barcelona")?{label:"Clay",icon:"🧱",color:"#ef4444"}:tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens")||tn.includes("eastbourne")?{label:"Grass",icon:"🌿",color:"#4ade80"}:{label:"Hard",icon:"🏟️",color:"#22d3ee"};return(<tr key={i} style={{borderBottom:"1px solid rgba(255,255,255,0.05)"}}><td style={{padding:"8px",color:"#64748b"}}>{m.event_date}</td><td style={{padding:"8px",color:"#cbd5e1"}}>{m.tournament_name}</td><td style={{padding:"8px"}}><span style={{background:`${surf.color}22`,color:surf.color,border:`1px solid ${surf.color}44`,borderRadius:"6px",padding:"2px 8px",fontSize:"11px",fontWeight:700,whiteSpace:"nowrap"}}>{surf.icon} {surf.label}</span></td><td style={{padding:"8px",color:"#94a3b8"}}>{m.event_final_result}</td><td style={{padding:"8px"}}><span style={{color:p1Won?"#22d3ee":"#f472b6",fontWeight:700}}>{p1Won?m.event_first_player:m.event_second_player}</span></td></tr>);})}</tbody>
                       </table>
                     </div>
                   </Panel>
                 )}
-                {h2hData.h2h_matches?.length===0&&<Panel title="📋 Begegnungen"><p style={{color:"#94a3b8"}}>Keine direkten Begegnungen gefunden.</p></Panel>}
+                {h2hData.h2h_matches?.length===0&&<Panel title="📋 Matches"><p style={{color:"#94a3b8"}}>No direct matches found.</p></Panel>}
                 <div className="grid two" style={{marginTop:"20px"}}>
-                  <Panel title={`📈 Letzte Spiele: ${h2hP1}`}>
-                    {h2hData.p1_recent?.length>0?h2hData.p1_recent.map((m,i)=>{const won=m.event_winner==="First Player";const tn=(m.tournament_name||"").toLowerCase();const surf=tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("monte")||tn.includes("madrid")||tn.includes("rome")||tn.includes("barcelona")?{icon:"🧱"}:tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens")?{icon:"🌿"}:{icon:"🏟️"};return(<div key={i} style={{display:"flex",alignItems:"center",gap:"8px",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",fontSize:"13px"}}><span style={{color:won?"#4ade80":"#f87171",fontWeight:700,minWidth:"24px"}}>{won?"W":"L"}</span><span style={{fontSize:"14px"}}>{surf.icon}</span><span style={{color:"#cbd5e1",flex:1}}>{(()=>{const name=h2hP1.toLowerCase();const p1l=(m.event_first_player||"").toLowerCase();return name.split(" ").pop()===p1l.split(" ").pop()?m.event_second_player:m.event_first_player;})()}</span><span style={{color:"#64748b",fontSize:"11px"}}>{m.event_date}</span></div>);}): <p style={{color:"#94a3b8"}}>Keine Daten</p>}
+                  <Panel title={`📈 Recent Matches: ${h2hP1}`}>
+                    {h2hData.p1_recent?.length>0?h2hData.p1_recent.map((m,i)=>{const won=m.event_winner==="First Player";const tn=(m.tournament_name||"").toLowerCase();const surf=tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("monte")||tn.includes("madrid")||tn.includes("rome")||tn.includes("barcelona")?{icon:"🧱"}:tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens")?{icon:"🌿"}:{icon:"🏟️"};return(<div key={i} style={{display:"flex",alignItems:"center",gap:"8px",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",fontSize:"13px"}}><span style={{color:won?"#4ade80":"#f87171",fontWeight:700,minWidth:"24px"}}>{won?"W":"L"}</span><span style={{fontSize:"14px"}}>{surf.icon}</span><span style={{color:"#cbd5e1",flex:1}}>{(()=>{const name=h2hP1.toLowerCase();const p1l=(m.event_first_player||"").toLowerCase();return name.split(" ").pop()===p1l.split(" ").pop()?m.event_second_player:m.event_first_player;})()}</span><span style={{color:"#64748b",fontSize:"11px"}}>{m.event_date}</span></div>);}): <p style={{color:"#94a3b8"}}>No data</p>}
                   </Panel>
-                  <Panel title={`📈 Letzte Spiele: ${h2hP2}`}>
-                    {h2hData.p2_recent?.length>0?h2hData.p2_recent.map((m,i)=>{const won=m.event_winner==="Second Player";const tn=(m.tournament_name||"").toLowerCase();const surf=tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("monte")||tn.includes("madrid")||tn.includes("rome")||tn.includes("barcelona")?{icon:"🧱"}:tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens")?{icon:"🌿"}:{icon:"🏟️"};return(<div key={i} style={{display:"flex",alignItems:"center",gap:"8px",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",fontSize:"13px"}}><span style={{color:won?"#4ade80":"#f87171",fontWeight:700,minWidth:"24px"}}>{won?"W":"L"}</span><span style={{fontSize:"14px"}}>{surf.icon}</span><span style={{color:"#cbd5e1",flex:1}}>{(()=>{const name=h2hP2.toLowerCase();const p2l=(m.event_second_player||"").toLowerCase();return name.split(" ").pop()===p2l.split(" ").pop()?m.event_first_player:m.event_second_player;})()}</span><span style={{color:"#64748b",fontSize:"11px"}}>{m.event_date}</span></div>);}): <p style={{color:"#94a3b8"}}>Keine Daten</p>}
+                  <Panel title={`📈 Recent Matches: ${h2hP2}`}>
+                    {h2hData.p2_recent?.length>0?h2hData.p2_recent.map((m,i)=>{const won=m.event_winner==="Second Player";const tn=(m.tournament_name||"").toLowerCase();const surf=tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("monte")||tn.includes("madrid")||tn.includes("rome")||tn.includes("barcelona")?{icon:"🧱"}:tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens")?{icon:"🌿"}:{icon:"🏟️"};return(<div key={i} style={{display:"flex",alignItems:"center",gap:"8px",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)",fontSize:"13px"}}><span style={{color:won?"#4ade80":"#f87171",fontWeight:700,minWidth:"24px"}}>{won?"W":"L"}</span><span style={{fontSize:"14px"}}>{surf.icon}</span><span style={{color:"#cbd5e1",flex:1}}>{(()=>{const name=h2hP2.toLowerCase();const p2l=(m.event_second_player||"").toLowerCase();return name.split(" ").pop()===p2l.split(" ").pop()?m.event_first_player:m.event_second_player;})()}</span><span style={{color:"#64748b",fontSize:"11px"}}>{m.event_date}</span></div>);}): <p style={{color:"#94a3b8"}}>No data</p>}
                   </Panel>
                 </div>
               </>
