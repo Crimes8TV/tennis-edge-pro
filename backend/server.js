@@ -48,11 +48,20 @@ app.get("/api/players", async (req, res) => {
         seen.add(lastName.toLowerCase());
         const alreadyIn = [...atpNames].some(n => n.includes(lastName.toLowerCase()));
         if (!alreadyIn) {
+          const idx = challengerPlayers.length;
+          const base = Math.max(55, 72 - idx * 0.3);
+          const vary = () => Math.round((Math.random() - 0.5) * 8);
           challengerPlayers.push({
-            name: shortName, rank: 200 + challengerPlayers.length,
+            name: shortName,
+            rank: 200 + idx,
             points: 0, country: "", player_key: null,
-            elo: 1500, serve: 65, return: 65, clutch: 70, momentum: 70,
-            hard: 70, clay: 70, grass: 65, form: [70, 72, 68, 71, 70]
+            elo: Math.max(1400, 1600 - idx * 2),
+            serve:    Math.min(80, Math.max(52, Math.round(base + vary()))),
+            return:   Math.min(80, Math.max(52, Math.round(base + vary()))),
+            clutch:   Math.min(80, Math.max(52, Math.round(base + vary()))),
+            momentum: Math.min(80, Math.max(52, Math.round(base + vary()))),
+            hard: 68, clay: 68, grass: 63,
+            form: [Math.round(base), Math.round(base+vary()), Math.round(base+vary()), Math.round(base+vary()), Math.round(base+vary())]
           });
         }
       });
@@ -174,10 +183,15 @@ app.get("/api/predict", async (req, res) => {
   const momentumFactor = Math.max(10, 100-rankingFactor-formFactor-clutchFactor);
   const confidence = Math.min(99, Math.round(Math.abs(p1Win-50)*1.8+Math.min(30,rankDiff*0.4)));
   const deriveStats = (rank, elo) => {
-    const base = Math.max(55, Math.min(88, 90-Math.sqrt(rank)*2.5));
-    const eloBonus = Math.max(-5, Math.min(5, (elo-1900)*0.02));
-    const rand = () => (Math.random()-0.5)*6;
-    return { serve: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))), return: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))), clutch: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))), momentum: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))) };
+    const base = Math.max(52, Math.min(88, 90 - Math.sqrt(Math.min(rank, 300)) * 2.5));
+    const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
+    const rand = () => (Math.random() - 0.5) * 8;
+    return {
+      serve:    Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
+      return:   Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
+      clutch:   Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
+      momentum: Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
+    };
   };
   const p1Stats = deriveStats(Number(rank1), elo1), p2Stats = deriveStats(Number(rank2), elo2);
   const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
