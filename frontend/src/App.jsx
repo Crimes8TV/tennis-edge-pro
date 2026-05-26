@@ -213,6 +213,8 @@ export default function App() {
   const [p2, setP2] = useState("");
   const [odds1, setOdds1] = useState(1.7);
   const [odds2, setOdds2] = useState(2.2);
+  const [odds1Str, setOdds1Str] = useState("1.7");
+  const [odds2Str, setOdds2Str] = useState("2.2");
   const [liveMatches, setLiveMatches] = useState([]);
   const [valuePicks, setValuePicks] = useState([]);
   const [valuePicksLoading, setValuePicksLoading] = useState(true);
@@ -722,8 +724,8 @@ export default function App() {
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
                     <div style={{display:"flex",gap:"12px",marginBottom:"12px"}}>
-                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player1} Odds</div><input type="text" inputMode="decimal" value={odds1} onChange={e=>{const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v))setOdds1(v);else if(e.target.value===""||e.target.value==="-")setOdds1(e.target.value);}} onBlur={e=>{const v=parseFloat(String(e.target.value).replace(",","."));if(!isNaN(v))setOdds1(v);}} style={{width:"100%",boxSizing:"border-box"}} /></div>
-                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player2} Odds</div><input type="text" inputMode="decimal" value={odds2} onChange={e=>{const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v))setOdds2(v);else if(e.target.value===""||e.target.value==="-")setOdds2(e.target.value);}} onBlur={e=>{const v=parseFloat(String(e.target.value).replace(",","."));if(!isNaN(v))setOdds2(v);}} style={{width:"100%",boxSizing:"border-box"}} /></div>
+                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player1} Odds</div><input type="text" inputMode="decimal" value={odds1Str} onChange={e=>{setOdds1Str(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v)&&v>0)setOdds1(v);}} onBlur={e=>{const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v)&&v>0){setOdds1(v);setOdds1Str(String(v));}}} style={{width:"100%",boxSizing:"border-box"}} /></div>
+                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player2} Odds</div><input type="text" inputMode="decimal" value={odds2Str} onChange={e=>{setOdds2Str(e.target.value);const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v)&&v>0)setOdds2(v);}} onBlur={e=>{const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v)&&v>0){setOdds2(v);setOdds2Str(String(v));}}} style={{width:"100%",boxSizing:"border-box"}} /></div>
                     </div>
                     {(() => {
                       const edge1=parseFloat((prediction.prediction[prediction.player1]-100/odds1).toFixed(1));
