@@ -412,7 +412,7 @@ export default function App() {
     const p2D = safePlayers.find(p => getPlayerName(p).toLowerCase() === h2hP2.toLowerCase());
     if (!p1D?.player_key || !p2D?.player_key) return;
     setH2hLoading(true);
-    fetch(`https://tennis-edge-backend.onrender.com/api/h2h?p1_key=${p1D.player_key}&p2_key=${p2D.player_key}`)
+    fetch(`https://tennis-edge-backend.onrender.com/api/h2h?p1_key=${p1D.player_key}&p2_key=${p2D.player_key}&p1_name=${encodeURIComponent(h2hP1)}&p2_name=${encodeURIComponent(h2hP2)}`)
       .then(res => res.json()).then(data => { setH2hData(data); setH2hLoading(false); })
       .catch(err => { console.error(err); setH2hLoading(false); });
   };
@@ -1726,7 +1726,7 @@ export default function App() {
                     const getSurface=(tn)=>{const t=(tn||"").toLowerCase();if(t.includes("clay")||t.includes("roland")||t.includes("french")||t.includes("monte")||t.includes("madrid")||t.includes("rome")||t.includes("barcelona"))return"clay";if(t.includes("grass")||t.includes("wimbledon")||t.includes("halle")||t.includes("queens"))return"grass";return"hard";};
                     const icons={hard:"🏟️",clay:"🧱",grass:"🌿"};const colors={hard:"#22d3ee",clay:"#ef4444",grass:"#4ade80"};
                     const surfaceStats=["hard","clay","grass"].map(s=>{const matches=h2hData.h2h_matches.filter(m=>getSurface(m.tournament_name)===s);const w1=matches.filter(m=>m.event_winner==="First Player").length;const w2=matches.filter(m=>m.event_winner==="Second Player").length;return{s,w1,w2,total:matches.length};}).filter(x=>x.total>0);
-                    return surfaceStats.length>0?(<div style={{marginTop:"20px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px"}}>{surfaceStats.map(({s,w1,w2,total})=>(<div key={s} style={{background:`${colors[s]}11`,border:`1px solid ${colors[s]}33`,borderRadius:"14px",padding:"14px",textAlign:"center"}}><div style={{fontSize:"20px",marginBottom:"4px"}}>{icons[s]}</div><div style={{fontSize:"11px",color:colors[s],textTransform:"uppercase",letterSpacing:"1px",marginBottom:"8px",fontWeight:700}}>{s}</div><div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"12px"}}><span style={{fontSize:"22px",fontWeight:900,color:"#22d3ee"}}>{w1}</span><span style={{color:"#475569"}}>:</span><span style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{w2}</span></div><div style={{fontSize:"11px",color:"#64748b",marginTop:"4px"}}>{total} Spiele</div></div>))}</div>):null;
+                    return surfaceStats.length>0?(<div style={{marginTop:"20px",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px"}}>{surfaceStats.map(({s,w1,w2,total})=>(<div key={s} style={{background:`${colors[s]}11`,border:`1px solid ${colors[s]}33`,borderRadius:"14px",padding:"14px",textAlign:"center"}}><div style={{fontSize:"20px",marginBottom:"4px"}}>{icons[s]}</div><div style={{fontSize:"11px",color:colors[s],textTransform:"uppercase",letterSpacing:"1px",marginBottom:"8px",fontWeight:700}}>{s}</div><div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"12px"}}><span style={{fontSize:"22px",fontWeight:900,color:"#22d3ee"}}>{w1}</span><span style={{color:"#475569"}}>:</span><span style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{w2}</span></div><div style={{fontSize:"11px",color:"#64748b",marginTop:"4px"}}>{total} Matches</div></div>))}</div>):null;
                   })()}
                 </Panel>
                 {h2hData.h2h_matches?.length>0&&(
