@@ -222,7 +222,72 @@ export default function App() {
     localStorage.removeItem("matchHistory");
   };
 
-  // Watchlist state — persisted in localStorage
+  // ── Prediction Accuracy Tracker ──────────────────────────────────────────────
+  const [accuracyLog, setAccuracyLog] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("accuracyLog") || "[]"); } catch { return []; }
+  });
+  const markPredictionResult = (historyId, actualWinner) => {
+    const entry = matchHistory.find(h => h.id === historyId);
+    if (!entry) return;
+    const correct = entry.winner === actualWinner;
+    const updatedHistory = matchHistory.map(h => h.id === historyId ? {...h, actualWinner, correct, resolvedAt: new Date().toISOString()} : h);
+    setMatchHistory(updatedHistory);
+    localStorage.setItem("matchHistory", JSON.stringify(updatedHistory));
+    const log = [{id: historyId, p1: entry.p1, p2: entry.p2, predicted: entry.winner, actual: actualWinner, correct, confidence: entry.confidence, surface: entry.surface, date: entry.date}, ...accuracyLog].slice(0, 100);
+    setAccuracyLog(log);
+    localStorage.setItem("accuracyLog", JSON.stringify(log));
+  };
+
+  // ── Value Pick Performance / ROI ──────────────────────────────────────────────
+  const [valuePerformance, setValuePerformance] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("valuePerformance") || "[]"); } catch { return []; }
+  });
+  const logValueBet = (match, pick, odds, stake = 10) => {
+    const entry = { id: Date.now(), match, pick, odds, stake, result: null, profit: null, date: new Date().toISOString() };
+    const updated = [entry, ...valuePerformance].slice(0, 200);
+    setValuePerformance(updated);
+    localStorage.setItem("valuePerformance", JSON.stringify(updated));
+    return entry.id;
+  };
+  const resolveValueBet = (betId, won) => {
+    const updated = valuePerformance.map(b => {
+      if (b.id !== betId) return b;
+      const profit = won ? b.stake * (b.odds - 1) : -b.stake;
+      return {...b, result: won ? "won" : "lost", profit, resolvedAt: new Date().toISOString()};
+    });
+    setValuePerformance(updated);
+    localStorage.setItem("valuePerformance", JSON.stringify(updated));
+  };
+
+  // ── Live Notifications ────────────────────────────────────────────────────────
+  const [notifPermission, setNotifPermission] = useState(() => typeof Notification !== "undefined" ? Notification.permission : "denied");
+  const [notifiedMatches, setNotifiedMatches] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("notifiedMatches") || "[]"); } catch { return []; }
+  });
+  const requestNotifications = async () => {
+    if (typeof Notification === "undefined") return;
+    const perm = await Notification.requestPermission();
+    setNotifPermission(perm);
+  };
+  const sendNotification = (title, body, onClick) => {
+    if (notifPermission !== "granted") return;
+    const n = new Notification(title, { body, icon: "/favicon.ico" });
+    if (onClick) n.onclick = onClick;
+  };
+  // Check watchlist matches going live
+  useEffect(() => {
+    if (notifPermission !== "granted" || watchlist.length === 0) return;
+    const liveKeys = fixtures.filter(m => m.live).map(m => `${m.player1}|${m.player2}|${m.tournament}`);
+    liveKeys.forEach(key => {
+      if (!notifiedMatches.includes(key) && watchlist.find(w => w.key === key)) {
+        const m = watchlist.find(w => w.key === key);
+        sendNotification("🎾 Match is LIVE!", `${m.player1} vs ${m.player2} — ${m.tournament}`);
+        const updated = [...notifiedMatches, key];
+        setNotifiedMatches(updated);
+        localStorage.setItem("notifiedMatches", JSON.stringify(updated));
+      }
+    });
+  }, [fixtures, notifPermission]);
   const [watchlist, setWatchlist] = useState(() => {
     try { return JSON.parse(localStorage.getItem("watchlist") || "[]"); } catch { return []; }
   });
@@ -473,6 +538,9 @@ export default function App() {
         <button onClick={() => setTab("watchlist")} style={tab==="watchlist"?{borderColor:"rgba(250,204,21,0.4)",color:"#facc15"}:{}}>
           🔖 My Watchlist {watchlist.length > 0 && <span style={{marginLeft:"6px",background:"rgba(250,204,21,0.2)",color:"#facc15",borderRadius:"999px",padding:"1px 7px",fontSize:"11px",fontWeight:700}}>{watchlist.length}</span>}
         </button>
+        <button onClick={() => setTab("performance")} style={tab==="performance"?{borderColor:"rgba(99,102,241,0.4)",color:"#818cf8"}:{}}>
+          📈 Performance
+        </button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
 
         {/* Sidebar bottom controls */}
@@ -538,6 +606,39 @@ export default function App() {
                 </div>
               ))}
             </div>
+
+            {/* Accuracy + ROI Quick Stats */}
+            {(() => {
+              const resolved = accuracyLog.filter(l => l.correct !== undefined);
+              const correct = resolved.filter(l => l.correct).length;
+              const accuracy = resolved.length > 0 ? Math.round((correct/resolved.length)*100) : null;
+              const resolvedBets = valuePerformance.filter(b => b.result !== null);
+              const totalROI = resolvedBets.reduce((sum, b) => sum + (b.profit||0), 0);
+              const wonBets = resolvedBets.filter(b => b.result==="won").length;
+              if (!accuracy && resolvedBets.length === 0) return null;
+              return (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"24px"}}>
+                  {accuracy !== null && (
+                    <div style={{background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"14px",padding:"14px 18px",cursor:"pointer"}} onClick={() => setTab("performance")}>
+                      <div style={{fontSize:"11px",color:"#818cf8",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"6px"}}>🎯 Prediction Accuracy</div>
+                      <div style={{display:"flex",alignItems:"baseline",gap:"8px"}}>
+                        <span style={{fontSize:"32px",fontWeight:900,color:accuracy>=60?"#4ade80":accuracy>=50?"#facc15":"#f87171"}}>{accuracy}%</span>
+                        <span style={{fontSize:"12px",color:"#475569"}}>{correct}/{resolved.length} correct</span>
+                      </div>
+                    </div>
+                  )}
+                  {resolvedBets.length > 0 && (
+                    <div style={{background:`rgba(${totalROI>=0?"74,222,128":"248,113,113"},0.06)`,border:`1px solid rgba(${totalROI>=0?"74,222,128":"248,113,113"},0.2)`,borderRadius:"14px",padding:"14px 18px",cursor:"pointer"}} onClick={() => setTab("performance")}>
+                      <div style={{fontSize:"11px",color:totalROI>=0?"#4ade80":"#f87171",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"6px"}}>💰 Value Bet ROI</div>
+                      <div style={{display:"flex",alignItems:"baseline",gap:"8px"}}>
+                        <span style={{fontSize:"32px",fontWeight:900,color:totalROI>=0?"#4ade80":"#f87171"}}>{totalROI>=0?"+":""}{totalROI.toFixed(1)}€</span>
+                        <span style={{fontSize:"12px",color:"#475569"}}>{wonBets}/{resolvedBets.length} won</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Match History Quick Stats */}
             {matchHistory.length > 0 && (() => {
@@ -713,6 +814,14 @@ export default function App() {
                         {pick.impliedProb && <div className="valuePickProbItem"><span className="valuePickProbLabel">Bookmaker</span><div className="valuePickProbTrack"><div className="valuePickProbFill bookFill" style={{width:`${pick.impliedProb}%`}} /></div><span className="valuePickProbValue book">{pick.impliedProb}%</span></div>}
                       </div>
                       {pick.tournament && <div className="valuePickTournament">{pick.tournament}</div>}
+                      {pick.bestOdds && (
+                        <div style={{marginTop:"8px",display:"flex",justifyContent:"flex-end"}}>
+                          <button onClick={(e) => { e.stopPropagation(); logValueBet(pick.match, pick.pick, pick.bestOdds, 10); alert(`✅ Bet logged! ${pick.pick} @ ${pick.bestOdds} — 10€ stake. Track in Performance tab.`); }}
+                            style={{padding:"4px 12px",borderRadius:"6px",border:"1px solid rgba(250,204,21,0.3)",background:"rgba(250,204,21,0.08)",color:"#facc15",fontSize:"11px",fontWeight:700,cursor:"pointer"}}>
+                            📋 Log Bet (10€)
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                   return (
@@ -1616,13 +1725,163 @@ export default function App() {
                             <div style={{fontSize:"12px",color:h.winner===h.p2?"#4ade80":"#64748b",marginTop:"3px",fontWeight:700}}>{p2prob}%</div>
                           </div>
                         </div>
-                        <div style={{marginTop:"8px",fontSize:"11px",color:"#22d3ee",textAlign:"right"}}>↩ Click to re-run prediction</div>
+                        <div style={{marginTop:"10px",display:"flex",gap:"6px",alignItems:"center",borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:"10px"}}>
+                          {!h.actualWinner ? (
+                            <>
+                              <span style={{fontSize:"11px",color:"#475569",flex:1}}>Mark result:</span>
+                              <button onClick={(e) => {e.stopPropagation(); markPredictionResult(h.id, h.p1);}}
+                                style={{padding:"3px 10px",borderRadius:"6px",border:"1px solid rgba(74,222,128,0.3)",background:"rgba(74,222,128,0.08)",color:"#4ade80",fontSize:"11px",cursor:"pointer",fontWeight:600}}>
+                                {h.p1.split(" ").pop()} won
+                              </button>
+                              <button onClick={(e) => {e.stopPropagation(); markPredictionResult(h.id, h.p2);}}
+                                style={{padding:"3px 10px",borderRadius:"6px",border:"1px solid rgba(248,113,113,0.3)",background:"rgba(248,113,113,0.08)",color:"#f87171",fontSize:"11px",cursor:"pointer",fontWeight:600}}>
+                                {h.p2.split(" ").pop()} won
+                              </button>
+                            </>
+                          ) : (
+                            <div style={{display:"flex",alignItems:"center",gap:"8px",flex:1}}>
+                              <span style={{fontSize:"13px"}}>{h.correct ? "✅" : "❌"}</span>
+                              <span style={{fontSize:"12px",color:h.correct?"#4ade80":"#f87171",fontWeight:700}}>
+                                {h.correct ? "Correct!" : "Wrong"} — {h.actualWinner} won
+                              </span>
+                            </div>
+                          )}
+                          <span style={{fontSize:"11px",color:"#22d3ee",cursor:"pointer"}} onClick={() => {setP1(h.p1);setP2(h.p2);setSurface(h.surface);setBestOf(h.bo||3);setTab("predictor");}}>↩ Re-run</span>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </>
             )}
+          </>
+        )}
+
+        {tab === "performance" && (
+          <>
+            <Header title="Performance" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Track your prediction accuracy and value bet ROI</p>
+
+            {/* Notification Toggle */}
+            <div style={{background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"14px",padding:"14px 18px",marginBottom:"24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:"13px",fontWeight:700,color:"#818cf8",marginBottom:"4px"}}>🔔 Live Match Notifications</div>
+                <div style={{fontSize:"12px",color:"#64748b"}}>Get notified when a Watchlist match goes live</div>
+              </div>
+              {notifPermission === "granted" ? (
+                <span style={{padding:"6px 14px",borderRadius:"8px",background:"rgba(74,222,128,0.1)",color:"#4ade80",fontSize:"12px",fontWeight:700,border:"1px solid rgba(74,222,128,0.3)"}}>✅ Enabled</span>
+              ) : notifPermission === "denied" ? (
+                <span style={{fontSize:"12px",color:"#f87171"}}>Blocked in browser settings</span>
+              ) : (
+                <button onClick={requestNotifications} style={{padding:"6px 14px",borderRadius:"8px",background:"rgba(99,102,241,0.15)",color:"#818cf8",fontSize:"12px",fontWeight:700,border:"1px solid rgba(99,102,241,0.3)",cursor:"pointer"}}>
+                  Enable Notifications
+                </button>
+              )}
+            </div>
+
+            {/* Prediction Accuracy */}
+            {(() => {
+              const resolved = accuracyLog.filter(l => l.correct !== undefined);
+              const correct = resolved.filter(l => l.correct).length;
+              const accuracy = resolved.length > 0 ? Math.round((correct/resolved.length)*100) : null;
+              const highConf = resolved.filter(l => l.confidence >= 70);
+              const highConfCorrect = highConf.filter(l => l.correct).length;
+              const bySurface = {};
+              resolved.forEach(l => {
+                if (!bySurface[l.surface]) bySurface[l.surface] = {correct:0,total:0};
+                bySurface[l.surface].total++;
+                if (l.correct) bySurface[l.surface].correct++;
+              });
+              return (
+                <div style={{marginBottom:"28px"}}>
+                  <div style={{fontSize:"14px",fontWeight:800,color:"#e2e8f0",marginBottom:"14px"}}>🎯 Prediction Accuracy</div>
+                  {resolved.length === 0 ? (
+                    <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"14px",padding:"24px",textAlign:"center",color:"#475569"}}>
+                      No results tracked yet. Go to Match History and mark outcomes after matches finish.
+                    </div>
+                  ) : (
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px"}}>
+                      <div style={{background:"#0f172a",borderRadius:"14px",padding:"16px",border:"1px solid rgba(99,102,241,0.2)",textAlign:"center"}}>
+                        <div style={{fontSize:"36px",fontWeight:900,color:accuracy>=60?"#4ade80":accuracy>=50?"#facc15":"#f87171"}}>{accuracy}%</div>
+                        <div style={{fontSize:"11px",color:"#475569",marginTop:"4px"}}>Overall Accuracy</div>
+                        <div style={{fontSize:"11px",color:"#64748b",marginTop:"2px"}}>{correct}/{resolved.length} predictions</div>
+                      </div>
+                      <div style={{background:"#0f172a",borderRadius:"14px",padding:"16px",border:"1px solid rgba(99,102,241,0.2)",textAlign:"center"}}>
+                        <div style={{fontSize:"36px",fontWeight:900,color:"#22d3ee"}}>{highConf.length > 0 ? Math.round((highConfCorrect/highConf.length)*100) : "-"}%</div>
+                        <div style={{fontSize:"11px",color:"#475569",marginTop:"4px"}}>High Conf. (≥70%)</div>
+                        <div style={{fontSize:"11px",color:"#64748b",marginTop:"2px"}}>{highConfCorrect}/{highConf.length} predictions</div>
+                      </div>
+                      <div style={{background:"#0f172a",borderRadius:"14px",padding:"16px",border:"1px solid rgba(99,102,241,0.2)"}}>
+                        <div style={{fontSize:"11px",color:"#475569",marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.5px"}}>By Surface</div>
+                        {Object.entries(bySurface).map(([surf,d]) => (
+                          <div key={surf} style={{display:"flex",justifyContent:"space-between",fontSize:"12px",marginBottom:"4px"}}>
+                            <span style={{color:"#94a3b8"}}>{surf==="clay"?"🧱":surf==="grass"?"🌿":"🏟️"} {surf}</span>
+                            <span style={{color:"#22d3ee",fontWeight:700}}>{Math.round((d.correct/d.total)*100)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Value Bet ROI */}
+            {(() => {
+              const resolved = valuePerformance.filter(b => b.result !== null);
+              const won = resolved.filter(b => b.result==="won");
+              const totalStaked = resolved.reduce((s,b) => s + b.stake, 0);
+              const totalROI = resolved.reduce((s,b) => s + b.profit, 0);
+              const roiPct = totalStaked > 0 ? ((totalROI/totalStaked)*100).toFixed(1) : null;
+              return (
+                <div style={{marginBottom:"28px"}}>
+                  <div style={{fontSize:"14px",fontWeight:800,color:"#e2e8f0",marginBottom:"14px"}}>💰 Value Bet Performance</div>
+                  {valuePerformance.length === 0 ? (
+                    <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"14px",padding:"24px",textAlign:"center",color:"#475569"}}>
+                      No value bets logged yet. Use the "Log Bet" button on Value Picks.
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"16px"}}>
+                        {[
+                          {label:"Total Bets", value:valuePerformance.length, color:"#22d3ee"},
+                          {label:"Won", value:won.length, color:"#4ade80"},
+                          {label:"ROI", value:roiPct ? `${roiPct >= 0 ? "+" : ""}${roiPct}%` : "-", color:totalROI>=0?"#4ade80":"#f87171"},
+                          {label:"Profit", value:`${totalROI>=0?"+":""}${totalROI.toFixed(1)}€`, color:totalROI>=0?"#4ade80":"#f87171"},
+                        ].map((s,i) => (
+                          <div key={i} style={{background:"#0f172a",borderRadius:"14px",padding:"14px",textAlign:"center",border:`1px solid ${s.color}22`}}>
+                            <div style={{fontSize:"24px",fontWeight:900,color:s.color}}>{s.value}</div>
+                            <div style={{fontSize:"11px",color:"#475569",marginTop:"4px"}}>{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Bet List */}
+                      <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+                        {valuePerformance.slice(0,20).map(b => (
+                          <div key={b.id} style={{background:"#0f172a",borderRadius:"12px",padding:"12px 14px",border:`1px solid ${b.result==="won"?"rgba(74,222,128,0.2)":b.result==="lost"?"rgba(248,113,113,0.2)":"rgba(255,255,255,0.07)"}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:"12px"}}>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.match}</div>
+                              <div style={{fontSize:"11px",color:"#64748b",marginTop:"2px"}}>Pick: <span style={{color:"#22d3ee"}}>{b.pick}</span> · Odds: <span style={{color:"#facc15"}}>{b.odds}</span> · Stake: {b.stake}€</div>
+                            </div>
+                            {b.result === null ? (
+                              <div style={{display:"flex",gap:"6px",flexShrink:0}}>
+                                <button onClick={() => resolveValueBet(b.id, true)} style={{padding:"4px 10px",borderRadius:"6px",border:"1px solid rgba(74,222,128,0.3)",background:"rgba(74,222,128,0.08)",color:"#4ade80",fontSize:"11px",cursor:"pointer",fontWeight:600}}>Won</button>
+                                <button onClick={() => resolveValueBet(b.id, false)} style={{padding:"4px 10px",borderRadius:"6px",border:"1px solid rgba(248,113,113,0.3)",background:"rgba(248,113,113,0.08)",color:"#f87171",fontSize:"11px",cursor:"pointer",fontWeight:600}}>Lost</button>
+                              </div>
+                            ) : (
+                              <div style={{textAlign:"right",flexShrink:0}}>
+                                <div style={{fontSize:"13px",fontWeight:700,color:b.result==="won"?"#4ade80":"#f87171"}}>{b.result==="won"?"+":""}{b.profit?.toFixed(1)}€</div>
+                                <div style={{fontSize:"10px",color:b.result==="won"?"#4ade80":"#f87171"}}>{b.result==="won"?"✅ Won":"❌ Lost"}</div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
 
