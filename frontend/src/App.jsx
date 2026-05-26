@@ -328,7 +328,11 @@ export default function App() {
   });
   const displayedTournaments = tournamentSection === "active" ? activeTournaments : finishedTournaments;
 
-  if (playerNames.length === 0) {
+  const [playersLoading, setPlayersLoading] = useState(true);
+
+  // Show welcome screen only on very first load (< 2 seconds)
+  if (playersLoading && playerNames.length === 0) {
+    setTimeout(() => setPlayersLoading(false), 2000); // max 2s then show app anyway
     return (
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#020817"}}>
         <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
