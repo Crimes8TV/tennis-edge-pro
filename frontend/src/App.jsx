@@ -1393,6 +1393,47 @@ export default function App() {
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model expects {expFavG} games for {fav.split(" ").pop()} + {expDogG} for {dog.split(" ").pop()} = {expTotal} total.</p>
                         </div>
 
+                        {/* 5. Over 3.5 Sets — Bo5 only */}
+                        {bo === 5 && (() => {
+                          // Use setWinProb which already incorporates Elo + form + surface
+                          const p5 = setP, q5 = 1 - p5;
+                          const surfaceName = prediction.surface;
+                          const surfMod = surfaceName === "clay" ? 0.07 : surfaceName === "grass" ? -0.05 : 0.02;
+                          const p30raw = Math.pow(p5,3) + Math.pow(q5,3);
+                          const p30adj = Math.max(0.05, p30raw - surfMod);
+                          const over35 = Math.round((1 - p30adj) * 100);
+                          const o35Conf = over35 >= 55 ? "High" : over35 >= 40 ? "Medium" : "Low";
+                          const o35Color = over35 >= 55 ? "#4ade80" : over35 >= 40 ? "#facc15" : "#94a3b8";
+                          const surfIcon = surfaceName === "clay" ? "🧱 Clay" : surfaceName === "grass" ? "🌿 Grass" : "🏟️ Hard";
+                          return (
+                            <div style={tipStyle(o35Conf)}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                                <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>5. Over 3.5 Sets</span>
+                                <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                                  <span style={{fontSize:"10px",color:"#475569"}}>{surfIcon}</span>
+                                  <span style={{fontSize:"11px",fontWeight:700,color:o35Color,background:`${o35Color}22`,padding:"2px 8px",borderRadius:"6px"}}>{o35Conf} Confidence</span>
+                                </div>
+                              </div>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                                <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>
+                                  {over35 >= 50 ? `✅ Over 3.5 Sets (${over35}%)` : `❌ Under 3.5 Sets (${100-over35}%)`}
+                                </span>
+                                <div style={{textAlign:"right"}}>
+                                  <div style={{fontSize:"12px",color:"#64748b"}}>3-0 probability</div>
+                                  <div style={{fontSize:"16px",fontWeight:800,color:"#94a3b8"}}>{Math.round(p30adj*100)}%</div>
+                                </div>
+                              </div>
+                              {/* Mini probability bar */}
+                              <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"6px"}}>
+                                <div style={{width:`${over35}%`,height:"100%",background:o35Color,borderRadius:"999px",transition:"width 0.4s"}} />
+                              </div>
+                              <p style={{margin:0,fontSize:"12px",color:"#64748b"}}>
+                                Based on set win probability ({Math.round(setP*100)}% per set) + {surfaceName} surface adjustment. {surfaceName==="clay"?"Clay tends to produce longer matches.":surfaceName==="grass"?"Grass favours shorter matches.":"Hard courts are neutral."}
+                              </p>
+                            </div>
+                          );
+                        })()}
+
                         <p style={{margin:"8px 0 0",fontSize:"11px",color:"#334155",textAlign:"center"}}>⚠️ These are model-based estimates only. Always bet responsibly.</p>
                       </div>
                     );
