@@ -16,6 +16,53 @@ const BASE_URL = "https://api.api-tennis.com/tennis/";
 const apiGet = (params) =>
   axios.get(BASE_URL, { params: { APIkey: API_KEY, ...params } });
 
+// ─── ATP PLAYER HAND DATABASE (Jeff Sackmann / tennis_atp) ───────────────────
+let playerHandDB = {}; // { "lastname_firstname": "R"|"L"|"U" }
+let playerHandDBLoaded = false;
+
+async function loadPlayerHandDB() {
+  try {
+    const res = await axios.get(
+      "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_players.csv",
+      { timeout: 10000 }
+    );
+    const lines = res.data.split("\n").slice(1); // skip header
+    lines.forEach(line => {
+      const parts = line.split(",");
+      if (parts.length < 5) return;
+      const firstName = (parts[1] || "").trim().toLowerCase();
+      const lastName = (parts[2] || "").trim().toLowerCase();
+      const hand = (parts[3] || "").trim().toUpperCase(); // R, L, U or empty
+      if (!lastName) return;
+      // Store by lastname and by lastname_firstname for better matching
+      const key = lastName;
+      const fullKey = `${lastName}_${firstName}`;
+      if (hand === "R" || hand === "L") {
+        playerHandDB[key] = playerHandDB[key] || hand; // first match wins
+        playerHandDB[fullKey] = hand;
+      }
+    });
+    playerHandDBLoaded = true;
+    console.log(`Player hand DB loaded: ${Object.keys(playerHandDB).length} entries`);
+  } catch (err) {
+    console.error("Failed to load player hand DB:", err.message);
+  }
+}
+
+// Load on startup
+loadPlayerHandDB();
+
+// Helper: get hand for a player name
+function getPlayerHand(name) {
+  if (!name) return null;
+  const parts = name.toLowerCase().trim().split(" ");
+  const lastName = parts[parts.length - 1];
+  const firstName = parts.length > 1 ? parts[0] : "";
+  // Try full key first, then last name only
+  const fullKey = `${lastName}_${firstName}`;
+  return playerHandDB[fullKey] || playerHandDB[lastName] || null;
+}
+
 // ─── SPIELERLISTE ─────────────────────────────────────────────────────────────
 app.get("/api/players", async (req, res) => {
   try {
@@ -317,6 +364,17 @@ app.get("/api/predict", async (req, res) => {
     ]);
   } catch(e) { console.error("Form fetch error:", e.message); }
 
+  // Händigkeit / Hand advantage
+  const hand1 = getPlayerHand(p1); // "R", "L" or null
+  const hand2 = getPlayerHand(p2);
+  // Left-handers have a slight statistical advantage vs right-handers
+  // due to unfamiliarity with their serve/spin patterns (~2-3% edge)
+  let handMod1 = 0, handMod2 = 0;
+  if (hand1 === "L" && hand2 === "R") { handMod1 = 2.5; handMod2 = -2.5; }
+  else if (hand1 === "R" && hand2 === "L") { handMod1 = -2.5; handMod2 = 2.5; }
+  // On clay, left-hand advantage is slightly higher due to spin
+  if (surface === "clay") { handMod1 *= 1.3; handMod2 *= 1.3; }
+
   // Real form if available, fallback to rank-based estimate
   const form1 = form1Data ? form1Data.form : Math.max(30, Math.min(85, 85 - Number(rank1) * 0.2));
   const form2 = form2Data ? form2Data.form : Math.max(30, Math.min(85, 85 - Number(rank2) * 0.2));
@@ -336,8 +394,8 @@ app.get("/api/predict", async (req, res) => {
   const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
 
   // Weighting: Elo 40%, Form 25%, Surface 35%
-  let score1 = expected1*100*0.40 + form1*0.25 + surfMod1*surfaceWeight;
-  let score2 = expected2*100*0.40 + form2*0.25 + surfMod2*surfaceWeight;
+  let score1 = expected1*100*0.40 + form1*0.25 + surfMod1*surfaceWeight + handMod1;
+  let score2 = expected2*100*0.40 + form2*0.25 + surfMod2*surfaceWeight + handMod2;
   if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.35; score2 += surface2*0.35; }
 
   const p1Win = Math.round((score1/(score1+score2))*100);
@@ -396,6 +454,7 @@ app.get("/api/predict", async (req, res) => {
   res.json({
     player1:p1, player2:p2, surface,
     bo, format: bo === 5 ? "Best of 5 (Grand Slam)" : "Best of 3",
+    hand:{[p1]:hand1||"U",[p2]:hand2||"U"},
     elo:{[p1]:Math.round(elo1),[p2]:Math.round(elo2)},
     prediction:{[p1]:p1Win,[p2]:100-p1Win}, confidence,
     playerStats:{[p1]:p1Stats,[p2]:p2Stats},
