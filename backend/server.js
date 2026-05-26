@@ -791,7 +791,41 @@ app.get("/api/tournament-predictions", async (req, res) => {
   } catch(err) { console.error("TOURNAMENT PREDICTIONS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
-// ─── DEBUG ────────────────────────────────────────────────────────────────────
+// ─── DEBUG PLAYER ─────────────────────────────────────────────────────────────
+app.get("/api/debug-player", async (req, res) => {
+  try {
+    const name = (req.query.name||"").toLowerCase();
+    const lastName = name.split(" ").pop();
+    const today = new Date().toISOString().split("T")[0];
+    const results = {};
+
+    // Check ATP standings
+    const atpRes = await apiGet({ method: "get_standings", event_type: "ATP" });
+    const atpFound = (atpRes.data?.result||[]).find(p => (p.player||"").toLowerCase().includes(lastName));
+    results.atp_standings = atpFound ? { name: atpFound.player, key: atpFound.player_key, rank: atpFound.place } : "not found";
+
+    // Check Challenger standings
+    try {
+      const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
+      const chalFound = (chalRes.data?.result||[]).find(p => (p.player||"").toLowerCase().includes(lastName));
+      results.challenger_standings = chalFound ? { name: chalFound.player, key: chalFound.player_key } : "not found";
+    } catch(e) { results.challenger_standings = "error: " + e.message; }
+
+    // Check today fixtures
+    const fixRes = await apiGet({ method: "get_fixtures", date_start: today, date_stop: today });
+    const fixMatches = (fixRes.data?.result||[]).filter(m =>
+      (m.event_first_player||"").toLowerCase().includes(lastName) ||
+      (m.event_second_player||"").toLowerCase().includes(lastName)
+    );
+    results.today_fixtures = fixMatches.map(m => ({
+      p1: m.event_first_player, p1_key: m.event_first_player_key,
+      p2: m.event_second_player, p2_key: m.event_second_player_key,
+      tournament: m.tournament_name
+    }));
+
+    res.json(results);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 app.get("/api/debug-tournament", async (req, res) => {
   try {
     const tournName=(req.query.name||"").toLowerCase();
