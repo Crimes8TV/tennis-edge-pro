@@ -289,6 +289,8 @@ async function getPlayerForm(playerName, standings) {
     let wins = 0, losses = 0, formScore = 0;
     let surfaceWins = { hard: 0, clay: 0, grass: 0 };
     let surfaceTotal = { hard: 0, clay: 0, grass: 0 };
+    let handWins = { R: 0, L: 0 };
+    let handTotal = { R: 0, L: 0 };
 
     recent.forEach((m, idx) => {
       const isFirst = (m.event_first_player||"").toLowerCase().includes(lastName);
@@ -302,6 +304,14 @@ async function getPlayerForm(playerName, standings) {
         : tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens") ? "grass" : "hard";
       surfaceTotal[surf]++;
       if (won) surfaceWins[surf]++;
+
+      // Hand stats — look up opponent's hand
+      const opponentName = isFirst ? m.event_second_player : m.event_first_player;
+      const oppHand = getPlayerHand(opponentName);
+      if (oppHand === "R" || oppHand === "L") {
+        handTotal[oppHand]++;
+        if (won) handWins[oppHand]++;
+      }
     });
 
     const total = wins + losses;
@@ -318,9 +328,14 @@ async function getPlayerForm(playerName, standings) {
       recentResults: recent.slice(0,5).map(m => {
         const isFirst = (m.event_first_player||"").toLowerCase().includes(lastName);
         const won = (isFirst && m.event_winner==="First Player")||(!isFirst && m.event_winner==="Second Player");
-        return { won, tournament: m.tournament_name, date: m.event_date, opponent: isFirst ? m.event_second_player : m.event_first_player };
+        const oppName = isFirst ? m.event_second_player : m.event_first_player;
+        return { won, tournament: m.tournament_name, date: m.event_date, opponent: oppName, opponentHand: getPlayerHand(oppName) };
       }),
-      surfaceRates
+      surfaceRates,
+      handRates: {
+        vsRight: handTotal.R > 0 ? { wins: handWins.R, total: handTotal.R, pct: Math.round((handWins.R/handTotal.R)*100) } : null,
+        vsLeft:  handTotal.L > 0 ? { wins: handWins.L, total: handTotal.L, pct: Math.round((handWins.L/handTotal.L)*100) } : null,
+      }
     };
     formCache.set(cacheKey, { data: result, ts: Date.now() });
     return result;
@@ -365,19 +380,26 @@ app.get("/api/predict", async (req, res) => {
   } catch(e) { console.error("Form fetch error:", e.message); }
 
   // Händigkeit / Hand advantage
-  const hand1 = getPlayerHand(p1); // "R", "L" or null
+  const hand1 = getPlayerHand(p1);
   const hand2 = getPlayerHand(p2);
-  // Left-handers have a slight statistical advantage vs right-handers
-  // due to unfamiliarity with their serve/spin patterns (~2-3% edge)
   let handMod1 = 0, handMod2 = 0;
   if (hand1 === "L" && hand2 === "R") { handMod1 = 2.5; handMod2 = -2.5; }
   else if (hand1 === "R" && hand2 === "L") { handMod1 = -2.5; handMod2 = 2.5; }
-  // On clay, left-hand advantage is slightly higher due to spin
   if (surface === "clay") { handMod1 *= 1.3; handMod2 *= 1.3; }
 
   // Real form if available, fallback to rank-based estimate
   const form1 = form1Data ? form1Data.form : Math.max(30, Math.min(85, 85 - Number(rank1) * 0.2));
   const form2 = form2Data ? form2Data.form : Math.max(30, Math.min(85, 85 - Number(rank2) * 0.2));
+
+  // Further adjust using actual historical record vs opponent's hand type
+  if (form1Data?.handRates && hand2) {
+    const rate = hand2 === "R" ? form1Data.handRates.vsRight : form1Data.handRates.vsLeft;
+    if (rate && rate.total >= 3) handMod1 += (rate.pct - 50) * 0.08;
+  }
+  if (form2Data?.handRates && hand1) {
+    const rate = hand1 === "R" ? form2Data.handRates.vsRight : form2Data.handRates.vsLeft;
+    if (rate && rate.total >= 3) handMod2 += (rate.pct - 50) * 0.08;
+  }
 
   // Real surface win rates if available
   const surfRate1 = form1Data?.surfaceRates?.[surface];
