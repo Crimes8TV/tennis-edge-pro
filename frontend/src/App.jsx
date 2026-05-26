@@ -731,6 +731,46 @@ export default function App() {
                   <p className="confidence">Confidence: {prediction.confidence}%</p>
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
+
+                  {/* Recent Form Display */}
+                  {prediction.formData && (
+                    <div style={{margin:"12px 0",padding:"14px 16px",borderRadius:"12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)"}}>
+                      <div style={{fontSize:"12px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"10px"}}>📈 Recent Form (last 3 months)</div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
+                        {[prediction.player1, prediction.player2].map(player => {
+                          const fd = prediction.formData?.[player];
+                          if (!fd) return (
+                            <div key={player} style={{padding:"10px",borderRadius:"8px",background:"rgba(255,255,255,0.02)"}}>
+                              <div style={{fontSize:"12px",color:"#94a3b8",fontWeight:600,marginBottom:"6px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{player}</div>
+                              <div style={{fontSize:"11px",color:"#475569"}}>No recent data</div>
+                            </div>
+                          );
+                          const formColor = fd.form >= 70 ? "#4ade80" : fd.form >= 55 ? "#facc15" : "#f87171";
+                          return (
+                            <div key={player} style={{padding:"10px",borderRadius:"8px",background:"rgba(255,255,255,0.02)",border:`1px solid ${formColor}22`}}>
+                              <div style={{fontSize:"12px",color:"#94a3b8",fontWeight:600,marginBottom:"6px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{player}</div>
+                              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
+                                <div style={{flex:1,height:"6px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                                  <div style={{width:`${fd.form}%`,height:"100%",background:formColor,borderRadius:"999px"}} />
+                                </div>
+                                <span style={{fontSize:"13px",fontWeight:800,color:formColor}}>{fd.form}</span>
+                              </div>
+                              <div style={{fontSize:"11px",color:"#64748b",marginBottom:"6px"}}>{fd.wins}W - {fd.losses}L ({fd.total} matches)</div>
+                              {fd.recentResults?.length > 0 && (
+                                <div style={{display:"flex",gap:"3px"}}>
+                                  {fd.recentResults.map((r,i) => (
+                                    <span key={i} title={`${r.won?"W":"L"} vs ${r.opponent} (${r.date})`} style={{width:"18px",height:"18px",borderRadius:"3px",background:r.won?"rgba(74,222,128,0.3)":"rgba(248,113,113,0.3)",border:`1px solid ${r.won?"#4ade80":"#f87171"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:r.won?"#4ade80":"#f87171",cursor:"default"}}>
+                                      {r.won?"W":"L"}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {prediction.setWinProb && (
                     <div style={{margin:"16px 0",padding:"16px",borderRadius:"14px",background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.2)"}}>
                       <h4 style={{color:"#22d3ee",margin:"0 0 12px",fontSize:"14px"}}>🎾 Set Win Probability</h4>
