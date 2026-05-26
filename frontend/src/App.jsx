@@ -830,16 +830,16 @@ export default function App() {
 
         {tab === "h2h" && (
           <>
-            <Header title="H2H Intelligence" />
+            <Header title="Head-to-Head Intelligence" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
               <PlayerAutocomplete label="Player 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} />
               <PlayerAutocomplete label="Player 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} />
             </div>
-            <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1||!h2hP2} style={{marginBottom:"24px"}}>⚡ Load H2H</button>
+            <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1||!h2hP2} style={{marginBottom:"24px"}}>⚡ Load Head-to-Head</button>
             {h2hLoading && <p style={{color:"#94a3b8"}}>⏳ Loading H2H data...</p>}
             {h2hData && !h2hLoading && (
               <>
-                <Panel title={`⚔️ ${h2hP1} vs ${h2hP2}`}>
+                <Panel title={`⚔️ ${h2hP1} vs ${h2hP2} — Head-to-Head`}>
                   <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"40px",padding:"20px 0"}}>
                     <div style={{textAlign:"center"}}><div style={{fontSize:"48px",fontWeight:900,color:"#22d3ee"}}>{h2hData.p1_wins}</div><div style={{color:"#94a3b8",fontSize:"13px",marginTop:"4px"}}>{h2hP1}</div></div>
                     <div style={{fontSize:"24px",color:"#475569",fontWeight:700}}>:</div>
