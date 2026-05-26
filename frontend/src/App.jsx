@@ -133,6 +133,7 @@ export default function App() {
   const toggleTournament = (key) => setCollapsedTournaments(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCategory = (cat) => setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
   const [surface, setSurface] = useState("hard");
+  const [bestOf, setBestOf] = useState(3);
   const [tournamentSection, setTournamentSection] = useState("active");
 
   const safePlayers = Array.isArray(players) ? players : [];
@@ -223,7 +224,7 @@ export default function App() {
   useEffect(() => {
     if (tab === "predictor" && p1Data && p2Data && !prediction) {
       setTimeout(() => {
-        fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
+        fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}&bo=${bestOf}`)
           .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
       }, 100);
     }
@@ -231,7 +232,7 @@ export default function App() {
 
   const predictMatch = () => {
     if (!p1 || !p2 || !p1Data || !p2Data) return;
-    fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}`)
+    fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank || 10}&rank2=${p2Data.rank || 100}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}&bo=${bestOf}`)
       .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
   };
 
@@ -518,18 +519,46 @@ export default function App() {
                 <button key={s.value} className={`surfaceBtn ${surface===s.value?"active":""}`} onClick={() => {
                   setSurface(s.value);
                   if (prediction && p1Data && p2Data) {
-                    setTimeout(() => fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank||10}&rank2=${p2Data.rank||100}&surface=${s.value}&surface1=${p1Data?.[s.value]||0}&surface2=${p2Data?.[s.value]||0}`).then(res=>res.json()).then(data=>setPrediction(data)).catch(err=>console.error(err)),50);
+                    setTimeout(() => fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank||10}&rank2=${p2Data.rank||100}&surface=${s.value}&surface1=${p1Data?.[s.value]||0}&surface2=${p2Data?.[s.value]||0}&bo=${bestOf}`).then(res=>res.json()).then(data=>setPrediction(data)).catch(err=>console.error(err)),50);
                   }
                 }}>
                   <span className="surfaceIcon">{s.icon}</span><span className="surfaceLabel">{s.label}</span>
                 </button>
               ))}
             </div>
+
+            {/* Best of Toggle */}
+            <div style={{display:"flex",gap:"8px",marginBottom:"16px",alignItems:"center"}}>
+              <span style={{fontSize:"13px",color:"#64748b",marginRight:"4px"}}>Format:</span>
+              {[3,5].map(bo => (
+                <button key={bo} onClick={() => {
+                  setBestOf(bo);
+                  if (prediction && p1Data && p2Data) {
+                    setTimeout(() => fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank||10}&rank2=${p2Data.rank||100}&surface=${surface}&surface1=${p1Data?.[surface]||0}&surface2=${p2Data?.[surface]||0}&bo=${bo}`).then(res=>res.json()).then(data=>setPrediction(data)).catch(err=>console.error(err)),50);
+                  }
+                }} style={{
+                  padding:"6px 18px", borderRadius:"8px", fontWeight:700, fontSize:"13px",
+                  cursor:"pointer", border:"none",
+                  background: bestOf===bo ? (bo===5?"linear-gradient(135deg,#f59e0b,#f97316)":"linear-gradient(135deg,#22d3ee,#4ade80)") : "rgba(255,255,255,0.05)",
+                  color: bestOf===bo ? "#0f172a" : "#94a3b8",
+                  transition:"all 0.2s"
+                }}>
+                  {bo===5 ? "🏆 Best of 5" : "⚡ Best of 3"}
+                </button>
+              ))}
+              {bestOf===5 && <span style={{fontSize:"11px",color:"#f59e0b",marginLeft:"4px"}}>Grand Slam Modus</span>}
+            </div>
+
             <button className="predictBtn" onClick={predictMatch} disabled={!p1Data||!p2Data}>⚡ Prediction berechnen</button>
             <Panel title="Prediction Engine">
               {prediction && (
                 <>
                   <p className="bestPick">🔥 Best Pick: {winner} ({Math.max(prediction.prediction?.[prediction.player1]||0,prediction.prediction?.[prediction.player2]||0)}%)</p>
+                  {prediction.format && (
+                    <div style={{display:"inline-block",marginBottom:"12px",padding:"4px 12px",borderRadius:"6px",background:prediction.bo===5?"rgba(245,158,11,0.15)":"rgba(34,211,238,0.1)",border:prediction.bo===5?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(34,211,238,0.2)",fontSize:"12px",color:prediction.bo===5?"#f59e0b":"#22d3ee",fontWeight:600}}>
+                      {prediction.bo===5?"🏆":"⚡"} {prediction.format}
+                    </div>
+                  )}
                   <div className={`prediction ${winner===prediction.player1?"win":""}`}><span className={winner===prediction.player1?"winnerName":""}>{prediction.player1}</span><strong>{prediction.prediction?.[prediction.player1]}%</strong></div>
                   <div className="bar"><div className={winner===prediction.player1?"barFill winBar":"barFill"} style={{width:(prediction.prediction?.[prediction.player1]||0)+"%"}} /></div>
                   <div className={`prediction muted ${winner===prediction.player2?"win":""}`}><span className={winner===prediction.player2?"winnerName":""}>{prediction.player2}</span><strong>{prediction.prediction?.[prediction.player2]}%</strong></div>
