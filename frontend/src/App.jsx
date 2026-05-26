@@ -289,7 +289,7 @@ export default function App() {
         <button onClick={() => setTab("valuepicks")}><TrendingUp /> Value Picks</button>
         <button onClick={() => setTab("player")}><Search /> Player Analyzer</button>
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
-        <button onClick={() => setTab("h2h")}><Trophy /> H2H Intelligence</button>
+        <button onClick={() => setTab("h2h")}><Trophy /> Head-to-Head Intelligence</button>
         <button onClick={() => setTab("tournamentpred")}><Star /> Tournament Prediction</button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
       </aside>
