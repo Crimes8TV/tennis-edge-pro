@@ -277,7 +277,49 @@ export default function App() {
   });
   const displayedTournaments = tournamentSection === "active" ? activeTournaments : finishedTournaments;
 
-  if (playerNames.length === 0) return <div className="app"><main><h2>Loading data...</h2></main></div>;
+  if (playerNames.length === 0) {
+    return (
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#020817"}}>
+        <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
+          <div style={{marginBottom:"32px"}}>
+            <h1 style={{fontSize:"52px",fontWeight:900,background:"linear-gradient(135deg,#22d3ee,#4ade80)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:0,letterSpacing:"-1px"}}>
+              TennisEdge Pro
+            </h1>
+            <p style={{color:"#475569",fontSize:"13px",marginTop:"8px",letterSpacing:"3px",textTransform:"uppercase"}}>Advanced Tennis Analytics Platform</p>
+          </div>
+
+          <p style={{color:"#64748b",fontSize:"15px",marginBottom:"36px",lineHeight:1.7}}>
+            Your all-in-one platform for professional tennis analytics —<br/>
+            live scores, AI predictions, value picks and much more.
+          </p>
+
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"12px",marginBottom:"40px",textAlign:"left"}}>
+            {[
+              {icon:"🎾",title:"Live Scores",desc:"Real-time match tracking with set-by-set breakdowns"},
+              {icon:"⚡",title:"Match Predictor",desc:"AI-powered win probabilities with Elo & surface analysis"},
+              {icon:"💰",title:"Value Picks",desc:"Daily value bets with edge calculations vs. bookmakers"},
+              {icon:"🏆",title:"Tournament Predictions",desc:"Full draw predictions for current ATP tournaments"},
+              {icon:"⚔️",title:"Head-to-Head",desc:"Complete H2H history with surface & recent form"},
+              {icon:"📊",title:"Player Analytics",desc:"In-depth stats, form curves and radar charts"},
+            ].map((f,i) => (
+              <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"14px",padding:"18px",transition:"border-color 0.2s"}}>
+                <div style={{fontSize:"26px",marginBottom:"8px"}}>{f.icon}</div>
+                <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0",marginBottom:"5px"}}>{f.title}</div>
+                <div style={{fontSize:"11px",color:"#475569",lineHeight:1.6}}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"12px"}}>
+            <div style={{width:"18px",height:"18px",borderRadius:"50%",border:"2px solid rgba(34,211,238,0.2)",borderTopColor:"#22d3ee",animation:"spin 0.8s linear infinite"}} />
+            <span style={{color:"#64748b",fontSize:"14px"}}>Loading player data...</span>
+          </div>
+
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
