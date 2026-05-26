@@ -124,17 +124,29 @@ app.get("/api/live", async (req, res) => {
 // ─── H2H ──────────────────────────────────────────────────────────────────────
 app.get("/api/h2h", async (req, res) => {
   try {
-    const { p1_key, p2_key } = req.query;
+    const { p1_key, p2_key, p1_name, p2_name } = req.query;
     if (!p1_key || !p2_key) return res.status(400).json({ error: "Player keys missing" });
     const response = await apiGet({ method: "get_H2H", first_player_key: p1_key, second_player_key: p2_key });
     const result = response.data?.result || {};
     const h2h = result.H2H || [];
     const p1Results = result.firstPlayerResults || [];
     const p2Results = result.secondPlayerResults || [];
+
+    // Count wins by matching actual player names, not just First/Second Player
+    const p1Last = (p1_name || "").toLowerCase().trim().split(" ").pop();
+    const p2Last = (p2_name || "").toLowerCase().trim().split(" ").pop();
     let p1Wins = 0, p2Wins = 0;
     h2h.forEach(match => {
-      if (match.event_winner === "First Player") p1Wins++;
-      else if (match.event_winner === "Second Player") p2Wins++;
+      const winner = match.event_winner;
+      const fp = (match.event_first_player || "").toLowerCase();
+      const sp = (match.event_second_player || "").toLowerCase();
+      if (!winner) return;
+      const winnerIsFirst = winner === "First Player";
+      const winnerName = winnerIsFirst ? fp : sp;
+      if (p1Last && winnerName.includes(p1Last)) p1Wins++;
+      else if (p2Last && winnerName.includes(p2Last)) p2Wins++;
+      else if (winnerIsFirst) p1Wins++; // fallback
+      else p2Wins++;
     });
     const filterSelfMatches = (matches) => matches.filter(m => {
       const p1 = (m.event_first_player || "").toLowerCase().trim();
