@@ -484,10 +484,31 @@ export default function App() {
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#020817"}}>
         <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
           <div style={{marginBottom:"32px"}}>
-            <h1 style={{fontSize:"52px",fontWeight:900,background:"linear-gradient(135deg,#22d3ee,#4ade80)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:0,letterSpacing:"-1px",padding:"4px 8px",lineHeight:1.2}}>
-              CourtsideIQ
-            </h1>
-            <p style={{color:"#475569",fontSize:"13px",marginTop:"8px",letterSpacing:"3px",textTransform:"uppercase"}}>Smart Tennis Analytics</p>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" style={{width:"420px",maxWidth:"100%",height:"auto",borderRadius:"10px"}}>
+              <rect x="0" y="0" width="480" height="200" rx="8" fill="#1a5c38"/>
+              <rect x="30" y="20" width="420" height="160" fill="#2e7d4f"/>
+              <rect x="30" y="20" width="420" height="160" fill="none" stroke="#ffffff" stroke-width="2"/>
+              <line x1="56" y1="20" x2="56" y2="180" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="424" y1="20" x2="424" y2="180" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="240" y1="20" x2="240" y2="180" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="56" y1="63" x2="240" y2="63" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="240" y1="63" x2="424" y2="63" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="56" y1="137" x2="240" y2="137" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="240" y1="137" x2="424" y2="137" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="148" y1="63" x2="148" y2="137" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="332" y1="63" x2="332" y2="137" stroke="#ffffff" stroke-width="1.5"/>
+              <line x1="240" y1="20" x2="240" y2="28" stroke="#ffffff" stroke-width="2"/>
+              <line x1="240" y1="172" x2="240" y2="180" stroke="#ffffff" stroke-width="2"/>
+              <rect x="27" y="93" width="6" height="14" rx="2" fill="#cccccc"/>
+              <rect x="447" y="93" width="6" height="14" rx="2" fill="#cccccc"/>
+              <line x1="30" y1="100" x2="450" y2="100" stroke="#cccccc" stroke-width="2"/>
+              <line x1="30" y1="95" x2="450" y2="95" stroke="#cccccc" stroke-width="0.7" opacity="0.5"/>
+              <line x1="30" y1="105" x2="450" y2="105" stroke="#cccccc" stroke-width="0.7" opacity="0.5"/>
+              <rect x="30" y="20" width="420" height="160" fill="#000000" opacity="0.40"/>
+              <text x="240" y="88" font-family="system-ui,sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="-1">Courtside</text>
+              <text x="240" y="138" font-family="system-ui,sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">IQ</text>
+              <text x="240" y="162" font-family="system-ui,sans-serif" font-size="10" font-weight="500" fill="#4ade80" text-anchor="middle" letter-spacing="4">SMART TENNIS ANALYTICS</text>
+            </svg>
           </div>
 
           <p style={{color:"#64748b",fontSize:"15px",marginBottom:"36px",lineHeight:1.7}}>
@@ -526,7 +547,26 @@ export default function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-        <h1>CourtsideIQ</h1>
+        <div style={{marginBottom:"4px"}}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" style={{width:"160px",height:"64px"}}>
+            <rect x="0" y="0" width="200" height="80" rx="6" fill="#1a5c38"/>
+            <rect x="10" y="8" width="180" height="64" fill="#2e7d4f"/>
+            <rect x="10" y="8" width="180" height="64" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+            <line x1="21" y1="8" x2="21" y2="72" stroke="#ffffff" stroke-width="1"/>
+            <line x1="179" y1="8" x2="179" y2="72" stroke="#ffffff" stroke-width="1"/>
+            <line x1="100" y1="8" x2="100" y2="72" stroke="#ffffff" stroke-width="1"/>
+            <line x1="21" y1="26" x2="100" y2="26" stroke="#ffffff" stroke-width="1"/>
+            <line x1="100" y1="26" x2="179" y2="26" stroke="#ffffff" stroke-width="1"/>
+            <line x1="21" y1="54" x2="100" y2="54" stroke="#ffffff" stroke-width="1"/>
+            <line x1="100" y1="54" x2="179" y2="54" stroke="#ffffff" stroke-width="1"/>
+            <line x1="60" y1="26" x2="60" y2="54" stroke="#ffffff" stroke-width="1"/>
+            <line x1="140" y1="26" x2="140" y2="54" stroke="#ffffff" stroke-width="1"/>
+            <line x1="10" y1="40" x2="190" y2="40" stroke="#cccccc" stroke-width="1.5"/>
+            <rect x="10" y="8" width="180" height="64" fill="#000000" opacity="0.38"/>
+            <text x="100" y="36" font-family="system-ui,sans-serif" font-size="14" font-weight="900" fill="#ffffff" text-anchor="middle">Courtside</text>
+            <text x="100" y="55" font-family="system-ui,sans-serif" font-size="14" font-weight="900" fill="#ffffff" text-anchor="middle">IQ</text>
+          </svg>
+        </div>
         <p>Smart Tennis Analytics</p>
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
         <button onClick={() => setTab("matches")}><Calendar /> Matches</button>
@@ -577,7 +617,24 @@ export default function App() {
       <main>
         {/* Mobile Header */}
         <div className="mobile-header">
-          <h1>CourtsideIQ</h1>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 44" style={{width:"120px",height:"38px"}}>
+              <rect x="0" y="0" width="140" height="44" rx="4" fill="#1a5c38"/>
+              <rect x="6" y="4" width="128" height="36" fill="#2e7d4f"/>
+              <rect x="6" y="4" width="128" height="36" fill="none" stroke="#ffffff" stroke-width="1"/>
+              <line x1="70" y1="4" x2="70" y2="40" stroke="#ffffff" stroke-width="0.8"/>
+              <line x1="14" y1="4" x2="14" y2="40" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="126" y1="4" x2="126" y2="40" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="14" y1="16" x2="70" y2="16" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="70" y1="16" x2="126" y2="16" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="14" y1="28" x2="70" y2="28" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="70" y1="28" x2="126" y2="28" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="42" y1="16" x2="42" y2="28" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="98" y1="16" x2="98" y2="28" stroke="#ffffff" stroke-width="0.7"/>
+              <line x1="6" y1="22" x2="134" y2="22" stroke="#cccccc" stroke-width="1"/>
+              <rect x="6" y="4" width="128" height="36" fill="#000000" opacity="0.38"/>
+              <text x="70" y="19" font-family="system-ui,sans-serif" font-size="8" font-weight="900" fill="#ffffff" text-anchor="middle">Courtside</text>
+              <text x="70" y="31" font-family="system-ui,sans-serif" font-size="8" font-weight="900" fill="#ffffff" text-anchor="middle">IQ</text>
+            </svg>
           {fixtures.some(m=>m.live) && (
             <span style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"4px 10px",fontSize:"11px",color:"#f87171",fontWeight:700}}>
               <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />
