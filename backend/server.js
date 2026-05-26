@@ -50,16 +50,17 @@ app.get("/api/players", async (req, res) => {
         if (!alreadyIn) {
           const idx = challengerPlayers.length;
           const base = Math.max(55, 72 - idx * 0.3);
-          const vary = () => Math.round((Math.random() - 0.5) * 8);
+          const hashStr = (str) => { let h=0; for(let i=0;i<str.length;i++) h=(Math.imul(31,h)+str.charCodeAt(i))|0; return Math.abs(h); };
+          const stableVary = (key) => Math.round(((hashStr(`${shortName}-${key}`) % 800) / 100) - 4);
           challengerPlayers.push({
             name: shortName,
             rank: 200 + idx,
             points: 0, country: "", player_key: null,
             elo: Math.max(1400, 1600 - idx * 2),
-            serve:    Math.min(80, Math.max(52, Math.round(base + vary()))),
-            return:   Math.min(80, Math.max(52, Math.round(base + vary()))),
-            clutch:   Math.min(80, Math.max(52, Math.round(base + vary()))),
-            momentum: Math.min(80, Math.max(52, Math.round(base + vary()))),
+            serve:    Math.min(80, Math.max(52, Math.round(base + stableVary("serve")))),
+            return:   Math.min(80, Math.max(52, Math.round(base + stableVary("return")))),
+            clutch:   Math.min(80, Math.max(52, Math.round(base + stableVary("clutch")))),
+            momentum: Math.min(80, Math.max(52, Math.round(base + stableVary("momentum")))),
             hard: 68, clay: 68, grass: 63,
             form: [Math.round(base), Math.round(base+vary()), Math.round(base+vary()), Math.round(base+vary()), Math.round(base+vary())]
           });
@@ -157,43 +158,62 @@ app.get("/api/odds/:match_key", async (req, res) => {
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
-  const bo = parseInt(req.query.bo) === 5 ? 5 : 3; // Best of 3 oder 5
+  const bo = parseInt(req.query.bo) === 5 ? 5 : 3;
   const form1 = Number(req.query.form1 || 75), form2 = Number(req.query.form2 || 75);
   const clutch1 = Number(req.query.clutch1 || 70), clutch2 = Number(req.query.clutch2 || 70);
   const momentum1 = Number(req.query.momentum1 || 75), momentum2 = Number(req.query.momentum2 || 75);
+
+  // Deterministic hash — same players always get same values
+  const hashStr = (str) => {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  };
+  // Returns a stable float between -1 and 1 based on seed string
+  const stableRand = (seed) => ((hashStr(seed) % 1000) / 500) - 1;
+
   const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
   const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
-  const getSurfaceModifier = (rank, surf) => {
+
+  // Deterministic surface modifier — based on player name + surface
+  const getSurfaceModifier = (playerName, rank, surf) => {
     const variance = Math.max(2, 8 - Number(rank) * 0.05);
-    return { hard: Math.round((Math.random()-0.5)*variance), clay: Math.round((Math.random()-0.5)*variance), grass: Math.round((Math.random()-0.5)*variance) }[surf] || 0;
+    return Math.round(stableRand(`${playerName}-${surf}`) * variance);
   };
-  const surfMod1 = getSurfaceModifier(rank1, surface), surfMod2 = getSurfaceModifier(rank2, surface);
+  const surfMod1 = getSurfaceModifier(p1, rank1, surface);
+  const surfMod2 = getSurfaceModifier(p2, rank2, surface);
   const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
+
   let score1 = expected1*100*0.50 + form1*0.20 + clutch1*0.10 + momentum1*0.15 + surfMod1*surfaceWeight;
   let score2 = expected2*100*0.50 + form2*0.20 + clutch2*0.10 + momentum2*0.15 + surfMod2*surfaceWeight;
   const surface1 = Number(req.query.surface1 || 0), surface2 = Number(req.query.surface2 || 0);
   if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.5; score2 += surface2*0.5; }
+
   const p1Win = Math.round((score1/(score1+score2))*100);
   const rankDiff = Math.abs(rank1-rank2);
   const rankingFactor = Math.min(70, 20+rankDiff*0.6);
   const formFactor = Math.max(10, 40-rankDiff*0.2);
-  const clutchFactor = 10+Math.random()*10;
+  // Deterministic clutch factor based on player names
+  const clutchFactor = 10 + (hashStr(`${p1}-${p2}-clutch`) % 100) / 10;
   const momentumFactor = Math.max(10, 100-rankingFactor-formFactor-clutchFactor);
   const confidence = Math.min(99, Math.round(Math.abs(p1Win-50)*1.8+Math.min(30,rankDiff*0.4)));
-  const deriveStats = (rank, elo) => {
+
+  // Deterministic player stats — based on rank + name
+  const deriveStats = (playerName, rank, elo) => {
     const base = Math.max(52, Math.min(88, 90 - Math.sqrt(Math.min(rank, 300)) * 2.5));
     const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
-    const rand = () => (Math.random() - 0.5) * 8;
+    const r = (key) => stableRand(`${playerName}-${key}`) * 4; // ±4 stable variance
     return {
-      serve:    Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
-      return:   Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
-      clutch:   Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
-      momentum: Math.min(92, Math.max(52, Math.round(base + eloBonus + rand()))),
+      serve:    Math.min(92, Math.max(52, Math.round(base + eloBonus + r("serve")))),
+      return:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("return")))),
+      clutch:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("clutch")))),
+      momentum: Math.min(92, Math.max(52, Math.round(base + eloBonus + r("momentum")))),
     };
   };
-  const p1Stats = deriveStats(Number(rank1), elo1), p2Stats = deriveStats(Number(rank2), elo2);
+  const p1Stats = deriveStats(p1, Number(rank1), elo1);
+  const p2Stats = deriveStats(p2, Number(rank2), elo2);
   const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
   const setWinP1 = Math.min(0.85, Math.max(0.15, expected1+surfaceSetMod+(surfMod1-surfMod2)*0.01));
   const setWinP2 = 1-setWinP1;
