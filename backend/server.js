@@ -155,21 +155,86 @@ app.get("/api/odds/:match_key", async (req, res) => {
   } catch (err) { console.error("ODDS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
+
+// ─── HELPER: Calculate real form from recent matches ─────────────────────────
+async function getPlayerForm(playerName, standings) {
+  try {
+    const lastName = playerName.toLowerCase().trim().split(" ").pop();
+    const found = standings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+    if (!found?.player_key) return null;
+
+    const today = new Date();
+    const threeMonthsAgo = new Date(today);
+    threeMonthsAgo.setMonth(today.getMonth() - 3);
+    const dateStart = threeMonthsAgo.toISOString().split("T")[0];
+    const dateEnd = today.toISOString().split("T")[0];
+
+    const res = await apiGet({
+      method: "get_fixtures",
+      date_start: dateStart,
+      date_stop: dateEnd,
+      event_type_key: 265,
+      player_key: found.player_key
+    });
+
+    const matches = (res.data?.result || []).filter(m =>
+      m.event_status === "Finished" || m.event_winner
+    );
+    if (matches.length === 0) return null;
+
+    const recent = matches.slice(-10).reverse();
+    let wins = 0, losses = 0, formScore = 0;
+    let surfaceWins = { hard: 0, clay: 0, grass: 0 };
+    let surfaceTotal = { hard: 0, clay: 0, grass: 0 };
+
+    recent.forEach((m, idx) => {
+      const isFirst = (m.event_first_player||"").toLowerCase().includes(lastName);
+      const won = (isFirst && m.event_winner === "First Player") ||
+                  (!isFirst && m.event_winner === "Second Player");
+      const weight = 1 - (idx * 0.08);
+      if (won) { wins++; formScore += weight * 10; }
+      else { losses++; formScore -= weight * 3; }
+      const tn = (m.tournament_name||"").toLowerCase();
+      const surf = tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("madrid")||tn.includes("rome")||tn.includes("monte") ? "clay"
+        : tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens") ? "grass" : "hard";
+      surfaceTotal[surf]++;
+      if (won) surfaceWins[surf]++;
+    });
+
+    const total = wins + losses;
+    const normalizedForm = Math.min(92, Math.max(30, 50 + formScore * 2));
+    const surfaceRates = {};
+    ["hard","clay","grass"].forEach(s => {
+      surfaceRates[s] = surfaceTotal[s] > 0 ? Math.round((surfaceWins[s]/surfaceTotal[s])*100) : null;
+    });
+
+    return {
+      form: Math.round(normalizedForm),
+      winRate: Math.round(total > 0 ? (wins/total)*100 : 50),
+      wins, losses, total,
+      recentResults: recent.slice(0,5).map(m => {
+        const isFirst = (m.event_first_player||"").toLowerCase().includes(lastName);
+        const won = (isFirst && m.event_winner==="First Player")||(!isFirst && m.event_winner==="Second Player");
+        return { won, tournament: m.tournament_name, date: m.event_date, opponent: isFirst ? m.event_second_player : m.event_first_player };
+      }),
+      surfaceRates
+    };
+  } catch (err) {
+    console.error("FORM ERROR:", err.message);
+    return null;
+  }
+}
+
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
   const bo = parseInt(req.query.bo) === 5 ? 5 : 3;
-  const form1 = Number(req.query.form1 || 75), form2 = Number(req.query.form2 || 75);
-  const clutch1 = Number(req.query.clutch1 || 70), clutch2 = Number(req.query.clutch2 || 70);
-  const momentum1 = Number(req.query.momentum1 || 75), momentum2 = Number(req.query.momentum2 || 75);
 
-  // Deterministic hash — same players always get same values
   const hashStr = (str) => {
     let h = 0;
     for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
     return Math.abs(h);
   };
-  // Returns a stable float between -1 and 1 based on seed string
   const stableRand = (seed) => ((hashStr(seed) % 1000) / 500) - 1;
 
   const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
@@ -177,7 +242,27 @@ app.get("/api/predict", async (req, res) => {
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
 
-  // Deterministic surface modifier — based on player name + surface
+  // Fetch real form + standings in parallel
+  let form1Data = null, form2Data = null, standings = [];
+  try {
+    const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
+    standings = standingsRes.data?.result || [];
+    [form1Data, form2Data] = await Promise.all([
+      getPlayerForm(p1, standings),
+      getPlayerForm(p2, standings)
+    ]);
+  } catch(e) { console.error("Form fetch error:", e.message); }
+
+  // Real form if available, fallback to rank-based estimate
+  const form1 = form1Data ? form1Data.form : Math.max(30, Math.min(85, 85 - Number(rank1) * 0.2));
+  const form2 = form2Data ? form2Data.form : Math.max(30, Math.min(85, 85 - Number(rank2) * 0.2));
+
+  // Real surface win rates if available
+  const surfRate1 = form1Data?.surfaceRates?.[surface];
+  const surfRate2 = form2Data?.surfaceRates?.[surface];
+  const surface1 = surfRate1 != null ? surfRate1 : Number(req.query.surface1 || 0);
+  const surface2 = surfRate2 != null ? surfRate2 : Number(req.query.surface2 || 0);
+
   const getSurfaceModifier = (playerName, rank, surf) => {
     const variance = Math.max(2, 8 - Number(rank) * 0.05);
     return Math.round(stableRand(`${playerName}-${surf}`) * variance);
@@ -186,33 +271,33 @@ app.get("/api/predict", async (req, res) => {
   const surfMod2 = getSurfaceModifier(p2, rank2, surface);
   const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
 
-  let score1 = expected1*100*0.50 + form1*0.20 + clutch1*0.10 + momentum1*0.15 + surfMod1*surfaceWeight;
-  let score2 = expected2*100*0.50 + form2*0.20 + clutch2*0.10 + momentum2*0.15 + surfMod2*surfaceWeight;
-  const surface1 = Number(req.query.surface1 || 0), surface2 = Number(req.query.surface2 || 0);
-  if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.5; score2 += surface2*0.5; }
+  // Weighting: Elo 40%, Form 25%, Surface 35%
+  let score1 = expected1*100*0.40 + form1*0.25 + surfMod1*surfaceWeight;
+  let score2 = expected2*100*0.40 + form2*0.25 + surfMod2*surfaceWeight;
+  if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.35; score2 += surface2*0.35; }
 
   const p1Win = Math.round((score1/(score1+score2))*100);
   const rankDiff = Math.abs(rank1-rank2);
   const rankingFactor = Math.min(70, 20+rankDiff*0.6);
   const formFactor = Math.max(10, 40-rankDiff*0.2);
-  // Deterministic clutch factor based on player names
   const clutchFactor = 10 + (hashStr(`${p1}-${p2}-clutch`) % 100) / 10;
   const momentumFactor = Math.max(10, 100-rankingFactor-formFactor-clutchFactor);
   const confidence = Math.min(99, Math.round(Math.abs(p1Win-50)*1.8+Math.min(30,rankDiff*0.4)));
 
-  // Deterministic player stats — based on rank + name
-  const deriveStats = (playerName, rank, elo) => {
+  const deriveStats = (playerName, rank, elo, formData) => {
     const base = Math.max(52, Math.min(88, 90 - Math.sqrt(Math.min(rank, 300)) * 2.5));
     const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
-    const r = (key) => stableRand(`${playerName}-${key}`) * 4; // ±4 stable variance
+    const r = (key) => stableRand(`${playerName}-${key}`) * 4;
+    const formBoost = formData ? (formData.form - 65) * 0.15 : 0;
     return {
-      serve:    Math.min(92, Math.max(52, Math.round(base + eloBonus + r("serve")))),
-      return:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("return")))),
-      clutch:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("clutch")))),
-      momentum: Math.min(92, Math.max(52, Math.round(base + eloBonus + r("momentum")))),
+      serve:    Math.min(92, Math.max(52, Math.round(base + eloBonus + r("serve") + formBoost))),
+      return:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("return") + formBoost))),
+      clutch:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("clutch") + formBoost))),
+      momentum: Math.min(92, Math.max(52, Math.round(base + eloBonus + r("momentum") + formBoost))),
     };
   };
-  const p1Stats = deriveStats(p1, Number(rank1), elo1);
+  const p1Stats = deriveStats(p1, Number(rank1), elo1, form1Data);
+  const p2Stats = deriveStats(p2, Number(rank2), elo2, form2Data);
   const p2Stats = deriveStats(p2, Number(rank2), elo2);
   const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
   const setWinP1 = Math.min(0.85, Math.max(0.15, expected1+surfaceSetMod+(surfMod1-surfMod2)*0.01));
@@ -254,6 +339,7 @@ app.get("/api/predict", async (req, res) => {
     setWinProb:{[p1]:Math.round(setWinP1*100),[p2]:Math.round(setWinP2*100)},
     handicap:{line:handicapLine,favorite,underdog,pick:handicapPick,reason:handicapReason,expGames:{[favorite]:Math.round(expFav*10)/10,[underdog]:Math.round(expDog*10)/10}},
     factors:{ranking:Math.round(rankingFactor),form:Math.round(formFactor),clutch:Math.round(clutchFactor),momentum:Math.round(momentumFactor),surface},
+    formData:{[p1]:form1Data?{form:form1Data.form,wins:form1Data.wins,losses:form1Data.losses,recentResults:form1Data.recentResults}:null,[p2]:form2Data?{form:form2Data.form,wins:form2Data.wins,losses:form2Data.losses,recentResults:form2Data.recentResults}:null},
     explain:p1Win>60?`${p1} has clear advantages in ranking, form and matchup strength.`:p1Win<40?`${p2} has clear advantages in ranking, form and matchup strength.`:`Very evenly matched.`,
     edge:p1Win>65?`${p1} clearly superior`:p1Win>55?`${p1} slight advantage`:p1Win<35?`${p2} clearly superior`:p1Win<45?`${p2} slight advantage`:"very even"
   });
