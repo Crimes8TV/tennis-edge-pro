@@ -70,18 +70,46 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
     const favP = Math.max(p1win, p2win);
     const p = favP / 100;
     const q = 1 - p;
-    // Match Winner
+
+    // Detect Grand Slam → Best of 5
+    const tournLower = (m.tournament || "").toLowerCase();
+    const isGrandSlam = ["french open","roland garros","australian open","wimbledon","us open"].some(gs => tournLower.includes(gs));
+    const bo = isGrandSlam ? 5 : 3;
+
+    // Match Winner confidence
     const conf = favP > 70 ? "High" : favP > 58 ? "Medium" : "Low";
     const confColor = favP > 70 ? "#4ade80" : favP > 58 ? "#facc15" : "#94a3b8";
-    // Set betting Bo3
-    const p20 = Math.round(p * p * 100);
-    const p21 = Math.round(2 * p * p * q * 100);
-    const bestSet = p20 >= p21 ? `${getLastName(fav)} 2-0 (${p20}%)` : `${getLastName(fav)} 2-1 (${p21}%)`;
-    // Handicap
-    const expFav = Math.round((p * p * 12 + 2 * p * p * q * 17 + 2 * p * q * q * 11) * 10) / 10;
-    const expDog = Math.round((p * p * 6 + 2 * p * p * q * 11 + 2 * p * q * q * 17) * 10) / 10;
+
+    // Set betting
+    let bestSet;
+    if (bo === 5) {
+      const p30 = Math.round(p * p * p * 100);
+      const p31 = Math.round(3 * p * p * p * q * 100);
+      const p32 = Math.round(6 * p * p * p * q * q * 100);
+      if (p30 >= p31 && p30 >= p32) bestSet = `${getLastName(fav)} 3-0 (${p30}%)`;
+      else if (p31 >= p32) bestSet = `${getLastName(fav)} 3-1 (${p31}%)`;
+      else bestSet = `${getLastName(fav)} 3-2 (${p32}%)`;
+    } else {
+      const p20 = Math.round(p * p * 100);
+      const p21 = Math.round(2 * p * p * q * 100);
+      bestSet = p20 >= p21 ? `${getLastName(fav)} 2-0 (${p20}%)` : `${getLastName(fav)} 2-1 (${p21}%)`;
+    }
+
+    // Handicap — scale expected games by bo
+    const setsToWin = bo === 5 ? 3 : 2;
+    let expFav, expDog;
+    if (bo === 5) {
+      const sc30=p*p*p, sc31=3*p*p*p*q, sc32=6*p*p*p*q*q;
+      const sc03=q*q*q, sc13=3*p*q*q*q, sc23=6*p*p*q*q*q;
+      expFav = Math.round((sc30*18 + sc31*23 + sc32*26 + sc03*9 + sc13*14 + sc23*17) * 10) / 10;
+      expDog = Math.round((sc30*9 + sc31*14 + sc32*17 + sc03*18 + sc13*23 + sc23*26) * 10) / 10;
+    } else {
+      expFav = Math.round((p*p*12 + 2*p*p*q*17 + 2*p*q*q*11) * 10) / 10;
+      expDog = Math.round((p*p*6 + 2*p*p*q*11 + 2*p*q*q*17) * 10) / 10;
+    }
     const diff = Math.round((expFav - expDog) * 2) / 2;
-    return { fav, favP, conf, confColor, bestSet, diff, expFav, expDog };
+
+    return { fav, favP, conf, confColor, bestSet, diff, expFav, expDog, bo, isGrandSlam };
   };
 
   return (
@@ -166,7 +194,9 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
                 {/* 2. Set Betting */}
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
                   <div>
-                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>Set Betting</div>
+                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>
+                      Set Betting {t.isGrandSlam ? <span style={{color:"#f59e0b"}}>🏆 Bo5</span> : <span style={{color:"#22d3ee"}}>Bo3</span>}
+                    </div>
                     <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>✅ {t.bestSet}</div>
                   </div>
                   <span style={{fontSize:"10px",color:"#64748b"}}>Most likely</span>
