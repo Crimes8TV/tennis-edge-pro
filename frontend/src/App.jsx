@@ -669,20 +669,24 @@ export default function App() {
                               const pickRank = safePlayers.find(p => getPlayerName(p).toLowerCase() === bestPick.toLowerCase())?.rank;
                               const oppRank = safePlayers.find(p => getPlayerName(p).toLowerCase() === oppName.toLowerCase())?.rank;
                               const reasons = [];
-                              if (pickRank && oppRank && pickRank !== oppRank)
-                                reasons.push(pickRank < oppRank ? `Better world ranking (#${pickRank} vs #${oppRank})` : `Lower ranking (#${pickRank} vs #${oppRank}), but Elo compensates`);
-                              if (eloVal && eloOpp) {
-                                const diff = eloVal - eloOpp;
-                                if (Math.abs(diff) > 10) reasons.push(`${diff > 0 ? "Higher" : "Lower"} Elo rating (${eloVal} vs ${eloOpp}, Δ${Math.abs(diff)})`);
-                              }
+                              const oddsGap = ourProb - implProb;
+
+                              // Primary reason: always the odds gap
+                              if (oddsGap > 10) reasons.push(`Bookmaker significantly undervalues ${bestPick} (${implProb}% implied vs ${ourProb}% model — gap of ${oddsGap}%)`);
+                              else if (oddsGap > 5) reasons.push(`Bookmaker slightly undervalues ${bestPick} (${implProb}% implied vs ${ourProb}% model)`);
+
+                              // Only add stat reasons if bestPick is actually BETTER in those stats
                               if (pickStats && oppStats) {
-                                if (Math.abs(pickStats.serve - oppStats.serve) >= 2) reasons.push(`${pickStats.serve > oppStats.serve ? "Stronger" : "Weaker"} serve (${pickStats.serve} vs ${oppStats.serve})`);
-                                if (Math.abs(pickStats.return - oppStats.return) >= 2) reasons.push(`${pickStats.return > oppStats.return ? "Stronger" : "Weaker"} return (${pickStats.return} vs ${oppStats.return})`);
-                                if (Math.abs(pickStats.clutch - oppStats.clutch) >= 2) reasons.push(`${pickStats.clutch > oppStats.clutch ? "Higher" : "Lower"} clutch factor (${pickStats.clutch} vs ${oppStats.clutch})`);
-                                if (Math.abs(pickStats.momentum - oppStats.momentum) >= 2) reasons.push(`${pickStats.momentum > oppStats.momentum ? "Better" : "Worse"} momentum (${pickStats.momentum} vs ${oppStats.momentum})`);
+                                if (pickStats.serve - oppStats.serve >= 3) reasons.push(`Stronger serve (${pickStats.serve} vs ${oppStats.serve})`);
+                                if (pickStats.return - oppStats.return >= 3) reasons.push(`Stronger return (${pickStats.return} vs ${oppStats.return})`);
+                                if (pickStats.clutch - oppStats.clutch >= 3) reasons.push(`Higher clutch factor (${pickStats.clutch} vs ${oppStats.clutch})`);
+                                if (pickStats.momentum - oppStats.momentum >= 3) reasons.push(`Better momentum (${pickStats.momentum} vs ${oppStats.momentum})`);
                               }
-                              if (ourProb - implProb > 5) reasons.push(`Bookmaker significantly underestimates (${implProb}% implied vs ${ourProb}% model)`);
-                              if (reasons.length === 0) reasons.push(`Slight overall advantage in combined Elo + form model`);
+                              // Ranking/Elo only if bestPick is actually better
+                              if (pickRank && oppRank && pickRank < oppRank) reasons.push(`Better world ranking (#${pickRank} vs #${oppRank})`);
+                              if (eloVal && eloOpp && eloVal > eloOpp + 10) reasons.push(`Higher Elo rating (${eloVal} vs ${eloOpp}, Δ${eloVal - eloOpp})`);
+
+                              if (reasons.length === 0) reasons.push(`Model detects ${oddsGap}% edge — bookmaker odds offer positive expected value`);
                               return (
                                 <>
                                   <p style={{margin:"0 0 6px",color:"#e2e8f0",fontSize:"14px"}}><strong style={{color:"#22d3ee"}}>{bestPick}</strong> is the value bet — Edge: <strong style={{color:"#4ade80"}}>+{bestEdge}%</strong></p>
