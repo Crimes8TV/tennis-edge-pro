@@ -443,7 +443,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
     // Retirement/Walkover Erkennung
     const isWalkoverOrRetired = (m) => {
       const status = (m.event_status||"").toLowerCase();
-      return status.includes("walkover")||status.includes("w/o")||status.includes("retired")||status.includes("retirement")||status.includes("withdraw")||status.includes("default");
+      return status.includes("walkover")||status.includes("w/o")||status.includes("retired")||status.includes("retirement")||status.includes("withdraw")||status.includes("default")||status.includes("cancelled")||status.includes("canceled")||status.includes("abandoned");
     };
 
     const isFinished = (m) => {
