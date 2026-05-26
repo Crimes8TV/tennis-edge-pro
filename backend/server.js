@@ -148,6 +148,7 @@ app.get("/api/odds/:match_key", async (req, res) => {
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
+  const bo = parseInt(req.query.bo) === 5 ? 5 : 3; // Best of 3 oder 5
   const form1 = Number(req.query.form1 || 75), form2 = Number(req.query.form2 || 75);
   const clutch1 = Number(req.query.clutch1 || 70), clutch2 = Number(req.query.clutch2 || 70);
   const momentum1 = Number(req.query.momentum1 || 75), momentum2 = Number(req.query.momentum2 || 75);
@@ -187,13 +188,32 @@ app.get("/api/predict", async (req, res) => {
   const favoriteIsP1 = setWinP1>=setWinP2;
   const favorite = favoriteIsP1?p1:p2, underdog = favoriteIsP1?p2:p1;
   const p=Math.max(setWinP1,setWinP2), q=1-p;
-  const expFav = p*p*2*expGPSW + 2*p*p*q*(2*expGPSW+expGPSL) + 2*p*q*q*(expGPSW+2*expGPSL) + q*q*2*expGPSL;
-  const expDog = p*p*2*expGPSL + 2*p*p*q*(2*expGPSL+expGPSW) + 2*p*q*q*(expGPSL+2*expGPSW) + q*q*2*expGPSW;
+
+  // Best of 3 vs Best of 5 Berechnung
+  let expFav, expDog;
+  if (bo === 5) {
+    // Best of 5: erster der 3 Sätze gewinnt
+    const sc30 = p*p*p;
+    const sc31 = 3*p*p*p*q;
+    const sc32 = 6*p*p*p*q*q;
+    const sc03 = q*q*q;
+    const sc13 = 3*p*q*q*q;
+    const sc23 = 6*p*p*q*q*q;
+    expFav = sc30*(3*expGPSW) + sc31*(3*expGPSW+expGPSL) + sc32*(3*expGPSW+2*expGPSL) + sc03*(3*expGPSL) + sc13*(expGPSW+3*expGPSL) + sc23*(2*expGPSW+3*expGPSL);
+    expDog = sc30*(3*expGPSL) + sc31*(expGPSL*3+expGPSW) + sc32*(3*expGPSL+2*expGPSW) + sc03*(3*expGPSW) + sc13*(expGPSL+3*expGPSW) + sc23*(2*expGPSL+3*expGPSW);
+  } else {
+    // Best of 3: erster der 2 Sätze gewinnt
+    const sc20 = p*p, sc21 = 2*p*p*q, sc12 = 2*p*q*q, sc02 = q*q;
+    expFav = sc20*2*expGPSW + sc21*(2*expGPSW+expGPSL) + sc12*(expGPSW+2*expGPSL) + sc02*2*expGPSL;
+    expDog = sc20*2*expGPSL + sc21*(2*expGPSL+expGPSW) + sc12*(expGPSL+2*expGPSW) + sc02*2*expGPSW;
+  }
+
   const handicapLine = Math.round((expFav-expDog)*2)/2;
   const handicapPick = handicapLine>=2?`${favorite} -${handicapLine} Games`:handicapLine>=0.5?`${favorite} -${handicapLine} Games (knapp)`:`Kein klares Handicap`;
   const handicapReason = handicapLine>=2?`${favorite} dominiert erwartungsgemäß um ~${handicapLine} Games.`:handicapLine>=0.5?`Kleiner Vorteil für ${favorite}.`:`Zu ausgeglichen.`;
   res.json({
     player1:p1, player2:p2, surface,
+    bo, format: bo === 5 ? "Best of 5 (Grand Slam)" : "Best of 3",
     elo:{[p1]:Math.round(elo1),[p2]:Math.round(elo2)},
     prediction:{[p1]:p1Win,[p2]:100-p1Win}, confidence,
     playerStats:{[p1]:p1Stats,[p2]:p2Stats},
