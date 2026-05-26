@@ -669,7 +669,19 @@ export default function App() {
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
                   : <div className="matchCardGrid">
-                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
+                      {[...fixtures].sort((a,b) => {
+                        // Live first
+                        if (a.live && !b.live) return -1;
+                        if (!a.live && b.live) return 1;
+                        // ATP before Challenger
+                        const aAtp = a.category?.includes("ATP") ? 0 : 1;
+                        const bAtp = b.category?.includes("ATP") ? 0 : 1;
+                        if (aAtp !== bAtp) return aAtp - bAtp;
+                        // Singles before Doubles
+                        const aSing = a.category?.includes("Singles") ? 0 : 1;
+                        const bSing = b.category?.includes("Singles") ? 0 : 1;
+                        return aSing - bSing;
+                      }).slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
                       {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
                     </div>}
               </div>
