@@ -181,6 +181,25 @@ async function getPlayerForm(playerName, standings) {
       } catch(e) { /* ignore */ }
     }
 
+    // If still not found, search today's fixtures for player_key
+    if (!found?.player_key) {
+      try {
+        const today = new Date().toISOString().split("T")[0];
+        const fixRes = await apiGet({ method: "get_fixtures", date_start: today, date_stop: today });
+        const fixtures = fixRes.data?.result || [];
+        for (const m of fixtures) {
+          if ((m.event_first_player||"").toLowerCase().includes(lastName) && m.event_first_player_key) {
+            found = { player: m.event_first_player, player_key: m.event_first_player_key };
+            break;
+          }
+          if ((m.event_second_player||"").toLowerCase().includes(lastName) && m.event_second_player_key) {
+            found = { player: m.event_second_player, player_key: m.event_second_player_key };
+            break;
+          }
+        }
+      } catch(e) { /* ignore */ }
+    }
+
     if (!found?.player_key) return null;
 
     const today = new Date();
