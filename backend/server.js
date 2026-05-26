@@ -168,9 +168,13 @@ async function getPlayerForm(playerName, standings) {
 
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
+    const fullLower = playerName.toLowerCase().trim();
 
-    // Search in provided standings first
-    let found = standings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+    // Search by last name OR any word in the full name
+    let found = standings.find(p => {
+      const pn = (p.player||"").toLowerCase();
+      return pn.split(" ").some(word => word === lastName) || pn.includes(lastName);
+    });
 
     // If not found, try Challenger standings
     if (!found?.player_key) {
@@ -201,6 +205,7 @@ async function getPlayerForm(playerName, standings) {
     }
 
     if (!found?.player_key) return null;
+    const playerKey = String(found.player_key);
 
     const today = new Date();
     const threeMonthsAgo = new Date(today);
@@ -213,7 +218,7 @@ async function getPlayerForm(playerName, standings) {
       date_start: dateStart,
       date_stop: dateEnd,
       event_type_key: 265,
-      player_key: found.player_key
+      player_key: playerKey
     });
 
     const matches = (res.data?.result || []).filter(m =>
