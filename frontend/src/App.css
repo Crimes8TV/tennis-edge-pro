@@ -289,19 +289,20 @@ select { background: #0f172a; color: white; border: 1px solid #22d3ee; border-ra
 
   .mobile-nav-item {
     flex: 1;
-    min-width: 56px;
+    min-width: 44px;
+    max-width: 72px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 6px 4px;
+    gap: 2px;
+    padding: 5px 2px;
     border: none;
     background: transparent;
     color: #475569;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 600;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     cursor: pointer;
     transition: color 0.2s;
     text-transform: uppercase;
