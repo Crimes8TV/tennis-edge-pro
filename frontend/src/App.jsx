@@ -652,12 +652,49 @@ export default function App() {
                           </div>
                           <div style={{padding:"14px 16px",borderRadius:"12px",background:bestPick?"rgba(34,211,238,0.08)":"rgba(100,116,139,0.1)",border:`1px solid ${bestPick?"rgba(34,211,238,0.3)":"rgba(100,116,139,0.2)"}`}}>
                             <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>🧠 Summary</div>
-                            {!bestPick ? <p style={{margin:0,color:"#94a3b8",fontSize:"13px"}}><strong style={{color:"#f87171"}}>No value detected.</strong> Die Bookmaker-Quoten sind fairer bewertet.</p> : (
+                            {!bestPick ? (
                               <>
-                                <p style={{margin:"0 0 8px",color:"#e2e8f0",fontSize:"14px"}}><strong style={{color:"#22d3ee"}}>{bestPick}</strong> is the value bet — Edge: <strong style={{color:"#4ade80"}}>+{bestEdge}%</strong></p>
-                                <p style={{margin:0,color:"#64748b",fontSize:"12px"}}>Positiver Edge = langfristig profitabel. Kein Gewinn garantiert.</p>
+                                <p style={{margin:"0 0 6px",color:"#e2e8f0",fontSize:"14px"}}><strong style={{color:"#f87171"}}>No value detected.</strong></p>
+                                <p style={{margin:0,color:"#94a3b8",fontSize:"13px"}}>The bookmaker odds are fairly priced. A negative edge is not profitable long-term — better to pass.</p>
                               </>
-                            )}
+                            ) : (() => {
+                              const isP1 = bestPick === prediction.player1;
+                              const implProb = Math.round(100 / (isP1 ? odds1 : odds2));
+                              const ourProb = prediction.prediction[bestPick];
+                              const oppName = isP1 ? prediction.player2 : prediction.player1;
+                              const eloVal = prediction.elo?.[bestPick] || 0;
+                              const eloOpp = prediction.elo?.[oppName] || 0;
+                              const pickStats = prediction.playerStats?.[bestPick];
+                              const oppStats = prediction.playerStats?.[oppName];
+                              const pickRank = safePlayers.find(p => getPlayerName(p).toLowerCase() === bestPick.toLowerCase())?.rank;
+                              const oppRank = safePlayers.find(p => getPlayerName(p).toLowerCase() === oppName.toLowerCase())?.rank;
+                              const reasons = [];
+                              if (pickRank && oppRank && pickRank !== oppRank)
+                                reasons.push(pickRank < oppRank ? `Better world ranking (#${pickRank} vs #${oppRank})` : `Lower ranking (#${pickRank} vs #${oppRank}), but Elo compensates`);
+                              if (eloVal && eloOpp) {
+                                const diff = eloVal - eloOpp;
+                                if (Math.abs(diff) > 10) reasons.push(`${diff > 0 ? "Higher" : "Lower"} Elo rating (${eloVal} vs ${eloOpp}, Δ${Math.abs(diff)})`);
+                              }
+                              if (pickStats && oppStats) {
+                                if (Math.abs(pickStats.serve - oppStats.serve) >= 2) reasons.push(`${pickStats.serve > oppStats.serve ? "Stronger" : "Weaker"} serve (${pickStats.serve} vs ${oppStats.serve})`);
+                                if (Math.abs(pickStats.return - oppStats.return) >= 2) reasons.push(`${pickStats.return > oppStats.return ? "Stronger" : "Weaker"} return (${pickStats.return} vs ${oppStats.return})`);
+                                if (Math.abs(pickStats.clutch - oppStats.clutch) >= 2) reasons.push(`${pickStats.clutch > oppStats.clutch ? "Higher" : "Lower"} clutch factor (${pickStats.clutch} vs ${oppStats.clutch})`);
+                                if (Math.abs(pickStats.momentum - oppStats.momentum) >= 2) reasons.push(`${pickStats.momentum > oppStats.momentum ? "Better" : "Worse"} momentum (${pickStats.momentum} vs ${oppStats.momentum})`);
+                              }
+                              if (ourProb - implProb > 5) reasons.push(`Bookmaker significantly underestimates (${implProb}% implied vs ${ourProb}% model)`);
+                              if (reasons.length === 0) reasons.push(`Slight overall advantage in combined Elo + form model`);
+                              return (
+                                <>
+                                  <p style={{margin:"0 0 6px",color:"#e2e8f0",fontSize:"14px"}}><strong style={{color:"#22d3ee"}}>{bestPick}</strong> is the value bet — Edge: <strong style={{color:"#4ade80"}}>+{bestEdge}%</strong></p>
+                                  <p style={{margin:"0 0 8px",color:"#94a3b8",fontSize:"13px"}}>Bookmaker: <strong style={{color:"#f472b6"}}>{implProb}%</strong> → Our model: <strong style={{color:"#4ade80"}}>{ourProb}%</strong> — Difference: +{bestEdge}%</p>
+                                  <p style={{margin:"0 0 6px",color:"#22d3ee",fontSize:"12px",fontWeight:600}}>Why rated higher:</p>
+                                  <ul style={{margin:"0 0 8px",paddingLeft:"16px"}}>
+                                    {reasons.map((r,i) => <li key={i} style={{color:"#94a3b8",fontSize:"12px",marginBottom:"3px"}}>{r}</li>)}
+                                  </ul>
+                                  <p style={{margin:0,color:"#64748b",fontSize:"11px"}}>Positive edge = long-term profitable with repeated use. No win guaranteed.</p>
+                                </>
+                              );
+                            })()}
                           </div>
                         </>
                       );
