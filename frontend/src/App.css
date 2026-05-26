@@ -404,3 +404,102 @@ html, body, #root {
   padding: 0;
   overflow-x: hidden;
 }
+
+/* ── LIGHT MODE ── */
+.light-mode {
+  --bg: #f0f4f8;
+  --bg2: #ffffff;
+  --bg3: #e8edf5;
+  --border: rgba(0,0,0,0.08);
+  --text: #0f172a;
+  --text2: #334155;
+  --text3: #64748b;
+  --cyan: #0891b2;
+  --green: #16a34a;
+}
+
+.light-mode body,
+.light-mode {
+  background: #f0f4f8;
+  color: #0f172a;
+}
+
+.light-mode .sidebar {
+  background: #ffffff;
+  border-right: 1px solid rgba(0,0,0,0.08);
+}
+
+.light-mode .sidebar h1 { color: #0891b2; }
+.light-mode .sidebar p  { color: #64748b; }
+
+.light-mode .sidebar button {
+  background: #f8fafc;
+  color: #334155;
+}
+.light-mode .sidebar button:hover {
+  background: rgba(8,145,178,0.08);
+  color: #0891b2;
+}
+
+.light-mode main { background: #f0f4f8; }
+
+.light-mode h2 { color: #0891b2; }
+
+.light-mode .panel {
+  background: #ffffff;
+  border-color: rgba(8,145,178,0.3);
+  box-shadow: 0 0 20px rgba(8,145,178,0.1);
+}
+.light-mode .panel h3 { color: #0891b2; }
+
+.light-mode .matchCard {
+  background: #ffffff;
+  border-color: rgba(8,145,178,0.15);
+}
+.light-mode .matchCard:hover {
+  background: rgba(8,145,178,0.04);
+  border-color: rgba(8,145,178,0.35);
+}
+
+.light-mode .playerSearchInput {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(8,145,178,0.4);
+}
+.light-mode .playerDropdown {
+  background: #ffffff;
+  border-color: rgba(8,145,178,0.3);
+}
+.light-mode .playerDropdown li { color: #334155; border-color: rgba(0,0,0,0.05); }
+.light-mode .playerDropdown li:hover { background: rgba(8,145,178,0.08); color: #0891b2; }
+
+.light-mode .surfaceBtn {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: rgba(0,0,0,0.1);
+}
+.light-mode .surfaceBtn.active {
+  background: rgba(8,145,178,0.1);
+  color: #0891b2;
+  border-color: #0891b2;
+}
+
+.light-mode .valuePickRow {
+  background: rgba(22,163,74,0.04);
+  border-color: rgba(22,163,74,0.2);
+}
+.light-mode .valuePickCardMini {
+  background: rgba(22,163,74,0.04);
+  border-color: rgba(22,163,74,0.15);
+}
+
+.light-mode .dashSectionHeader { color: #64748b; }
+.light-mode .bar { background: #e2e8f0; }
+
+.light-mode .mobile-nav {
+  background: #ffffff;
+  border-top-color: rgba(0,0,0,0.08);
+}
+.light-mode .mobile-nav-item { color: #94a3b8; }
+.light-mode .mobile-nav-item.active { color: #0891b2; }
+.light-mode .mobile-nav-item.active::before { background: #0891b2; }
