@@ -464,7 +464,38 @@ export default function App() {
         </button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
       </aside>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="mobile-nav">
+        {[
+          {id:"dashboard", icon:<Activity size={20}/>, label:"Dashboard"},
+          {id:"matches",   icon:<Calendar size={20}/>, label:"Matches"},
+          {id:"valuepicks",icon:<TrendingUp size={20}/>, label:"Value Picks"},
+          {id:"predictor", icon:<Zap size={20}/>, label:"Predictor"},
+          {id:"tournamentpred", icon:<Star size={20}/>, label:"Tournaments"},
+          {id:"h2h",       icon:<Trophy size={20}/>, label:"H2H"},
+          {id:"player",    icon:<Search size={20}/>, label:"Players"},
+          {id:"watchlist", icon:<span style={{fontSize:"18px"}}>🔖</span>, label:"Watchlist"},
+        ].map(item => (
+          <button key={item.id} className={`mobile-nav-item ${tab===item.id?"active":""}`} onClick={() => setTab(item.id)}>
+            {item.icon}
+            <span>{item.label}</span>
+            {item.id==="watchlist" && watchlist.length > 0 && <span className="mobile-nav-badge">{watchlist.length}</span>}
+          </button>
+        ))}
+      </nav>
+
       <main>
+        {/* Mobile Header */}
+        <div className="mobile-header">
+          <h1>TennisEdge Pro</h1>
+          {fixtures.some(m=>m.live) && (
+            <span style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"4px 10px",fontSize:"11px",color:"#f87171",fontWeight:700}}>
+              <span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />
+              {fixtures.filter(m=>m.live).length} Live
+            </span>
+          )}
+        </div>
 
         {tab === "dashboard" && (
           <>
