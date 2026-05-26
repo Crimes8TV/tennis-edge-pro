@@ -1091,11 +1091,31 @@ export default function App() {
                                 <span style={{fontSize:"13px",fontWeight:800,color:formColor}}>{fd.form}</span>
                               </div>
                               <div style={{fontSize:"11px",color:"#64748b",marginBottom:"6px"}}>{fd.wins}W - {fd.losses}L ({fd.total} matches)</div>
+                              {/* Hand win rates */}
+                              {(fd.handRates?.vsRight || fd.handRates?.vsLeft) && (
+                                <div style={{display:"flex",gap:"6px",marginBottom:"6px",flexWrap:"wrap"}}>
+                                  {fd.handRates.vsRight && (
+                                    <span style={{fontSize:"10px",padding:"1px 7px",borderRadius:"5px",
+                                      background:`rgba(34,211,238,0.1)`,border:"1px solid rgba(34,211,238,0.2)",
+                                      color:"#22d3ee"}}>
+                                      🤚 vs R: {fd.handRates.vsRight.pct}% ({fd.handRates.vsRight.wins}/{fd.handRates.vsRight.total})
+                                    </span>
+                                  )}
+                                  {fd.handRates.vsLeft && (
+                                    <span style={{fontSize:"10px",padding:"1px 7px",borderRadius:"5px",
+                                      background:`rgba(250,204,21,0.1)`,border:"1px solid rgba(250,204,21,0.2)",
+                                      color:"#facc15"}}>
+                                      ✋ vs L: {fd.handRates.vsLeft.pct}% ({fd.handRates.vsLeft.wins}/{fd.handRates.vsLeft.total})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               {fd.recentResults?.length > 0 && (
                                 <div style={{display:"flex",gap:"3px"}}>
                                   {fd.recentResults.map((r,i) => (
-                                    <span key={i} title={`${r.won?"W":"L"} vs ${r.opponent} (${r.date})`} style={{width:"18px",height:"18px",borderRadius:"3px",background:r.won?"rgba(74,222,128,0.3)":"rgba(248,113,113,0.3)",border:`1px solid ${r.won?"#4ade80":"#f87171"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:r.won?"#4ade80":"#f87171",cursor:"default"}}>
+                                    <span key={i} title={`${r.won?"W":"L"} vs ${r.opponent}${r.opponentHand?" ("+r.opponentHand+")":""} (${r.date})`} style={{width:"18px",height:"18px",borderRadius:"3px",background:r.won?"rgba(74,222,128,0.3)":"rgba(248,113,113,0.3)",border:`1px solid ${r.won?"#4ade80":"#f87171"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:r.won?"#4ade80":"#f87171",cursor:"default",position:"relative"}}>
                                       {r.won?"W":"L"}
+                                      {r.opponentHand==="L"&&<span style={{position:"absolute",top:"-4px",right:"-4px",fontSize:"7px",background:"#facc15",color:"#0f172a",borderRadius:"999px",width:"8px",height:"8px",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900}}>L</span>}
                                     </span>
                                   ))}
                                 </div>
