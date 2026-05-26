@@ -713,6 +713,136 @@ export default function App() {
                       })}
                     </div>
                   )}
+
+                  {/* 🎯 Betting Tips */}
+                  {(() => {
+                    const p1w = prediction.prediction?.[prediction.player1] || 50;
+                    const p2w = prediction.prediction?.[prediction.player2] || 50;
+                    const fav = p1w >= p2w ? prediction.player1 : prediction.player2;
+                    const dog = p1w >= p2w ? prediction.player2 : prediction.player1;
+                    const favProb = Math.max(p1w, p2w);
+                    const dogProb = Math.min(p1w, p2w);
+                    const setP = (prediction.setWinProb?.[fav] || favProb) / 100;
+                    const bo = prediction.bo || 3;
+                    const setsToWin = bo === 5 ? 3 : 2;
+
+                    // Match Winner
+                    const matchWinner = { pick: fav, prob: favProb, confidence: favProb > 70 ? "High" : favProb > 60 ? "Medium" : "Low", color: favProb > 70 ? "#4ade80" : favProb > 60 ? "#facc15" : "#94a3b8" };
+
+                    // Set Betting probabilities
+                    const p = setP, q = 1 - p;
+                    let setBets = [];
+                    if (bo === 5) {
+                      const p30 = p*p*p;
+                      const p31 = 3*p*p*p*q;
+                      const p32 = 6*p*p*p*q*q;
+                      setBets = [
+                        { score: `${fav.split(" ").pop()} 3-0`, prob: Math.round(p30*100), label: "3-0" },
+                        { score: `${fav.split(" ").pop()} 3-1`, prob: Math.round(p31*100), label: "3-1" },
+                        { score: `${fav.split(" ").pop()} 3-2`, prob: Math.round(p32*100), label: "3-2" },
+                        { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q*q + 3*q*q*q*p + 6*q*q*q*p*p)*100), label: "Upset" },
+                      ];
+                    } else {
+                      const p20 = p*p;
+                      const p21 = 2*p*p*q;
+                      setBets = [
+                        { score: `${fav.split(" ").pop()} 2-0`, prob: Math.round(p20*100), label: "2-0" },
+                        { score: `${fav.split(" ").pop()} 2-1`, prob: Math.round(p21*100), label: "2-1" },
+                        { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q + 2*q*q*p)*100), label: "Upset" },
+                      ];
+                    }
+
+                    // Handicap
+                    const hLine = prediction.handicap?.line || 0;
+                    const hPick = prediction.handicap?.pick || `${fav} -${hLine} Games`;
+                    const hConf = hLine >= 3 ? "High" : hLine >= 1.5 ? "Medium" : "Low";
+                    const hColor = hLine >= 3 ? "#4ade80" : hLine >= 1.5 ? "#facc15" : "#94a3b8";
+
+                    // Total Games (Over/Under)
+                    const expFavG = prediction.handicap?.expGames?.[fav] || (setsToWin * 6);
+                    const expDogG = prediction.handicap?.expGames?.[dog] || (setsToWin * 4.5);
+                    const expTotal = Math.round((expFavG + expDogG) * 10) / 10;
+                    const ouLine = bo === 5 ? Math.round(expTotal / 0.5) * 0.5 : Math.round(expTotal / 0.5) * 0.5;
+                    const ouPick = expTotal > ouLine ? `Over ${ouLine}` : `Under ${ouLine}`;
+                    const ouConf = Math.abs(expTotal - ouLine) > 1.5 ? "High" : Math.abs(expTotal - ouLine) > 0.5 ? "Medium" : "Low";
+                    const ouColor = ouConf === "High" ? "#4ade80" : ouConf === "Medium" ? "#facc15" : "#94a3b8";
+
+                    const tipStyle = (conf) => ({
+                      background: conf === "High" ? "rgba(74,222,128,0.06)" : conf === "Medium" ? "rgba(250,204,21,0.06)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${conf === "High" ? "rgba(74,222,128,0.2)" : conf === "Medium" ? "rgba(250,204,21,0.2)" : "rgba(255,255,255,0.07)"}`,
+                      borderRadius: "12px", padding: "14px 16px", marginBottom: "10px"
+                    });
+
+                    return (
+                      <div style={{marginTop:"20px",padding:"20px",borderRadius:"16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)"}}>
+                        <h4 style={{margin:"0 0 16px",color:"#e2e8f0",fontSize:"15px",fontWeight:800}}>🎯 Betting Tips</h4>
+
+                        {/* 1. Match Winner */}
+                        <div style={tipStyle(matchWinner.confidence)}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                            <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>1. Match Winner</span>
+                            <span style={{fontSize:"11px",fontWeight:700,color:matchWinner.color,background:`${matchWinner.color}22`,padding:"2px 8px",borderRadius:"6px"}}>{matchWinner.confidence} Confidence</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>✅ {fav}</span>
+                            <span style={{fontSize:"20px",fontWeight:900,color:matchWinner.color}}>{favProb}%</span>
+                          </div>
+                          <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model gives {fav.split(" ").pop()} a {favProb}% win probability vs {dogProb}% for {dog.split(" ").pop()}.</p>
+                        </div>
+
+                        {/* 2. Set Betting */}
+                        <div style={tipStyle(setBets[0]?.prob > 40 ? "High" : "Medium")}>
+                          <div style={{marginBottom:"10px"}}>
+                            <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>2. Set Betting (Best of {bo})</span>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:`repeat(${setBets.length},1fr)`,gap:"8px"}}>
+                            {setBets.map((b,i) => (
+                              <div key={i} style={{textAlign:"center",padding:"10px 6px",borderRadius:"10px",background:i===0?"rgba(34,211,238,0.08)":"rgba(255,255,255,0.03)",border:i===0?"1px solid rgba(34,211,238,0.3)":"1px solid rgba(255,255,255,0.06)"}}>
+                                <div style={{fontSize:"11px",color:i===0?"#22d3ee":"#64748b",fontWeight:700,marginBottom:"4px"}}>{b.label}</div>
+                                <div style={{fontSize:"16px",fontWeight:800,color:i===0?"#22d3ee":"#94a3b8"}}>{b.prob}%</div>
+                                <div style={{fontSize:"10px",color:"#475569",marginTop:"2px"}}>{b.score}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Most likely outcome: <strong style={{color:"#22d3ee"}}>{setBets[0]?.score}</strong> ({setBets[0]?.prob}%)</p>
+                        </div>
+
+                        {/* 3. Handicap */}
+                        <div style={tipStyle(hConf)}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                            <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>3. Handicap (Games)</span>
+                            <span style={{fontSize:"11px",fontWeight:700,color:hColor,background:`${hColor}22`,padding:"2px 8px",borderRadius:"6px"}}>{hConf} Confidence</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>✅ {hPick}</span>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{fontSize:"12px",color:"#64748b"}}>Exp. games</div>
+                              <div style={{fontSize:"16px",fontWeight:800,color:hColor}}>{expFavG} : {expDogG}</div>
+                            </div>
+                          </div>
+                          <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>{prediction.handicap?.reason || `Expected game difference of ${hLine} games.`}</p>
+                        </div>
+
+                        {/* 4. Total Games Over/Under */}
+                        <div style={tipStyle(ouConf)}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+                            <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>4. Total Games (Over/Under)</span>
+                            <span style={{fontSize:"11px",fontWeight:700,color:ouColor,background:`${ouColor}22`,padding:"2px 8px",borderRadius:"6px"}}>{ouConf} Confidence</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>✅ {ouPick} Games</span>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{fontSize:"12px",color:"#64748b"}}>Expected total</div>
+                              <div style={{fontSize:"16px",fontWeight:800,color:ouColor}}>{expTotal} games</div>
+                            </div>
+                          </div>
+                          <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model expects {expFavG} games for {fav.split(" ").pop()} + {expDogG} for {dog.split(" ").pop()} = {expTotal} total.</p>
+                        </div>
+
+                        <p style={{margin:"8px 0 0",fontSize:"11px",color:"#334155",textAlign:"center"}}>⚠️ These are model-based estimates only. Always bet responsibly.</p>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </Panel>
