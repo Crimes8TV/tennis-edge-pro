@@ -39,7 +39,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
   );
 }
 
-function MatchCard({ m, onClick }) {
+function MatchCard({ m, onClick, players = [] }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
@@ -47,52 +47,142 @@ function MatchCard({ m, onClick }) {
   const setCount = sets.length === 0 && m.score && m.score !== "-"
     ? (() => { const parts = m.score.replace(/ /g, "").split("-"); return { p1: parts[0], p2: parts[1] }; })() : null;
   const gameParts = m.gameScore && m.gameScore !== "-" ? m.gameScore.split("-").map(s => s.trim()) : null;
+  const [showTips, setShowTips] = useState(false);
+
+  // Quick prediction based on ranking
+  const getQuickTips = () => {
+    const getLastName = (n) => (n || "").trim().split(" ").pop();
+    const getRankFromPlayers = (name) => {
+      const ln = (name || "").toLowerCase().split(" ").pop();
+      const found = players.find(p => {
+        const pn = typeof p.name === "string" ? p.name : p.name?.name || "";
+        return pn.toLowerCase().split(" ").pop() === ln;
+      });
+      return found?.rank || 200;
+    };
+    const r1 = getRankFromPlayers(m.player1);
+    const r2 = getRankFromPlayers(m.player2);
+    const elo1 = Math.max(1500, 2400 - r1 * 6);
+    const elo2 = Math.max(1500, 2400 - r2 * 6);
+    const p1win = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
+    const p2win = 100 - p1win;
+    const fav = p1win >= p2win ? m.player1 : m.player2;
+    const favP = Math.max(p1win, p2win);
+    const p = favP / 100;
+    const q = 1 - p;
+    // Match Winner
+    const conf = favP > 70 ? "High" : favP > 58 ? "Medium" : "Low";
+    const confColor = favP > 70 ? "#4ade80" : favP > 58 ? "#facc15" : "#94a3b8";
+    // Set betting Bo3
+    const p20 = Math.round(p * p * 100);
+    const p21 = Math.round(2 * p * p * q * 100);
+    const bestSet = p20 >= p21 ? `${getLastName(fav)} 2-0 (${p20}%)` : `${getLastName(fav)} 2-1 (${p21}%)`;
+    // Handicap
+    const expFav = Math.round((p * p * 12 + 2 * p * p * q * 17 + 2 * p * q * q * 11) * 10) / 10;
+    const expDog = Math.round((p * p * 6 + 2 * p * p * q * 11 + 2 * p * q * q * 17) * 10) / 10;
+    const diff = Math.round((expFav - expDog) * 2) / 2;
+    return { fav, favP, conf, confColor, bestSet, diff, expFav, expDog };
+  };
+
   return (
-    <div className="matchCard" onClick={onClick}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-        <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
-          {isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
-            : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Finished</span>
-            : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>}
+    <div className="matchCard">
+      <div onClick={onClick} style={{cursor:"pointer"}}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
+            {isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
+              : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Finished</span>
+              : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>}
+          </div>
         </div>
+        {(isLive || isFinished) ? (
+          <div style={{ marginBottom: "8px" }}>
+            {sets.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "36px").join(" ")}${isLive && gameParts ? " 44px" : ""}`, gap: "4px 10px", alignItems: "center" }}>
+                <div />
+                {sets.map((_, i) => <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>)}
+                {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
+                <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
+                {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>)}
+                {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
+                <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
+                {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>)}
+                {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 50px", gap: "4px 12px", alignItems: "center" }}>
+                <div style={{ fontSize: "10px", color: "#475569" }} />
+                <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sets</div>
+                {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
+                <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
+                <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p1) > parseInt(setCount?.p2) ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>
+                {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
+                <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
+                <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p2) > parseInt(setCount?.p1) ? "#4ade80" : "#94a3b8" }}>{setCount?.p2 ?? "-"}</div>
+                {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ marginBottom: "8px" }}>
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px" }}>{m.player1}</div>
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
+          </div>
+        )}
+        <div className="matchCardMeta">{m.tournament}</div>
       </div>
-      {(isLive || isFinished) ? (
-        <div style={{ marginBottom: "8px" }}>
-          {sets.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: `1fr ${sets.map(() => "36px").join(" ")}${isLive && gameParts ? " 44px" : ""}`, gap: "4px 10px", alignItems: "center" }}>
-              <div />
-              {sets.map((_, i) => <div key={i} style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>S{i+1}</div>)}
-              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
-              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
-              {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p1) > parseInt(s.p2) ? "#4ade80" : "#94a3b8" }}>{s.p1}</div>)}
-              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
-              <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
-              {sets.map((s, i) => <div key={i} style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: parseInt(s.p2) > parseInt(s.p1) ? "#4ade80" : "#94a3b8" }}>{s.p2}</div>)}
-              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "14px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 50px", gap: "4px 12px", alignItems: "center" }}>
-              <div style={{ fontSize: "10px", color: "#475569" }} />
-              <div style={{ textAlign: "center", fontSize: "10px", color: "#475569", fontWeight: 700 }}>Sets</div>
-              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "10px", color: "#f87171", fontWeight: 700 }}>Game</div>}
-              <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player1}</div>
-              <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p1) > parseInt(setCount?.p2) ? "#4ade80" : "#94a3b8" }}>{setCount?.p1 ?? "-"}</div>
-              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[0]}</div>}
-              <div style={{ fontSize: "14px", color: isFinished ? "#94a3b8" : "#e2e8f0", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.player2}</div>
-              <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, color: parseInt(setCount?.p2) > parseInt(setCount?.p1) ? "#4ade80" : "#94a3b8" }}>{setCount?.p2 ?? "-"}</div>
-              {isLive && gameParts && <div style={{ textAlign: "center", fontSize: "15px", fontWeight: 700, color: "#facc15" }}>{gameParts[1]}</div>}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div style={{ marginBottom: "8px" }}>
-          <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px" }}>{m.player1}</div>
-          <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
+
+      {/* Show Tips Button — only for upcoming matches */}
+      {!isFinished && (
+        <div style={{marginTop:"8px"}}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowTips(t => !t); }}
+            style={{width:"100%",padding:"6px",borderRadius:"8px",border:"1px solid rgba(34,211,238,0.2)",background:showTips?"rgba(34,211,238,0.1)":"transparent",color:showTips?"#22d3ee":"#475569",fontSize:"11px",fontWeight:600,cursor:"pointer",transition:"all 0.2s",letterSpacing:"0.5px"}}>
+            {showTips ? "▲ Hide Tips" : "🎯 Show Betting Tips"}
+          </button>
+
+          {showTips && (() => {
+            const t = getQuickTips();
+            return (
+              <div style={{marginTop:"8px",padding:"12px",borderRadius:"10px",background:"rgba(34,211,238,0.04)",border:"1px solid rgba(34,211,238,0.15)"}}>
+                {/* 1. Match Winner */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <div>
+                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>Match Winner</div>
+                    <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>✅ {t.fav}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <span style={{fontSize:"10px",fontWeight:700,color:t.confColor,background:`${t.confColor}22`,padding:"2px 6px",borderRadius:"4px"}}>{t.conf}</span>
+                    <div style={{fontSize:"16px",fontWeight:800,color:t.confColor,marginTop:"2px"}}>{t.favP}%</div>
+                  </div>
+                </div>
+                {/* 2. Set Betting */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <div>
+                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>Set Betting</div>
+                    <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>✅ {t.bestSet}</div>
+                  </div>
+                  <span style={{fontSize:"10px",color:"#64748b"}}>Most likely</span>
+                </div>
+                {/* 3. Handicap */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>Handicap</div>
+                    <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>
+                      {t.diff >= 1 ? `✅ ${t.fav.split(" ").pop()} -${t.diff} Games` : "⚖️ Too close"}
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",fontSize:"12px",color:"#64748b"}}>
+                    Exp: {t.expFav} : {t.expDog}
+                  </div>
+                </div>
+                <p style={{margin:"8px 0 0",fontSize:"10px",color:"#334155",textAlign:"center"}}>Tap match for full AI analysis →</p>
+              </div>
+            );
+          })()}
         </div>
       )}
-      <div className="matchCardMeta">{m.tournament}</div>
     </div>
   );
 }
@@ -350,7 +440,7 @@ export default function App() {
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
                   : <div className="matchCardGrid">
-                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
+                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
                       {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
                     </div>}
               </div>
@@ -447,7 +537,7 @@ export default function App() {
                                   <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{matches.length} Matches</span>
                                 </div>
                                 {!isColl && <div style={{padding:"0 12px 12px"}}><div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                                  {matches.map((m,i) => <MatchCard key={i} m={m} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
+                                  {matches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
                                 </div></div>}
                               </div>
                             );
