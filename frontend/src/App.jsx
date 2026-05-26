@@ -468,14 +468,14 @@ export default function App() {
       {/* Mobile Bottom Navigation */}
       <nav className="mobile-nav">
         {[
-          {id:"dashboard", icon:<Activity size={20}/>, label:"Dashboard"},
-          {id:"matches",   icon:<Calendar size={20}/>, label:"Matches"},
-          {id:"valuepicks",icon:<TrendingUp size={20}/>, label:"Value Picks"},
-          {id:"predictor", icon:<Zap size={20}/>, label:"Predictor"},
-          {id:"tournamentpred", icon:<Star size={20}/>, label:"Tournaments"},
-          {id:"h2h",       icon:<Trophy size={20}/>, label:"H2H"},
-          {id:"player",    icon:<Search size={20}/>, label:"Players"},
-          {id:"watchlist", icon:<span style={{fontSize:"18px"}}>🔖</span>, label:"Watchlist"},
+          {id:"dashboard", icon:<Activity size={18}/>, label:"Home"},
+          {id:"matches",   icon:<Calendar size={18}/>, label:"Matches"},
+          {id:"valuepicks",icon:<TrendingUp size={18}/>, label:"Value"},
+          {id:"predictor", icon:<Zap size={18}/>, label:"Predict"},
+          {id:"tournamentpred", icon:<Star size={18}/>, label:"Cups"},
+          {id:"h2h",       icon:<Trophy size={18}/>, label:"H2H"},
+          {id:"player",    icon:<Search size={18}/>, label:"Players"},
+          {id:"watchlist", icon:<span style={{fontSize:"16px"}}>🔖</span>, label:"Saved"},
         ].map(item => (
           <button key={item.id} className={`mobile-nav-item ${tab===item.id?"active":""}`} onClick={() => setTab(item.id)}>
             {item.icon}
