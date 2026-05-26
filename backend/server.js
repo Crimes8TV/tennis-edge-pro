@@ -168,7 +168,19 @@ async function getPlayerForm(playerName, standings) {
 
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
-    const found = standings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+
+    // Search in provided standings first
+    let found = standings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+
+    // If not found, try Challenger standings
+    if (!found?.player_key) {
+      try {
+        const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
+        const chalStandings = chalRes.data?.result || [];
+        found = chalStandings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+      } catch(e) { /* ignore */ }
+    }
+
     if (!found?.player_key) return null;
 
     const today = new Date();
@@ -256,8 +268,13 @@ app.get("/api/predict", async (req, res) => {
   // Fetch real form + standings in parallel
   let form1Data = null, form2Data = null, standings = [];
   try {
-    const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
-    standings = standingsRes.data?.result || [];
+    const [atpRes, chalRes] = await Promise.allSettled([
+      apiGet({ method: "get_standings", event_type: "ATP" }),
+      apiGet({ method: "get_standings", event_type: "Challenger" })
+    ]);
+    const atpStandings = atpRes.status === "fulfilled" ? atpRes.value.data?.result || [] : [];
+    const chalStandings = chalRes.status === "fulfilled" ? chalRes.value.data?.result || [] : [];
+    standings = [...atpStandings, ...chalStandings];
     [form1Data, form2Data] = await Promise.all([
       getPlayerForm(p1, standings),
       getPlayerForm(p2, standings)
