@@ -62,7 +62,7 @@ app.get("/api/players", async (req, res) => {
             clutch:   Math.min(80, Math.max(52, Math.round(base + stableVary("clutch")))),
             momentum: Math.min(80, Math.max(52, Math.round(base + stableVary("momentum")))),
             hard: 68, clay: 68, grass: 63,
-            form: [Math.round(base), Math.round(base+vary()), Math.round(base+vary()), Math.round(base+vary()), Math.round(base+vary())]
+            form: [Math.round(base), Math.round(base+stableVary("f1")), Math.round(base+stableVary("f2")), Math.round(base+stableVary("f3")), Math.round(base+stableVary("f4"))]
           });
         }
       });
