@@ -173,14 +173,14 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
         const form1 = getFormScore(pd1);
         const form2 = getFormScore(pd2);
 
-        // Combined: 55% Elo, 35% Form, 10% Surface
-        const surfMod = tn.includes("french")||tn.includes("roland") ? 0.07  // Clay → longer matches
-          : tn.includes("wimbledon") ? -0.05  // Grass → faster, more 3-0
-          : tn.includes("australian") ? 0.02  // Hard → neutral/slight longer
-          : 0.03;  // US Open → slight longer
+        // Combined: 75% Elo, 15% Form, 10% Surface
+        const surfMod = tn.includes("french")||tn.includes("roland") ? 0.07
+          : tn.includes("wimbledon") ? -0.05
+          : tn.includes("australian") ? 0.02
+          : 0.03;
 
-        const rawP1 = eloP * 0.55 + (0.5 + (form1 - form2) * 0.5) * 0.35;
-        const p = Math.min(0.92, Math.max(0.08, rawP1));
+        const rawP1 = eloP * 0.75 + (0.5 + (form1 - form2) * 0.5) * 0.15;
+        const p = Math.min(0.95, Math.max(0.05, rawP1));
         const q = 1 - p;
 
         // P(3-0) = p³ + q³ → Over 3.5 = 1 - P(3-0), adjusted by surface
