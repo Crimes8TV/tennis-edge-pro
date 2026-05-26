@@ -47,70 +47,6 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
   const setCount = sets.length === 0 && m.score && m.score !== "-"
     ? (() => { const parts = m.score.replace(/ /g, "").split("-"); return { p1: parts[0], p2: parts[1] }; })() : null;
   const gameParts = m.gameScore && m.gameScore !== "-" ? m.gameScore.split("-").map(s => s.trim()) : null;
-  const [showTips, setShowTips] = useState(false);
-
-  // Quick prediction based on ranking
-  const getQuickTips = () => {
-    const getLastName = (n) => (n || "").trim().split(" ").pop();
-    const getRankFromPlayers = (name) => {
-      const ln = (name || "").toLowerCase().split(" ").pop();
-      const found = players.find(p => {
-        const pn = typeof p.name === "string" ? p.name : p.name?.name || "";
-        return pn.toLowerCase().split(" ").pop() === ln;
-      });
-      return found?.rank || 200;
-    };
-    const r1 = getRankFromPlayers(m.player1);
-    const r2 = getRankFromPlayers(m.player2);
-    const elo1 = Math.max(1500, 2400 - r1 * 6);
-    const elo2 = Math.max(1500, 2400 - r2 * 6);
-    const p1win = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
-    const p2win = 100 - p1win;
-    const fav = p1win >= p2win ? m.player1 : m.player2;
-    const favP = Math.max(p1win, p2win);
-    const p = favP / 100;
-    const q = 1 - p;
-
-    // Detect Grand Slam → Best of 5
-    const tournLower = (m.tournament || "").toLowerCase();
-    const isGrandSlam = ["french open","roland garros","australian open","wimbledon","us open"].some(gs => tournLower.includes(gs));
-    const bo = isGrandSlam ? 5 : 3;
-
-    // Match Winner confidence
-    const conf = favP > 70 ? "High" : favP > 58 ? "Medium" : "Low";
-    const confColor = favP > 70 ? "#4ade80" : favP > 58 ? "#facc15" : "#94a3b8";
-
-    // Set betting
-    let bestSet;
-    if (bo === 5) {
-      const p30 = Math.round(p * p * p * 100);
-      const p31 = Math.round(3 * p * p * p * q * 100);
-      const p32 = Math.round(6 * p * p * p * q * q * 100);
-      if (p30 >= p31 && p30 >= p32) bestSet = `${getLastName(fav)} 3-0 (${p30}%)`;
-      else if (p31 >= p32) bestSet = `${getLastName(fav)} 3-1 (${p31}%)`;
-      else bestSet = `${getLastName(fav)} 3-2 (${p32}%)`;
-    } else {
-      const p20 = Math.round(p * p * 100);
-      const p21 = Math.round(2 * p * p * q * 100);
-      bestSet = p20 >= p21 ? `${getLastName(fav)} 2-0 (${p20}%)` : `${getLastName(fav)} 2-1 (${p21}%)`;
-    }
-
-    // Handicap — scale expected games by bo
-    const setsToWin = bo === 5 ? 3 : 2;
-    let expFav, expDog;
-    if (bo === 5) {
-      const sc30=p*p*p, sc31=3*p*p*p*q, sc32=6*p*p*p*q*q;
-      const sc03=q*q*q, sc13=3*p*q*q*q, sc23=6*p*p*q*q*q;
-      expFav = Math.round((sc30*18 + sc31*23 + sc32*26 + sc03*9 + sc13*14 + sc23*17) * 10) / 10;
-      expDog = Math.round((sc30*9 + sc31*14 + sc32*17 + sc03*18 + sc13*23 + sc23*26) * 10) / 10;
-    } else {
-      expFav = Math.round((p*p*12 + 2*p*p*q*17 + 2*p*q*q*11) * 10) / 10;
-      expDog = Math.round((p*p*6 + 2*p*p*q*11 + 2*p*q*q*17) * 10) / 10;
-    }
-    const diff = Math.round((expFav - expDog) * 2) / 2;
-
-    return { fav, favP, conf, confColor, bestSet, diff, expFav, expDog, bo, isGrandSlam };
-  };
 
   return (
     <div className="matchCard">
@@ -159,64 +95,23 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
           </div>
         )}
         <div className="matchCardMeta">{m.tournament}</div>
-        {onWatchlist && (
-          <button onClick={(e) => { e.stopPropagation(); onWatchlist(m); }}
-            style={{width:"100%",marginTop:"6px",padding:"4px",borderRadius:"6px",border:`1px solid ${isWatched?"rgba(250,204,21,0.4)":"rgba(255,255,255,0.08)"}`,background:isWatched?"rgba(250,204,21,0.08)":"transparent",color:isWatched?"#facc15":"#475569",fontSize:"11px",fontWeight:600,cursor:"pointer",transition:"all 0.2s"}}>
-            {isWatched ? "🔖 Saved to Watchlist" : "☆ Add to Watchlist"}
-          </button>
-        )}
       </div>
 
-      {/* Show Tips Button — only for upcoming matches */}
+      {/* Action buttons for upcoming matches */}
       {!isFinished && (
-        <div style={{marginTop:"8px"}}>
+        <div style={{display:"flex",gap:"6px",marginTop:"8px"}}>
           <button
-            onClick={(e) => { e.stopPropagation(); setShowTips(t => !t); }}
-            style={{width:"100%",padding:"6px",borderRadius:"8px",border:"1px solid rgba(34,211,238,0.2)",background:showTips?"rgba(34,211,238,0.1)":"transparent",color:showTips?"#22d3ee":"#475569",fontSize:"11px",fontWeight:600,cursor:"pointer",transition:"all 0.2s",letterSpacing:"0.5px"}}>
-            {showTips ? "▲ Hide Tips" : "🎯 Show Betting Tips"}
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(34,211,238,0.25)",background:"rgba(34,211,238,0.06)",color:"#22d3ee",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
+            ⚡ Predict
           </button>
-
-          {showTips && (() => {
-            const t = getQuickTips();
-            return (
-              <div style={{marginTop:"8px",padding:"12px",borderRadius:"10px",background:"rgba(34,211,238,0.04)",border:"1px solid rgba(34,211,238,0.15)"}}>
-                {/* 1. Match Winner */}
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-                  <div>
-                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>Match Winner</div>
-                    <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>✅ {t.fav}</div>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <span style={{fontSize:"10px",fontWeight:700,color:t.confColor,background:`${t.confColor}22`,padding:"2px 6px",borderRadius:"4px"}}>{t.conf}</span>
-                    <div style={{fontSize:"16px",fontWeight:800,color:t.confColor,marginTop:"2px"}}>{t.favP}%</div>
-                  </div>
-                </div>
-                {/* 2. Set Betting */}
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-                  <div>
-                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>
-                      Set Betting {t.isGrandSlam ? <span style={{color:"#f59e0b"}}>🏆 Bo5</span> : <span style={{color:"#22d3ee"}}>Bo3</span>}
-                    </div>
-                    <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>✅ {t.bestSet}</div>
-                  </div>
-                  <span style={{fontSize:"10px",color:"#64748b"}}>Most likely</span>
-                </div>
-                {/* 3. Handicap */}
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"2px"}}>Handicap</div>
-                    <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0"}}>
-                      {t.diff >= 1 ? `✅ ${t.fav.split(" ").pop()} -${t.diff} Games` : "⚖️ Too close"}
-                    </div>
-                  </div>
-                  <div style={{textAlign:"right",fontSize:"12px",color:"#64748b"}}>
-                    Exp: {t.expFav} : {t.expDog}
-                  </div>
-                </div>
-                <p style={{margin:"8px 0 0",fontSize:"10px",color:"#334155",textAlign:"center"}}>Tap match for full AI analysis →</p>
-              </div>
-            );
-          })()}
+          {onWatchlist && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onWatchlist(m); }}
+              style={{flex:1,padding:"6px",borderRadius:"8px",border:`1px solid ${isWatched?"rgba(250,204,21,0.4)":"rgba(255,255,255,0.08)"}`,background:isWatched?"rgba(250,204,21,0.08)":"transparent",color:isWatched?"#facc15":"#475569",fontSize:"11px",fontWeight:600,cursor:"pointer",transition:"all 0.2s"}}>
+              {isWatched ? "🔖 Saved" : "☆ Watch"}
+            </button>
+          )}
         </div>
       )}
     </div>
