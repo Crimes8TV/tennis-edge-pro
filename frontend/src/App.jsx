@@ -6,7 +6,7 @@ import {
 import { Activity, Trophy, Search, Zap, TrendingUp, Calendar, Star } from "lucide-react";
 import "./App.css";
 
-function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
+function PlayerAutocomplete({ label, playerNum, value, onChange, players, favorites = [], onToggleFavorite }) {
   const [query, setQuery] = useState(value || "");
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -17,6 +17,11 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
   const filtered = query ? players.filter(p => p.toLowerCase().includes(query.toLowerCase())) : players;
+  // Show favorites first when no query
+  const sortedFiltered = query ? filtered : [
+    ...filtered.filter(p => favorites.includes(p)),
+    ...filtered.filter(p => !favorites.includes(p))
+  ];
   const handleSelect = (name) => { setQuery(name); onChange(name); setOpen(false); };
   const handleChange = (e) => {
     setQuery(e.target.value); setOpen(true);
@@ -30,9 +35,20 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
         <Search size={15} style={{ position: "absolute", left: "13px", top: "50%", transform: "translateY(-50%)", color: "#22d3ee", pointerEvents: "none" }} />
         <input type="text" value={query} onChange={handleChange} onFocus={() => setOpen(true)} placeholder={label} className="playerSearchInput" />
       </div>
-      {open && filtered.length > 0 && (
+      {open && sortedFiltered.length > 0 && (
         <ul className="playerDropdown">
-          {filtered.map(name => <li key={name} className={name === value ? "active" : ""} onMouseDown={() => handleSelect(name)}>{name}</li>)}
+          {sortedFiltered.map(name => (
+            <li key={name} className={name === value ? "active" : ""} onMouseDown={() => handleSelect(name)}
+              style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span>{favorites.includes(name) && <span style={{color:"#facc15",marginRight:"5px"}}>★</span>}{name}</span>
+              {onToggleFavorite && (
+                <span onMouseDown={(e) => { e.stopPropagation(); onToggleFavorite(name); }}
+                  style={{color:favorites.includes(name)?"#facc15":"#334155",fontSize:"14px",cursor:"pointer",padding:"0 4px"}}>
+                  {favorites.includes(name) ? "★" : "☆"}
+                </span>
+              )}
+            </li>
+          ))}
         </ul>
       )}
     </div>
@@ -158,6 +174,52 @@ export default function App() {
   const [surface, setSurface] = useState("hard");
   const [bestOf, setBestOf] = useState(3);
   const [tournamentSection, setTournamentSection] = useState("active");
+
+  // ── Dark/Light Mode ──────────────────────────────────────────────────────────
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem("darkMode") !== "false"; } catch { return true; }
+  });
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem("darkMode", String(next));
+  };
+
+  // ── Favorite Players ─────────────────────────────────────────────────────────
+  const [favoritePlayers, setFavoritePlayers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("favoritePlayers") || "[]"); } catch { return []; }
+  });
+  const toggleFavoritePlayer = (name) => {
+    const updated = favoritePlayers.includes(name)
+      ? favoritePlayers.filter(n => n !== name)
+      : [...favoritePlayers, name].slice(0, 5); // max 5
+    setFavoritePlayers(updated);
+    localStorage.setItem("favoritePlayers", JSON.stringify(updated));
+  };
+  const isFavoritePlayer = (name) => favoritePlayers.includes(name);
+
+  // ── Match History Log ────────────────────────────────────────────────────────
+  const [matchHistory, setMatchHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("matchHistory") || "[]"); } catch { return []; }
+  });
+  const addToHistory = (p1, p2, surface, result) => {
+    const entry = {
+      id: Date.now(),
+      p1, p2, surface,
+      prediction: result?.prediction,
+      winner: result?.prediction?.[p1] > result?.prediction?.[p2] ? p1 : p2,
+      confidence: result?.confidence,
+      date: new Date().toISOString(),
+      bo: result?.bo || 3
+    };
+    const updated = [entry, ...matchHistory].slice(0, 50); // keep last 50
+    setMatchHistory(updated);
+    localStorage.setItem("matchHistory", JSON.stringify(updated));
+  };
+  const clearHistory = () => {
+    setMatchHistory([]);
+    localStorage.removeItem("matchHistory");
+  };
 
   // Watchlist state — persisted in localStorage
   const [watchlist, setWatchlist] = useState(() => {
@@ -290,7 +352,10 @@ export default function App() {
     const r1 = p1Data?.rank || 100;
     const r2 = p2Data?.rank || 100;
     fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${r1}&rank2=${r2}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}&bo=${bestOf}`)
-      .then(res => res.json()).then(data => setPrediction(data)).catch(err => console.error(err));
+      .then(res => res.json()).then(data => {
+        setPrediction(data);
+        addToHistory(p1, p2, surface, data);
+      }).catch(err => console.error(err));
   };
 
   useEffect(() => {
@@ -383,7 +448,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${darkMode ? "" : " light-mode"}`}>
       <aside className="sidebar">
         <h1>TennisEdge&nbsp;Pro</h1>
         <p>Advanced Tennis Analytics</p>
@@ -398,6 +463,17 @@ export default function App() {
           🔖 My Watchlist {watchlist.length > 0 && <span style={{marginLeft:"6px",background:"rgba(250,204,21,0.2)",color:"#facc15",borderRadius:"999px",padding:"1px 7px",fontSize:"11px",fontWeight:700}}>{watchlist.length}</span>}
         </button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
+
+        {/* Sidebar bottom controls */}
+        <div style={{marginTop:"auto",paddingTop:"16px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <button onClick={() => setTab("history")} style={{marginBottom:"8px"}}>
+            🕐 Match History
+            {matchHistory.length > 0 && <span style={{marginLeft:"6px",background:"rgba(99,102,241,0.2)",color:"#818cf8",borderRadius:"999px",padding:"1px 7px",fontSize:"11px",fontWeight:700}}>{matchHistory.length}</span>}
+          </button>
+          <button onClick={toggleDarkMode} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",color:"#94a3b8",fontSize:"13px"}}>
+            {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
+          </button>
+        </div>
       </aside>
 
       {/* Mobile Bottom Navigation */}
@@ -411,6 +487,7 @@ export default function App() {
           {id:"h2h",       icon:<Trophy size={18}/>, label:"H2H"},
           {id:"player",    icon:<Search size={18}/>, label:"Players"},
           {id:"watchlist", icon:<span style={{fontSize:"16px"}}>🔖</span>, label:"Saved"},
+          {id:"history",   icon:<span style={{fontSize:"16px"}}>🕐</span>, label:"History"},
         ].map(item => (
           <button key={item.id} className={`mobile-nav-item ${tab===item.id?"active":""}`} onClick={() => setTab(item.id)}>
             {item.icon}
@@ -625,8 +702,8 @@ export default function App() {
           <>
             <Header title="Player Analyzer" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
-              <PlayerAutocomplete label="Search player 1..." playerNum={1} value={player} onChange={setPlayer} players={playerNames} />
-              <PlayerAutocomplete label="Compare player 2..." playerNum={2} value={comparePlayer} onChange={setComparePlayer} players={playerNames} />
+              <PlayerAutocomplete label="Search player 1..." playerNum={1} value={player} onChange={setPlayer} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
+              <PlayerAutocomplete label="Compare player 2..." playerNum={2} value={comparePlayer} onChange={setComparePlayer} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
             </div>
             <div className="grid two">
               {playerStats && (
@@ -687,8 +764,8 @@ export default function App() {
           <>
             <Header title="Match Predictor" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
-              <PlayerAutocomplete label="Enter name..." playerNum={1} value={p1} onChange={setP1} players={playerNames} />
-              <PlayerAutocomplete label="Enter name..." playerNum={2} value={p2} onChange={setP2} players={playerNames} />
+              <PlayerAutocomplete label="Enter name..." playerNum={1} value={p1} onChange={setP1} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
+              <PlayerAutocomplete label="Enter name..." playerNum={2} value={p2} onChange={setP2} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
             </div>
             <div className="surfaceSelector">
               {[{value:"hard",icon:"🏟️",label:"Hard"},{value:"clay",icon:"🧱",label:"Clay"},{value:"grass",icon:"🌿",label:"Grass"}].map(s => (
@@ -1219,8 +1296,8 @@ export default function App() {
           <>
             <Header title="Head-to-Head Intelligence" />
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
-              <PlayerAutocomplete label="Player 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} />
-              <PlayerAutocomplete label="Player 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} />
+              <PlayerAutocomplete label="Player 1..." playerNum={1} value={h2hP1} onChange={setH2hP1} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
+              <PlayerAutocomplete label="Player 2..." playerNum={2} value={h2hP2} onChange={setH2hP2} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
             </div>
             <button className="predictBtn" onClick={fetchH2H} disabled={!h2hP1||!h2hP2} style={{marginBottom:"24px"}}>⚡ Load Head-to-Head</button>
             {h2hLoading && <p style={{color:"#94a3b8"}}>⏳ Loading H2H data...</p>}
@@ -1350,6 +1427,76 @@ export default function App() {
                   </button>
                 </div>
               </div>
+            )}
+          </>
+        )}
+
+        {tab === "history" && (
+          <>
+            <Header title="Match History" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Your last {matchHistory.length} predictions</p>
+
+            {matchHistory.length === 0 ? (
+              <div style={{textAlign:"center",padding:"60px 20px",background:"rgba(255,255,255,0.02)",borderRadius:"16px",border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{fontSize:"48px",marginBottom:"16px"}}>🕐</div>
+                <h3 style={{color:"#e2e8f0",marginBottom:"8px"}}>No predictions yet</h3>
+                <p style={{color:"#64748b",fontSize:"14px",marginBottom:"24px"}}>Use the Match Predictor to calculate a prediction — it will appear here.</p>
+                <button className="predictBtn" style={{width:"auto",padding:"10px 28px"}} onClick={() => setTab("predictor")}>⚡ Go to Match Predictor</button>
+              </div>
+            ) : (
+              <>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+                  <div style={{display:"flex",gap:"16px",fontSize:"13px",color:"#64748b"}}>
+                    <span>📊 {matchHistory.length} predictions</span>
+                    <span style={{color:"#22d3ee"}}>Most recent first</span>
+                  </div>
+                  <button onClick={clearHistory} style={{padding:"6px 14px",borderRadius:"8px",border:"1px solid rgba(248,113,113,0.2)",background:"transparent",color:"#f87171",fontSize:"12px",cursor:"pointer"}}>
+                    🗑️ Clear History
+                  </button>
+                </div>
+
+                <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                  {matchHistory.map((h) => {
+                    const p1prob = h.prediction?.[h.p1] || 50;
+                    const p2prob = h.prediction?.[h.p2] || 50;
+                    const surfIcon = h.surface === "clay" ? "🧱" : h.surface === "grass" ? "🌿" : "🏟️";
+                    const date = new Date(h.date).toLocaleDateString("en-GB", {day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+                    return (
+                      <div key={h.id} style={{background:"#0f172a",borderRadius:"14px",border:"1px solid rgba(255,255,255,0.07)",padding:"14px 16px",cursor:"pointer"}}
+                        onClick={() => { setP1(h.p1); setP2(h.p2); setSurface(h.surface); setBestOf(h.bo||3); setTab("predictor"); }}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"10px"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                            <span style={{fontSize:"13px"}}>{surfIcon}</span>
+                            <span style={{fontSize:"11px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px"}}>{h.surface} · {h.bo === 5 ? "🏆 Bo5" : "Bo3"}</span>
+                          </div>
+                          <span style={{fontSize:"11px",color:"#334155"}}>{date}</span>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:"8px",alignItems:"center"}}>
+                          <div>
+                            <div style={{fontSize:"14px",fontWeight:700,color:h.winner===h.p1?"#4ade80":"#94a3b8",marginBottom:"4px"}}>{h.winner===h.p1?"🏆 ":""}{h.p1}</div>
+                            <div style={{height:"6px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                              <div style={{width:`${p1prob}%`,height:"100%",background:h.winner===h.p1?"linear-gradient(90deg,#22d3ee,#4ade80)":"#334155",borderRadius:"999px"}} />
+                            </div>
+                            <div style={{fontSize:"12px",color:h.winner===h.p1?"#4ade80":"#64748b",marginTop:"3px",fontWeight:700}}>{p1prob}%</div>
+                          </div>
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:"11px",color:"#334155",fontWeight:700}}>VS</div>
+                            <div style={{fontSize:"10px",color:"#334155",marginTop:"2px"}}>Conf. {h.confidence}%</div>
+                          </div>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontSize:"14px",fontWeight:700,color:h.winner===h.p2?"#4ade80":"#94a3b8",marginBottom:"4px"}}>{h.p2}{h.winner===h.p2?" 🏆":""}</div>
+                            <div style={{height:"6px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                              <div style={{width:`${p2prob}%`,height:"100%",background:h.winner===h.p2?"linear-gradient(90deg,#22d3ee,#4ade80)":"#334155",borderRadius:"999px",marginLeft:"auto"}} />
+                            </div>
+                            <div style={{fontSize:"12px",color:h.winner===h.p2?"#4ade80":"#64748b",marginTop:"3px",fontWeight:700}}>{p2prob}%</div>
+                          </div>
+                        </div>
+                        <div style={{marginTop:"8px",fontSize:"11px",color:"#22d3ee",textAlign:"right"}}>↩ Click to re-run prediction</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </>
         )}
