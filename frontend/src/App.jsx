@@ -752,13 +752,35 @@ export default function App() {
                                   {!isRoundCollapsed && (
                                     <div style={{padding:"0 10px 10px"}}>
                                       {r.matches.map((m,mi) => (
-                                        <div key={mi} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",marginBottom:"4px",background:m.isFinished?(m.correct?"rgba(74,222,128,0.05)":m.correct===false?"rgba(248,113,113,0.05)":"rgba(255,255,255,0.03)"):"rgba(255,255,255,0.03)",borderRadius:"8px",cursor:"pointer",border:m.isFinished?`1px solid ${m.correct?"rgba(74,222,128,0.2)":m.correct===false?"rgba(248,113,113,0.2)":"rgba(255,255,255,0.05)"}`:"1px solid rgba(255,255,255,0.05)"}} onClick={() => {setP1(m.player1);setP2(m.player2);setTab("predictor");}}>
+                                        <div key={mi} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",marginBottom:"4px",background:m.isWalkover?"rgba(250,204,21,0.04)":m.isFinished?(m.correct?"rgba(74,222,128,0.05)":m.correct===false?"rgba(248,113,113,0.05)":"rgba(255,255,255,0.03)"):"rgba(255,255,255,0.03)",borderRadius:"8px",cursor:"pointer",border:m.isWalkover?"1px solid rgba(250,204,21,0.2)":m.isFinished?`1px solid ${m.correct?"rgba(74,222,128,0.2)":m.correct===false?"rgba(248,113,113,0.2)":"rgba(255,255,255,0.05)"}`:"1px solid rgba(255,255,255,0.05)"}} onClick={() => {setP1(m.player1);setP2(m.player2);setTab("predictor");}}>
                                           <div style={{flex:1,minWidth:0}}>
-                                            <div style={{display:"flex",gap:"6px",alignItems:"center"}}>{m.actualWinner===m.player1&&<span style={{fontSize:"10px"}}>🏆</span>}<span style={{fontSize:"13px",fontWeight:m.prediction===m.player1||m.actualWinner===m.player1?700:400,color:m.actualWinner===m.player1?"#4ade80":m.prediction===m.player1?"#22d3ee":"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.player1}</span><span style={{color:"#475569",fontSize:"10px",flexShrink:0}}>#{m.rank1}</span></div>
-                                            <div style={{display:"flex",gap:"6px",alignItems:"center",marginTop:"3px"}}>{m.actualWinner===m.player2&&<span style={{fontSize:"10px"}}>🏆</span>}<span style={{fontSize:"13px",fontWeight:m.prediction===m.player2||m.actualWinner===m.player2?700:400,color:m.actualWinner===m.player2?"#4ade80":m.prediction===m.player2?"#22d3ee":"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.player2}</span><span style={{color:"#475569",fontSize:"10px",flexShrink:0}}>#{m.rank2}</span></div>
+                                            {m.isWalkover && (
+                                              <div style={{fontSize:"10px",color:"#facc15",fontWeight:700,marginBottom:"4px",letterSpacing:"0.5px"}}>
+                                                ⚠️ {m.matchStatus || "W/O"}
+                                              </div>
+                                            )}
+                                            <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+                                              {m.actualWinner===m.player1&&<span style={{fontSize:"10px"}}>🏆</span>}
+                                              {m.isWalkover&&m.actualWinner!==m.player1&&<span style={{fontSize:"10px",color:"#64748b"}}>↩️</span>}
+                                              <span style={{fontSize:"13px",fontWeight:m.prediction===m.player1||m.actualWinner===m.player1?700:400,color:m.actualWinner===m.player1?"#4ade80":m.prediction===m.player1?"#22d3ee":"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.player1}</span>
+                                              <span style={{color:"#475569",fontSize:"10px",flexShrink:0}}>#{m.rank1}</span>
+                                            </div>
+                                            <div style={{display:"flex",gap:"6px",alignItems:"center",marginTop:"3px"}}>
+                                              {m.actualWinner===m.player2&&<span style={{fontSize:"10px"}}>🏆</span>}
+                                              {m.isWalkover&&m.actualWinner!==m.player2&&<span style={{fontSize:"10px",color:"#64748b"}}>↩️</span>}
+                                              <span style={{fontSize:"13px",fontWeight:m.prediction===m.player2||m.actualWinner===m.player2?700:400,color:m.actualWinner===m.player2?"#4ade80":m.prediction===m.player2?"#22d3ee":"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.player2}</span>
+                                              <span style={{color:"#475569",fontSize:"10px",flexShrink:0}}>#{m.rank2}</span>
+                                            </div>
                                           </div>
-                                          <div style={{textAlign:"center",flexShrink:0,margin:"0 12px",minWidth:"60px"}}>{m.isFinished&&m.score?<span style={{fontSize:"11px",color:"#64748b"}}>{m.score}</span>:m.time?<span style={{fontSize:"11px",color:"#475569"}}>🕐 {m.time}</span>:null}</div>
-                                          <div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Pick {m.prob}%</div><div style={{fontSize:"12px",fontWeight:700,color:"#22d3ee"}}>{m.prediction?.split(" ").slice(-1)[0]}</div>{m.isFinished&&<div style={{fontSize:"11px",marginTop:"2px"}}>{m.correct===true&&<span style={{color:"#4ade80"}}>✅ Korrekt</span>}{m.correct===false&&<span style={{color:"#f87171"}}>❌ Falsch</span>}</div>}</div>
+                                          <div style={{textAlign:"center",flexShrink:0,margin:"0 12px",minWidth:"60px"}}>
+                                            {m.isWalkover?<span style={{fontSize:"11px",color:"#facc15",fontWeight:600}}>W/O</span>:m.isFinished&&m.score?<span style={{fontSize:"11px",color:"#64748b"}}>{m.score}</span>:m.time?<span style={{fontSize:"11px",color:"#475569"}}>🕐 {m.time}</span>:null}
+                                          </div>
+                                          <div style={{textAlign:"right",flexShrink:0}}>
+                                            {!m.isWalkover&&<div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Pick {m.prob}%</div>}
+                                            {!m.isWalkover&&<div style={{fontSize:"12px",fontWeight:700,color:"#22d3ee"}}>{m.prediction?.split(" ").slice(-1)[0]}</div>}
+                                            {m.isFinished&&!m.isWalkover&&<div style={{fontSize:"11px",marginTop:"2px"}}>{m.correct===true&&<span style={{color:"#4ade80"}}>✅ Korrekt</span>}{m.correct===false&&<span style={{color:"#f87171"}}>❌ Falsch</span>}</div>}
+                                            {m.isWalkover&&<div style={{fontSize:"11px",color:"#facc15"}}>⚠️ Aufgabe</div>}
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
