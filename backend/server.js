@@ -156,8 +156,16 @@ app.get("/api/odds/:match_key", async (req, res) => {
 });
 
 
+// ─── In-memory cache for form data (5 min TTL) ───────────────────────────────
+const formCache = new Map();
+const FORM_TTL = 5 * 60 * 1000;
+
 // ─── HELPER: Calculate real form from recent matches ─────────────────────────
 async function getPlayerForm(playerName, standings) {
+  const cacheKey = playerName.toLowerCase().trim();
+  const cached = formCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < FORM_TTL) return cached.data;
+
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
     const found = standings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
@@ -208,7 +216,7 @@ async function getPlayerForm(playerName, standings) {
       surfaceRates[s] = surfaceTotal[s] > 0 ? Math.round((surfaceWins[s]/surfaceTotal[s])*100) : null;
     });
 
-    return {
+    const result = {
       form: Math.round(normalizedForm),
       winRate: Math.round(total > 0 ? (wins/total)*100 : 50),
       wins, losses, total,
@@ -219,8 +227,11 @@ async function getPlayerForm(playerName, standings) {
       }),
       surfaceRates
     };
+    formCache.set(cacheKey, { data: result, ts: Date.now() });
+    return result;
   } catch (err) {
     console.error("FORM ERROR:", err.message);
+    formCache.set(cacheKey, { data: null, ts: Date.now() });
     return null;
   }
 }
