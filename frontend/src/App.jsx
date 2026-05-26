@@ -39,7 +39,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
   );
 }
 
-function MatchCard({ m, onClick, players = [] }) {
+function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
@@ -131,6 +131,12 @@ function MatchCard({ m, onClick, players = [] }) {
           </div>
         )}
         <div className="matchCardMeta">{m.tournament}</div>
+        {onWatchlist && (
+          <button onClick={(e) => { e.stopPropagation(); onWatchlist(m); }}
+            style={{width:"100%",marginTop:"6px",padding:"4px",borderRadius:"6px",border:`1px solid ${isWatched?"rgba(250,204,21,0.4)":"rgba(255,255,255,0.08)"}`,background:isWatched?"rgba(250,204,21,0.08)":"transparent",color:isWatched?"#facc15":"#475569",fontSize:"11px",fontWeight:600,cursor:"pointer",transition:"all 0.2s"}}>
+            {isWatched ? "🔖 Saved to Watchlist" : "☆ Add to Watchlist"}
+          </button>
+        )}
       </div>
 
       {/* Show Tips Button — only for upcoming matches */}
@@ -227,6 +233,34 @@ export default function App() {
   const [surface, setSurface] = useState("hard");
   const [bestOf, setBestOf] = useState(3);
   const [tournamentSection, setTournamentSection] = useState("active");
+
+  // Watchlist state — persisted in localStorage
+  const [watchlist, setWatchlist] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("watchlist") || "[]"); } catch { return []; }
+  });
+  const [watchlistNotes, setWatchlistNotes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("watchlistNotes") || "{}"); } catch { return {}; }
+  });
+
+  const saveWatchlist = (list) => {
+    setWatchlist(list);
+    localStorage.setItem("watchlist", JSON.stringify(list));
+  };
+  const saveNote = (key, text) => {
+    const updated = { ...watchlistNotes, [key]: text };
+    setWatchlistNotes(updated);
+    localStorage.setItem("watchlistNotes", JSON.stringify(updated));
+  };
+  const toggleWatchlist = (m) => {
+    const key = `${m.player1}|${m.player2}|${m.tournament}`;
+    const exists = watchlist.find(w => w.key === key);
+    if (exists) saveWatchlist(watchlist.filter(w => w.key !== key));
+    else saveWatchlist([...watchlist, { key, player1: m.player1, player2: m.player2, tournament: m.tournament, time: m.time, date: new Date().toISOString().split("T")[0] }]);
+  };
+  const isWatched = (m) => {
+    const key = `${m.player1}|${m.player2}|${m.tournament}`;
+    return !!watchlist.find(w => w.key === key);
+  };
 
   const safePlayers = Array.isArray(players) ? players : [];
   const getPlayerName = (p) => typeof p.name === "string" ? p.name : p.name?.name || "";
@@ -425,6 +459,9 @@ export default function App() {
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
         <button onClick={() => setTab("h2h")}><Trophy /> Head-to-Head</button>
         <button onClick={() => setTab("tournamentpred")}><Star /> Tournament Prediction</button>
+        <button onClick={() => setTab("watchlist")} style={tab==="watchlist"?{borderColor:"rgba(250,204,21,0.4)",color:"#facc15"}:{}}>
+          🔖 My Watchlist {watchlist.length > 0 && <span style={{marginLeft:"6px",background:"rgba(250,204,21,0.2)",color:"#facc15",borderRadius:"999px",padding:"1px 7px",fontSize:"11px",fontWeight:700}}>{watchlist.length}</span>}
+        </button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
       </aside>
       <main>
@@ -442,7 +479,7 @@ export default function App() {
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
                   : <div className="matchCardGrid">
-                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
+                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} />)}
                       {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
                     </div>}
               </div>
@@ -546,7 +583,7 @@ export default function App() {
                                   <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{matches.length} Matches</span>
                                 </div>
                                 {!isColl && <div style={{padding:"0 12px 12px"}}><div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                                  {matches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} />)}
+                                  {matches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} />)}
                                 </div></div>}
                               </div>
                             );
@@ -1222,6 +1259,91 @@ export default function App() {
                   </Panel>
                 </div>
               </>
+            )}
+          </>
+        )}
+
+        {tab === "watchlist" && (
+          <>
+            <Header title="My Watchlist" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
+              Your saved matches — add notes and track your picks
+            </p>
+
+            {watchlist.length === 0 ? (
+              <div style={{textAlign:"center",padding:"60px 20px",background:"rgba(255,255,255,0.02)",borderRadius:"16px",border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{fontSize:"48px",marginBottom:"16px"}}>🔖</div>
+                <h3 style={{color:"#e2e8f0",marginBottom:"8px"}}>No matches saved yet</h3>
+                <p style={{color:"#64748b",fontSize:"14px",marginBottom:"24px"}}>Go to the Matches tab and click "Add to Watchlist" on any upcoming match.</p>
+                <button className="predictBtn" style={{width:"auto",padding:"10px 28px"}} onClick={() => setTab("matches")}>
+                  📅 Go to Matches
+                </button>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+                {watchlist.map((w) => {
+                  const note = watchlistNotes[w.key] || "";
+                  const surface = (w.tournament||"").toLowerCase().includes("clay")||["roland","french","monte","madrid","rome","barcelona"].some(x=>(w.tournament||"").toLowerCase().includes(x)) ? {icon:"🧱",label:"Clay",color:"#ef4444"} : (w.tournament||"").toLowerCase().includes("grass")||["wimbledon","halle","queens"].some(x=>(w.tournament||"").toLowerCase().includes(x)) ? {icon:"🌿",label:"Grass",color:"#4ade80"} : {icon:"🏟️",label:"Hard",color:"#22d3ee"};
+                  return (
+                    <div key={w.key} style={{background:"#0f172a",borderRadius:"16px",border:"1px solid rgba(255,255,255,0.07)",overflow:"hidden"}}>
+                      {/* Match Header */}
+                      <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"16px"}}>
+                          <div style={{flex:1}}>
+                            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
+                              <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"4px",background:`${surface.color}22`,color:surface.color,fontWeight:700}}>{surface.icon} {surface.label}</span>
+                              <span style={{fontSize:"11px",color:"#475569"}}>{w.tournament}</span>
+                              {w.time && <span style={{fontSize:"11px",color:"#475569"}}>🕐 {w.time}</span>}
+                            </div>
+                            <div style={{fontSize:"16px",fontWeight:700,color:"#e2e8f0",marginBottom:"2px"}}>{w.player1}</div>
+                            <div style={{fontSize:"16px",fontWeight:700,color:"#94a3b8"}}>vs {w.player2}</div>
+                          </div>
+                          <div style={{display:"flex",gap:"8px",flexShrink:0}}>
+                            <button onClick={() => { setP1(w.player1); setP2(w.player2); setTab("predictor"); }}
+                              style={{padding:"6px 12px",borderRadius:"8px",border:"1px solid rgba(34,211,238,0.3)",background:"rgba(34,211,238,0.08)",color:"#22d3ee",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
+                              ⚡ Predict
+                            </button>
+                            <button onClick={() => { setH2hP1(w.player1); setH2hP2(w.player2); setTab("h2h"); fetchH2H(); }}
+                              style={{padding:"6px 12px",borderRadius:"8px",border:"1px solid rgba(99,102,241,0.3)",background:"rgba(99,102,241,0.08)",color:"#818cf8",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
+                              ⚔️ H2H
+                            </button>
+                            <button onClick={() => saveWatchlist(watchlist.filter(x => x.key !== w.key))}
+                              style={{padding:"6px 10px",borderRadius:"8px",border:"1px solid rgba(248,113,113,0.2)",background:"rgba(248,113,113,0.06)",color:"#f87171",fontSize:"11px",cursor:"pointer"}}>
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes Section */}
+                      <div style={{padding:"16px 20px"}}>
+                        <div style={{fontSize:"11px",color:"#475569",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"8px"}}>📝 My Notes</div>
+                        <textarea
+                          value={note}
+                          onChange={(e) => saveNote(w.key, e.target.value)}
+                          placeholder="Add your notes, analysis or picks here..."
+                          style={{width:"100%",boxSizing:"border-box",minHeight:"80px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"10px",padding:"10px 12px",color:"#e2e8f0",fontSize:"13px",resize:"vertical",outline:"none",fontFamily:"inherit",lineHeight:1.5}}
+                          onFocus={e => e.target.style.borderColor="rgba(34,211,238,0.3)"}
+                          onBlur={e => e.target.style.borderColor="rgba(255,255,255,0.08)"}
+                        />
+                        {note && (
+                          <div style={{display:"flex",justifyContent:"flex-end",marginTop:"4px"}}>
+                            <span style={{fontSize:"11px",color:"#334155"}}>✓ Auto-saved</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Clear all */}
+                <div style={{textAlign:"center",paddingTop:"8px"}}>
+                  <button onClick={() => { if(window.confirm("Clear all watchlist entries?")) saveWatchlist([]); }}
+                    style={{padding:"6px 16px",borderRadius:"8px",border:"1px solid rgba(248,113,113,0.2)",background:"transparent",color:"#f87171",fontSize:"12px",cursor:"pointer"}}>
+                    🗑️ Clear Watchlist
+                  </button>
+                </div>
+              </div>
             )}
           </>
         )}
