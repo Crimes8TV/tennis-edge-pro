@@ -722,8 +722,8 @@ export default function App() {
                   <div className="valueBox">
                     <h4>💰 Value Bet Check</h4>
                     <div style={{display:"flex",gap:"12px",marginBottom:"12px"}}>
-                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player1} Odds</div><input type="number" step="0.01" value={odds1} onChange={e=>setOdds1(Number(e.target.value))} style={{width:"100%",boxSizing:"border-box"}} /></div>
-                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player2} Odds</div><input type="number" step="0.01" value={odds2} onChange={e=>setOdds2(Number(e.target.value))} style={{width:"100%",boxSizing:"border-box"}} /></div>
+                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player1} Odds</div><input type="text" inputMode="decimal" value={odds1} onChange={e=>{const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v))setOdds1(v);else if(e.target.value===""||e.target.value==="-")setOdds1(e.target.value);}} onBlur={e=>{const v=parseFloat(String(e.target.value).replace(",","."));if(!isNaN(v))setOdds1(v);}} style={{width:"100%",boxSizing:"border-box"}} /></div>
+                      <div style={{flex:1}}><div style={{fontSize:"11px",color:"#94a3b8",marginBottom:"4px",textTransform:"uppercase"}}>{prediction.player2} Odds</div><input type="text" inputMode="decimal" value={odds2} onChange={e=>{const v=parseFloat(e.target.value.replace(",","."));if(!isNaN(v))setOdds2(v);else if(e.target.value===""||e.target.value==="-")setOdds2(e.target.value);}} onBlur={e=>{const v=parseFloat(String(e.target.value).replace(",","."));if(!isNaN(v))setOdds2(v);}} style={{width:"100%",boxSizing:"border-box"}} /></div>
                     </div>
                     {(() => {
                       const edge1=parseFloat((prediction.prediction[prediction.player1]-100/odds1).toFixed(1));
