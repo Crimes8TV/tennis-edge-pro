@@ -808,7 +808,19 @@ app.get("/api/tournament-predictions", async (req, res) => {
   } catch(err) { console.error("TOURNAMENT PREDICTIONS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
-// ─── DEBUG PLAYER ─────────────────────────────────────────────────────────────
+// ─── DEBUG PLAYER FULL ───────────────────────────────────────────────────────
+app.get("/api/debug-player-full", async (req, res) => {
+  try {
+    const name = (req.query.name||"sinner").toLowerCase();
+    const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
+    const standings = standingsRes.data?.result || [];
+    const found = standings.find(p => (p.player||"").toLowerCase().includes(name));
+    if (!found?.player_key) return res.json({ error: "Player not found in standings", name });
+    const playerRes = await apiGet({ method: "get_players", player_key: found.player_key });
+    const playerData = playerRes.data?.result?.[0];
+    res.json({ standings_entry: found, full_player_data: playerData });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 app.get("/api/debug-player", async (req, res) => {
   try {
     const name = (req.query.name||"").toLowerCase();
