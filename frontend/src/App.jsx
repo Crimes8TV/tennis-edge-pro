@@ -60,7 +60,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
   );
 }
 
-function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
+function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const catAtp = m.category?.includes("ATP");
@@ -120,11 +120,16 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched }) {
 
       {/* Action buttons for upcoming matches */}
       {!isFinished && (
-        <div style={{display:"flex",gap:"6px",marginTop:"8px"}}>
+        <div style={{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap"}}>
           <button
             onClick={(e) => { e.stopPropagation(); onClick(); }}
             style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(34,211,238,0.25)",background:"rgba(34,211,238,0.06)",color:"#22d3ee",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
             ⚡ Predict
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); if(onCompare) onCompare(m.player1, m.player2); }}
+            style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(139,92,246,0.25)",background:"rgba(139,92,246,0.06)",color:"#a78bfa",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
+            📊 Compare
           </button>
           {onWatchlist && (
             <button
@@ -156,6 +161,7 @@ export default function App() {
   const [tournamentPreds, setTournamentPreds] = useState([]);
   const [tournamentPredsLoading, setTournamentPredsLoading] = useState(false);
   const [expandedTournament, setExpandedTournament] = useState(null);
+  const [tournamentView, setTournamentView] = useState({});
   const [collapsedRounds, setCollapsedRounds] = useState({});
   const toggleRound = (key) => setCollapsedRounds(prev => ({ ...prev, [key]: !prev[key] }));
   const [matchDetailLoading, setMatchDetailLoading] = useState(false);
@@ -514,6 +520,43 @@ export default function App() {
         {tab === "dashboard" && (
           <>
             <Header title="Live Dashboard" />
+
+            {/* Daily Stats Bar */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"28px"}}>
+              {[
+                {label:"Matches Today", value:fixtures.length, icon:"🎾", color:"#22d3ee"},
+                {label:"Live Now",      value:fixtures.filter(m=>m.live).length, icon:"🔴", color:"#f87171"},
+                {label:"Value Picks",   value:valuePicks.filter(p=>!!p.bestOdds).length, icon:"💰", color:"#4ade80"},
+                {label:"My Watchlist",  value:watchlist.length, icon:"🔖", color:"#facc15"},
+              ].map((s,i) => (
+                <div key={i} style={{background:"#0f172a",border:`1px solid ${s.color}22`,borderRadius:"14px",padding:"14px 16px",display:"flex",alignItems:"center",gap:"12px"}}>
+                  <span style={{fontSize:"22px"}}>{s.icon}</span>
+                  <div>
+                    <div style={{fontSize:"22px",fontWeight:900,color:s.color,lineHeight:1}}>{s.value}</div>
+                    <div style={{fontSize:"11px",color:"#475569",marginTop:"3px",textTransform:"uppercase",letterSpacing:"0.5px"}}>{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Match History Quick Stats */}
+            {matchHistory.length > 0 && (() => {
+              const last10 = matchHistory.slice(0,10);
+              return (
+                <div style={{background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"14px",padding:"14px 18px",marginBottom:"24px",display:"flex",alignItems:"center",gap:"20px",flexWrap:"wrap"}}>
+                  <span style={{fontSize:"13px",fontWeight:700,color:"#818cf8"}}>🕐 Recent Predictions</span>
+                  <div style={{display:"flex",gap:"4px"}}>
+                    {last10.map((h,i) => {
+                      const favProb = h.prediction ? Math.max(...Object.values(h.prediction)) : 50;
+                      const conf = favProb > 65 ? "#4ade80" : "#facc15";
+                      return <div key={i} title={`${h.p1} vs ${h.p2}`} style={{width:"28px",height:"28px",borderRadius:"6px",background:`${conf}18`,border:`1px solid ${conf}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"10px",fontWeight:700,color:conf,cursor:"pointer"}} onClick={() => {setP1(h.p1);setP2(h.p2);setSurface(h.surface);setTab("predictor");}}>{favProb}%</div>;
+                    })}
+                  </div>
+                  <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto",cursor:"pointer"}} onClick={() => setTab("history")}>View all →</span>
+                </div>
+              );
+            })()}
+
             <div className="dashGrid">
               <div>
                 <div className="dashSectionHeader">
@@ -524,7 +567,7 @@ export default function App() {
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
                   : <div className="matchCardGrid">
-                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} />)}
+                      {fixtures.slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
                       {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
                     </div>}
               </div>
@@ -628,7 +671,7 @@ export default function App() {
                                   <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{matches.length} Matches</span>
                                 </div>
                                 {!isColl && <div style={{padding:"0 12px 12px"}}><div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                                  {matches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} />)}
+                                  {matches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
                                 </div></div>}
                               </div>
                             );
@@ -1219,7 +1262,86 @@ export default function App() {
                     </div>
                     {isExpanded && (
                       <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",padding:"16px 20px"}}>
-                        {tourn.winProbs?.length>0 && (
+
+                        {/* View Toggle: List vs Draw */}
+                        <div style={{display:"flex",gap:"8px",marginBottom:"16px"}}>
+                          {["list","draw"].map(v => (
+                            <button key={v} onClick={() => setTournamentView(prev => ({...prev,[globalIdx]:v}))}
+                              style={{padding:"5px 14px",borderRadius:"8px",fontSize:"12px",fontWeight:700,cursor:"pointer",border:"none",
+                                background:(tournamentView[globalIdx]||"list")===v?"rgba(34,211,238,0.15)":"rgba(255,255,255,0.04)",
+                                color:(tournamentView[globalIdx]||"list")===v?"#22d3ee":"#475569"}}>
+                              {v==="list"?"📋 List":"🌳 Draw"}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Draw Visualization */}
+                        {(tournamentView[globalIdx]||"list")==="draw" && tourn.rounds?.length>0 && (
+                          <div style={{overflowX:"auto",paddingBottom:"12px"}}>
+                            <div style={{display:"flex",gap:"0",minWidth:`${tourn.rounds.length*220}px`}}>
+                              {[...tourn.rounds].reverse().map((r,ri) => (
+                                <div key={ri} style={{flex:1,minWidth:"200px",padding:"0 6px"}}>
+                                  <div style={{fontSize:"10px",fontWeight:800,color:"#475569",textTransform:"uppercase",letterSpacing:"1px",textAlign:"center",marginBottom:"12px",paddingBottom:"6px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>{r.round}</div>
+                                  <div style={{display:"flex",flexDirection:"column",justifyContent:"space-around",height:`${Math.max(r.matches.length*64,120)}px`,gap:"8px"}}>
+                                    {r.matches.map((m,mi) => {
+                                      const favIsP1 = (m.prob||50) >= 50;
+                                      const fav = favIsP1 ? m.player1 : m.player2;
+                                      const dog = favIsP1 ? m.player2 : m.player1;
+                                      const favProb = m.prob || 50;
+                                      return (
+                                        <div key={mi} onClick={() => {setP1(m.player1);setP2(m.player2);setTab("predictor");}}
+                                          style={{background:m.isWalkover?"rgba(250,204,21,0.06)":m.isFinished?"rgba(74,222,128,0.05)":"rgba(255,255,255,0.03)",
+                                            border:`1px solid ${m.isWalkover?"rgba(250,204,21,0.2)":m.isFinished?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.07)"}`,
+                                            borderRadius:"10px",padding:"8px 10px",cursor:"pointer",transition:"all 0.15s"
+                                          }}>
+                                          {/* Player 1 */}
+                                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"5px"}}>
+                                            <div style={{display:"flex",alignItems:"center",gap:"5px",minWidth:0,flex:1}}>
+                                              {m.actualWinner===m.player1&&<span style={{fontSize:"9px"}}>🏆</span>}
+                                              <span style={{fontSize:"12px",fontWeight:m.prediction===m.player1||m.actualWinner===m.player1?700:400,
+                                                color:m.actualWinner===m.player1?"#4ade80":m.prediction===m.player1?"#22d3ee":"#94a3b8",
+                                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                                {(m.player1||"").split(" ").pop()}
+                                              </span>
+                                            </div>
+                                            <span style={{fontSize:"11px",fontWeight:700,color:m.prediction===m.player1?"#22d3ee":"#475569",flexShrink:0,marginLeft:"4px"}}>
+                                              {m.prediction===m.player1?`${favProb}%`:m.prediction===m.player2?`${100-favProb}%`:""}
+                                            </span>
+                                          </div>
+                                          {/* Mini bar */}
+                                          <div style={{height:"3px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"5px"}}>
+                                            <div style={{width:`${m.prediction===m.player1?favProb:100-favProb}%`,height:"100%",
+                                              background:m.actualWinner===m.player1?"#4ade80":m.prediction===m.player1?"#22d3ee":"#475569",borderRadius:"999px"}} />
+                                          </div>
+                                          {/* Player 2 */}
+                                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                            <div style={{display:"flex",alignItems:"center",gap:"5px",minWidth:0,flex:1}}>
+                                              {m.actualWinner===m.player2&&<span style={{fontSize:"9px"}}>🏆</span>}
+                                              <span style={{fontSize:"12px",fontWeight:m.prediction===m.player2||m.actualWinner===m.player2?700:400,
+                                                color:m.actualWinner===m.player2?"#4ade80":m.prediction===m.player2?"#22d3ee":"#94a3b8",
+                                                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                                {(m.player2||"").split(" ").pop()}
+                                              </span>
+                                            </div>
+                                            <span style={{fontSize:"11px",fontWeight:700,color:m.prediction===m.player2?"#22d3ee":"#475569",flexShrink:0,marginLeft:"4px"}}>
+                                              {m.prediction===m.player2?`${favProb}%`:m.prediction===m.player1?`${100-favProb}%`:""}
+                                            </span>
+                                          </div>
+                                          {m.isWalkover&&<div style={{fontSize:"9px",color:"#facc15",marginTop:"3px"}}>⚠️ W/O</div>}
+                                          {m.score&&<div style={{fontSize:"9px",color:"#475569",marginTop:"2px",textAlign:"center"}}>{m.score}</div>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* List View */}
+                        {(tournamentView[globalIdx]||"list")==="list" && (<>
+                          {tourn.winProbs?.length>0 && (
                           <div style={{marginBottom:"20px"}}>
                             <h4 style={{color:"#22d3ee",marginBottom:"12px",fontSize:"14px"}}>🏅 Tournament Win Probability</h4>
                             {tourn.winProbs.map((p,i) => (
@@ -1231,8 +1353,8 @@ export default function App() {
                               </div>
                             ))}
                           </div>
-                        )}
-                        {tourn.rounds?.length>0 && (
+                          )}
+                          {tourn.rounds?.length>0 && (
                           <div>
                             <h4 style={{color:"#22d3ee",marginBottom:"12px",fontSize:"14px"}}>📋 Round Predictions</h4>
                             {tourn.rounds.map((r,ri) => {
@@ -1284,8 +1406,9 @@ export default function App() {
                               );
                             })}
                           </div>
-                        )}
-                        {!tourn.drawSet && <p style={{color:"#475569",fontSize:"13px",textAlign:"center",padding:"16px 0"}}>⏳ Draw not yet complete — predictions will update once all players are set.</p>}
+                          )}
+                          {!tourn.drawSet && <p style={{color:"#475569",fontSize:"13px",textAlign:"center",padding:"16px 0"}}>⏳ Draw not yet complete — predictions will update once all players are set.</p>}
+                        </>)}
                       </div>
                     )}
                   </div>
