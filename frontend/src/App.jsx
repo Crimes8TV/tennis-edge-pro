@@ -453,15 +453,21 @@ export default function App() {
                 </div>
                 {valuePicksLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Calculating value picks...</p>
                   : valuePicks.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No value picks today.</p>
-                  : valuePicks.slice(0,3).map((pick,i) => (
+                  : valuePicks.slice(0,3).map((pick,i) => {
+                    const hasOdds = !!pick.bestOdds;
+                    return (
                     <div key={i} className="valuePickCardMini" onClick={() => {setP1(pick.match.split(" vs ")[0]);setP2(pick.match.split(" vs ")[1]);setTab("predictor");}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{color:"#e2e8f0",fontSize:"14px",fontWeight:600}}>{pick.match}</span>
-                        <span className="valuePickEdge">+{pick.edge}%</span>
+                        <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+                          <span style={{color:"#e2e8f0",fontSize:"14px",fontWeight:600}}>{pick.match}</span>
+                          {!hasOdds && <span style={{fontSize:"9px",fontWeight:700,color:"#94a3b8",background:"rgba(148,163,184,0.1)",border:"1px solid rgba(148,163,184,0.2)",borderRadius:"4px",padding:"1px 5px"}}>MODEL ONLY</span>}
+                        </div>
+                        <span className="valuePickEdge" style={{color:hasOdds?"#4ade80":"#94a3b8"}}>+{pick.edge}%</span>
                       </div>
                       <div style={{display:"flex",gap:"12px",marginTop:"6px",fontSize:"12px"}}>
                         <span style={{color:"#4ade80"}}>✅ {pick.pick}</span>
-                        {pick.bestOdds && <span style={{color:"#facc15"}}>Odds: {pick.bestOdds}</span>}
+                        {hasOdds && <span style={{color:"#facc15"}}>Odds: {pick.bestOdds}</span>}
+                        {!hasOdds && <span style={{color:"#64748b",fontStyle:"italic"}}>No bookmaker odds available</span>}
                         {pick.time && <span style={{color:"#64748b"}}>🕐 {pick.time}</span>}
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"6px"}}>
@@ -471,7 +477,7 @@ export default function App() {
                         </div>
                         <span style={{fontSize:"11px",color:"#4ade80",minWidth:"30px"}}>{pick.ourProb}%</span>
                       </div>
-                      {pick.impliedProb && (
+                      {hasOdds && pick.impliedProb && (
                         <div style={{display:"flex",alignItems:"center",gap:"8px",marginTop:"4px"}}>
                           <span style={{fontSize:"11px",color:"#64748b",minWidth:"80px"}}>Bookmaker</span>
                           <div style={{flex:1,height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
@@ -481,7 +487,8 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           </>
@@ -560,21 +567,53 @@ export default function App() {
               <div className="dashSectionHeader">💰 Value Picks today</div>
               {valuePicksLoading ? <p style={{color:"#94a3b8"}}>⏳ Calculating...</p>
                 : valuePicks.length === 0 ? <p style={{color:"#94a3b8"}}>No value picks today.</p>
-                : valuePicks.map((pick,i) => (
-                  <div key={i} className="valuePickRow" onClick={() => {setP1(pick.match.split(" vs ")[0]);setP2(pick.match.split(" vs ")[1]);setTab("predictor");}}>
-                    <div className="valuePickTop"><span className="valuePickRank">#{i+1}</span><span className="valuePickMatch">{pick.match}</span><span className="valuePickEdge">+{pick.edge}% Edge</span></div>
-                    <div className="valuePickBottom">
-                      <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
-                      {pick.bestOdds && <span className="valuePickOdds">Odds: {pick.bestOdds}</span>}
-                      {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
+                : (() => {
+                  const realPicks = valuePicks.filter(p => !!p.bestOdds);
+                  const modelPicks = valuePicks.filter(p => !p.bestOdds);
+                  const renderPick = (pick, i, isModel) => (
+                    <div key={i} className="valuePickRow" style={{opacity:isModel?0.75:1,border:isModel?"1px solid rgba(148,163,184,0.15)":undefined}} onClick={() => {setP1(pick.match.split(" vs ")[0]);setP2(pick.match.split(" vs ")[1]);setTab("predictor");}}>
+                      <div className="valuePickTop">
+                        <span className="valuePickRank">#{i+1}</span>
+                        <span className="valuePickMatch">{pick.match}</span>
+                        <span className="valuePickEdge" style={{color:isModel?"#94a3b8":"#4ade80"}}>+{pick.edge}% {isModel?"Model Edge":"Edge"}</span>
+                      </div>
+                      <div className="valuePickBottom">
+                        <span className="valuePickPick">✅ Pick: <strong>{pick.pick}</strong></span>
+                        {pick.bestOdds && <span className="valuePickOdds">Odds: {pick.bestOdds}</span>}
+                        {!pick.bestOdds && <span style={{fontSize:"11px",color:"#64748b",fontStyle:"italic"}}>⚠️ No bookmaker odds — model estimate only</span>}
+                        {pick.time && <span className="valuePickTime">🕐 {pick.time}</span>}
+                      </div>
+                      <div className="valuePickProbBar">
+                        <div className="valuePickProbItem"><span className="valuePickProbLabel">Our Model</span><div className="valuePickProbTrack"><div className="valuePickProbFill ourFill" style={{width:`${pick.ourProb}%`}} /></div><span className="valuePickProbValue our">{pick.ourProb}%</span></div>
+                        {pick.impliedProb && <div className="valuePickProbItem"><span className="valuePickProbLabel">Bookmaker</span><div className="valuePickProbTrack"><div className="valuePickProbFill bookFill" style={{width:`${pick.impliedProb}%`}} /></div><span className="valuePickProbValue book">{pick.impliedProb}%</span></div>}
+                      </div>
+                      {pick.tournament && <div className="valuePickTournament">{pick.tournament}</div>}
                     </div>
-                    <div className="valuePickProbBar">
-                      <div className="valuePickProbItem"><span className="valuePickProbLabel">Our Model</span><div className="valuePickProbTrack"><div className="valuePickProbFill ourFill" style={{width:`${pick.ourProb}%`}} /></div><span className="valuePickProbValue our">{pick.ourProb}%</span></div>
-                      {pick.impliedProb && <div className="valuePickProbItem"><span className="valuePickProbLabel">Bookmaker</span><div className="valuePickProbTrack"><div className="valuePickProbFill bookFill" style={{width:`${pick.impliedProb}%`}} /></div><span className="valuePickProbValue book">{pick.impliedProb}%</span></div>}
-                    </div>
-                    {pick.tournament && <div className="valuePickTournament">{pick.tournament}</div>}
-                  </div>
-                ))}
+                  );
+                  return (
+                    <>
+                      {realPicks.length > 0 && (
+                        <>
+                          <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"0 0 12px",fontSize:"12px",fontWeight:700,color:"#4ade80",textTransform:"uppercase",letterSpacing:"1px"}}>
+                            <span style={{width:"8px",height:"8px",borderRadius:"50%",background:"#4ade80",display:"inline-block"}} />
+                            Confirmed Value Picks ({realPicks.length})
+                          </div>
+                          {realPicks.map((pick, i) => renderPick(pick, i, false))}
+                        </>
+                      )}
+                      {modelPicks.length > 0 && (
+                        <>
+                          <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"20px 0 12px",fontSize:"12px",fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"1px"}}>
+                            <span style={{width:"8px",height:"8px",borderRadius:"50%",background:"#94a3b8",display:"inline-block"}} />
+                            Model-Only Picks — No Bookmaker Odds ({modelPicks.length})
+                          </div>
+                          <p style={{fontSize:"12px",color:"#475569",marginBottom:"12px"}}>These picks have no bookmaker odds available. Edge is based on our model only — use with caution.</p>
+                          {modelPicks.map((pick, i) => renderPick(pick, i, true))}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
             </div>
           </>
         )}
