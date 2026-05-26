@@ -564,6 +564,7 @@ export default function App() {
           {id:"player",    icon:<Search size={18}/>, label:"Players"},
           {id:"watchlist", icon:<span style={{fontSize:"16px"}}>🔖</span>, label:"Saved"},
           {id:"history",   icon:<span style={{fontSize:"16px"}}>🕐</span>, label:"History"},
+          {id:"performance",icon:<span style={{fontSize:"16px"}}>📈</span>, label:"Stats"},
         ].map(item => (
           <button key={item.id} className={`mobile-nav-item ${tab===item.id?"active":""}`} onClick={() => setTab(item.id)}>
             {item.icon}
