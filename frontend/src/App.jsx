@@ -175,16 +175,6 @@ export default function App() {
   const [bestOf, setBestOf] = useState(3);
   const [tournamentSection, setTournamentSection] = useState("active");
 
-  // ── Dark/Light Mode ──────────────────────────────────────────────────────────
-  const [darkMode, setDarkMode] = useState(() => {
-    try { return localStorage.getItem("darkMode") !== "false"; } catch { return true; }
-  });
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    localStorage.setItem("darkMode", String(next));
-  };
-
   // ── Favorite Players ─────────────────────────────────────────────────────────
   const [favoritePlayers, setFavoritePlayers] = useState(() => {
     try { return JSON.parse(localStorage.getItem("favoritePlayers") || "[]"); } catch { return []; }
@@ -448,7 +438,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app${darkMode ? "" : " light-mode"}`}>
+    <div className="app">
       <aside className="sidebar">
         <h1>TennisEdge&nbsp;Pro</h1>
         <p>Advanced Tennis Analytics</p>
@@ -469,9 +459,6 @@ export default function App() {
           <button onClick={() => setTab("history")} style={{marginBottom:"8px"}}>
             🕐 Match History
             {matchHistory.length > 0 && <span style={{marginLeft:"6px",background:"rgba(99,102,241,0.2)",color:"#818cf8",borderRadius:"999px",padding:"1px 7px",fontSize:"11px",fontWeight:700}}>{matchHistory.length}</span>}
-          </button>
-          <button onClick={toggleDarkMode} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",color:"#94a3b8",fontSize:"13px"}}>
-            {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
           </button>
         </div>
       </aside>
