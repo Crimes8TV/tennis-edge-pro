@@ -374,7 +374,7 @@ export default function App() {
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#020817"}}>
         <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
           <div style={{marginBottom:"32px"}}>
-            <h1 style={{fontSize:"52px",fontWeight:900,background:"linear-gradient(135deg,#22d3ee,#4ade80)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:0,letterSpacing:"-1px"}}>
+            <h1 style={{fontSize:"52px",fontWeight:900,background:"linear-gradient(135deg,#22d3ee,#4ade80)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",margin:0,letterSpacing:"-1px",padding:"4px 8px",lineHeight:1.2}}>
               TennisEdge Pro
             </h1>
             <p style={{color:"#475569",fontSize:"13px",marginTop:"8px",letterSpacing:"3px",textTransform:"uppercase"}}>Advanced Tennis Analytics Platform</p>
