@@ -51,6 +51,11 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
           ))}
         </ul>
       )}
+      {open && players.length === 0 && (
+        <div style={{padding:"12px 14px",fontSize:"13px",color:"#475569",background:"#0f172a",border:"1.5px solid rgba(34,211,238,0.2)",borderRadius:"14px",marginTop:"4px"}}>
+          ⏳ Loading players... (backend waking up)
+        </div>
+      )}
     </div>
   );
 }
@@ -263,14 +268,24 @@ export default function App() {
   const winner = prediction?.prediction?.[prediction?.player1] > prediction?.prediction?.[prediction?.player2] ? prediction?.player1 : prediction?.player2;
 
   useEffect(() => {
-    fetch("https://tennis-edge-backend.onrender.com/api/players")
-      .then(res => { if (!res.ok) throw new Error("API Fehler"); return res.json(); })
-      .then(data => {
-        const formatted = Array.isArray(data) ? data : [];
-        setPlayers(formatted);
-        if (formatted.length > 0) setPlayer(getPlayerName(formatted[0]));
-        if (formatted.length > 1) { setP1(getPlayerName(formatted[0])); setP2(getPlayerName(formatted[1])); }
-      }).catch(err => console.error("FEHLER PLAYERS:", err));
+    const loadPlayers = (attempt = 1) => {
+      fetch("https://tennis-edge-backend.onrender.com/api/players")
+        .then(res => { if (!res.ok) throw new Error("API error"); return res.json(); })
+        .then(data => {
+          const formatted = Array.isArray(data) ? data : [];
+          if (formatted.length === 0 && attempt < 5) {
+            setTimeout(() => loadPlayers(attempt + 1), 3000);
+            return;
+          }
+          setPlayers(formatted);
+          if (formatted.length > 0) setPlayer(getPlayerName(formatted[0]));
+          if (formatted.length > 1) { setP1(getPlayerName(formatted[0])); setP2(getPlayerName(formatted[1])); }
+        }).catch(err => {
+          console.error("PLAYERS ERROR:", err);
+          if (attempt < 5) setTimeout(() => loadPlayers(attempt + 1), 4000);
+        });
+    };
+    loadPlayers();
   }, []);
 
   useEffect(() => {
@@ -393,7 +408,7 @@ export default function App() {
 
   // Show welcome screen only on very first load (< 2 seconds)
   if (playersLoading && playerNames.length === 0) {
-    setTimeout(() => setPlayersLoading(false), 2000); // max 2s then show app anyway
+    setTimeout(() => setPlayersLoading(false), 3000); // max 3s then show app anyway
     return (
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#020817"}}>
         <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
