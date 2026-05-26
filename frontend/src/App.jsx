@@ -174,6 +174,8 @@ export default function App() {
   const [odds2, setOdds2] = useState(2.2);
   const [odds1Str, setOdds1Str] = useState("1.7");
   const [odds2Str, setOdds2Str] = useState("2.2");
+  const [odds35, setOdds35] = useState("");
+  const [odds35Str, setOdds35Str] = useState("");
   const [liveMatches, setLiveMatches] = useState([]);
   const [valuePicks, setValuePicks] = useState([]);
   const [valuePicksLoading, setValuePicksLoading] = useState(true);
@@ -1319,7 +1321,6 @@ export default function App() {
 
                         {/* 5. Over 3.5 Sets — Bo5 only */}
                         {bo === 5 && (() => {
-                          // Use setWinProb which already incorporates Elo + form + surface
                           const p5 = setP, q5 = 1 - p5;
                           const surfaceName = prediction.surface;
                           const surfMod = surfaceName === "clay" ? 0.07 : surfaceName === "grass" ? -0.05 : 0.02;
@@ -1329,6 +1330,15 @@ export default function App() {
                           const o35Conf = over35 >= 55 ? "High" : over35 >= 40 ? "Medium" : "Low";
                           const o35Color = over35 >= 55 ? "#4ade80" : over35 >= 40 ? "#facc15" : "#94a3b8";
                           const surfIcon = surfaceName === "clay" ? "🧱 Clay" : surfaceName === "grass" ? "🌿 Grass" : "🏟️ Hard";
+
+                          // Value detection
+                          const oddsVal = parseFloat(String(odds35Str).replace(",","."));
+                          const hasOdds = !isNaN(oddsVal) && oddsVal > 1;
+                          const impliedProb = hasOdds ? Math.round(100 / oddsVal) : null;
+                          const edge = hasOdds ? parseFloat((over35 - impliedProb).toFixed(1)) : null;
+                          const isValue = edge !== null && edge > 0;
+                          const edgeColor = edge > 5 ? "#4ade80" : edge > 0 ? "#facc15" : "#f87171";
+
                           return (
                             <div style={tipStyle(o35Conf)}>
                               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
@@ -1338,21 +1348,70 @@ export default function App() {
                                   <span style={{fontSize:"11px",fontWeight:700,color:o35Color,background:`${o35Color}22`,padding:"2px 8px",borderRadius:"6px"}}>{o35Conf} Confidence</span>
                                 </div>
                               </div>
-                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
                                 <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>
                                   {over35 >= 50 ? `✅ Over 3.5 Sets (${over35}%)` : `❌ Under 3.5 Sets (${100-over35}%)`}
                                 </span>
                                 <div style={{textAlign:"right"}}>
-                                  <div style={{fontSize:"12px",color:"#64748b"}}>3-0 probability</div>
-                                  <div style={{fontSize:"16px",fontWeight:800,color:"#94a3b8"}}>{Math.round(p30adj*100)}%</div>
+                                  <div style={{fontSize:"12px",color:"#64748b"}}>3-0 prob.</div>
+                                  <div style={{fontSize:"15px",fontWeight:800,color:"#94a3b8"}}>{Math.round(p30adj*100)}%</div>
                                 </div>
                               </div>
-                              {/* Mini probability bar */}
-                              <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"6px"}}>
+
+                              <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"10px"}}>
                                 <div style={{width:`${over35}%`,height:"100%",background:o35Color,borderRadius:"999px",transition:"width 0.4s"}} />
                               </div>
-                              <p style={{margin:0,fontSize:"12px",color:"#64748b"}}>
-                                Based on set win probability ({Math.round(setP*100)}% per set) + {surfaceName} surface adjustment. {surfaceName==="clay"?"Clay tends to produce longer matches.":surfaceName==="grass"?"Grass favours shorter matches.":"Hard courts are neutral."}
+
+                              {/* Bookmaker Odds Input */}
+                              <div style={{background:"rgba(255,255,255,0.03)",borderRadius:"10px",padding:"10px 12px",border:"1px solid rgba(255,255,255,0.06)"}}>
+                                <div style={{fontSize:"11px",color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>💰 Bookmaker Odds — Over 3.5 Sets</div>
+                                <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
+                                  <input
+                                    type="text" inputMode="decimal"
+                                    placeholder="e.g. 1.85"
+                                    value={odds35Str}
+                                    onChange={e => { setOdds35Str(e.target.value); const v = parseFloat(e.target.value.replace(",",".")); if(!isNaN(v)&&v>1) setOdds35(v); }}
+                                    onBlur={e => { const v = parseFloat(e.target.value.replace(",",".")); if(!isNaN(v)&&v>1){setOdds35(v);setOdds35Str(String(v));} }}
+                                    style={{flex:1,padding:"8px 12px",borderRadius:"8px",background:"#0f172a",border:"1px solid rgba(34,211,238,0.3)",color:"#e2e8f0",fontSize:"14px",outline:"none"}}
+                                  />
+                                  {hasOdds && (
+                                    <div style={{textAlign:"right",minWidth:"80px"}}>
+                                      <div style={{fontSize:"11px",color:"#64748b"}}>Implied</div>
+                                      <div style={{fontSize:"14px",fontWeight:700,color:"#f472b6"}}>{impliedProb}%</div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Value Result */}
+                                {hasOdds && (
+                                  <div style={{marginTop:"10px",padding:"10px 12px",borderRadius:"8px",
+                                    background:isValue?"rgba(74,222,128,0.08)":"rgba(248,113,113,0.08)",
+                                    border:`1px solid ${isValue?"rgba(74,222,128,0.2)":"rgba(248,113,113,0.2)"}`}}>
+                                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                      <div>
+                                        <div style={{fontSize:"13px",fontWeight:700,color:isValue?"#4ade80":"#f87171",marginBottom:"2px"}}>
+                                          {isValue ? "✅ Value Bet!" : "❌ No Value"}
+                                        </div>
+                                        <div style={{fontSize:"11px",color:"#64748b"}}>
+                                          Our model: <span style={{color:o35Color,fontWeight:700}}>{over35}%</span>
+                                          {" · "}Bookmaker: <span style={{color:"#f472b6",fontWeight:700}}>{impliedProb}%</span>
+                                        </div>
+                                      </div>
+                                      <div style={{textAlign:"right"}}>
+                                        <div style={{fontSize:"11px",color:"#64748b"}}>Edge</div>
+                                        <div style={{fontSize:"20px",fontWeight:900,color:edgeColor}}>{edge > 0 ? "+" : ""}{edge}%</div>
+                                      </div>
+                                    </div>
+                                    {isValue && <div style={{marginTop:"6px",fontSize:"11px",color:"#64748b"}}>
+                                      Odds of {oddsVal} imply {impliedProb}% — our model gives {over35}%. Positive edge at these odds.
+                                    </div>}
+                                  </div>
+                                )}
+                              </div>
+
+                              <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>
+                                Based on set win prob. ({Math.round(setP*100)}% per set) + {surfaceName} surface. {surfaceName==="clay"?"Clay tends to produce longer matches.":surfaceName==="grass"?"Grass favours shorter matches.":"Hard courts are neutral."}
                               </p>
                             </div>
                           );
