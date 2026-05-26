@@ -140,6 +140,74 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
           )}
         </div>
       )}
+
+      {/* Over 3.5 Sets tip — Grand Slam only, upcoming only */}
+      {!isFinished && (() => {
+        const tn = (m.tournament||"").toLowerCase();
+        const isGS = ["french open","roland garros","australian open","wimbledon","us open"].some(gs => tn.includes(gs));
+        if (!isGS) return null;
+
+        // Get player data including form
+        const getPlayerData = (name) => {
+          const ln = (name||"").toLowerCase().split(" ").pop();
+          return players.find(p => {
+            const pn = typeof p.name === "string" ? p.name : p.name?.name || "";
+            return pn.toLowerCase().split(" ").pop() === ln;
+          });
+        };
+        const pd1 = getPlayerData(m.player1);
+        const pd2 = getPlayerData(m.player2);
+
+        const elo1 = pd1?.elo || 1800;
+        const elo2 = pd2?.elo || 1800;
+
+        // Elo win probability
+        const eloP = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+
+        // Form-based adjustment (form array: last 5 results as scores)
+        const getFormScore = (pd) => {
+          if (!pd?.form || !Array.isArray(pd.form) || pd.form.length === 0) return 0.5;
+          const avg = pd.form.reduce((a,b) => a + b, 0) / pd.form.length;
+          return Math.min(1, Math.max(0, (avg - 50) / 60)); // normalize to 0-1
+        };
+        const form1 = getFormScore(pd1);
+        const form2 = getFormScore(pd2);
+
+        // Combined: 55% Elo, 35% Form, 10% Surface
+        const surfMod = tn.includes("french")||tn.includes("roland") ? 0.07  // Clay → longer matches
+          : tn.includes("wimbledon") ? -0.05  // Grass → faster, more 3-0
+          : tn.includes("australian") ? 0.02  // Hard → neutral/slight longer
+          : 0.03;  // US Open → slight longer
+
+        const rawP1 = eloP * 0.55 + (0.5 + (form1 - form2) * 0.5) * 0.35;
+        const p = Math.min(0.92, Math.max(0.08, rawP1));
+        const q = 1 - p;
+
+        // P(3-0) = p³ + q³ → Over 3.5 = 1 - P(3-0), adjusted by surface
+        const p30 = Math.max(0.05, Math.pow(p, 3) + Math.pow(q, 3) - surfMod);
+        const overProb = Math.round((1 - p30) * 100);
+        const conf = overProb >= 60 ? "High" : overProb >= 45 ? "Medium" : "Low";
+        const color = overProb >= 60 ? "#4ade80" : overProb >= 45 ? "#facc15" : "#94a3b8";
+
+        const hasFormData = pd1?.form && pd2?.form;
+        const surfLabel = tn.includes("french")||tn.includes("roland") ? "🧱 Clay"
+          : tn.includes("wimbledon") ? "🌿 Grass"
+          : tn.includes("australian") ? "🏟️ Hard"
+          : "🏟️ Hard";
+
+        return (
+          <div style={{marginTop:"8px",padding:"8px 12px",borderRadius:"8px",background:`${color}0d`,border:`1px solid ${color}33`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <span style={{fontSize:"10px",color:"#475569",textTransform:"uppercase",letterSpacing:"0.5px",fontWeight:700}}>🎾 Over 3.5 Sets</span>
+              <span style={{fontSize:"10px",color:"#334155",marginLeft:"6px"}}>· {surfLabel} · {hasFormData ? "Elo + Form + Surface" : "Elo + Surface"}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+              <span style={{fontSize:"10px",color:"#64748b"}}>{conf} conf.</span>
+              <span style={{fontSize:"15px",fontWeight:800,color}}>{overProb}%</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
