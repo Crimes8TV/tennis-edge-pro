@@ -619,7 +619,7 @@ export default function App() {
               if (!accuracy && resolvedBets.length === 0) return null;
               return (
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"24px"}}>
-                  {accuracy !== null && (
+                  {accuracy !== null && resolved.length >= 5 && (
                     <div style={{background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"14px",padding:"14px 18px",cursor:"pointer"}} onClick={() => setTab("performance")}>
                       <div style={{fontSize:"11px",color:"#818cf8",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"6px"}}>🎯 Prediction Accuracy</div>
                       <div style={{display:"flex",alignItems:"baseline",gap:"8px"}}>
@@ -1742,11 +1742,11 @@ export default function App() {
                           {!h.actualWinner ? (
                             <>
                               <span style={{fontSize:"11px",color:"#475569",flex:1}}>Mark result:</span>
-                              <button onClick={(e) => {e.stopPropagation(); markPredictionResult(h.id, h.p1);}}
+                              <button onClick={(e) => {e.stopPropagation(); if(window.confirm(`Mark ${h.p1} as winner? Only confirm if this match is fully finished.`)) markPredictionResult(h.id, h.p1);}}
                                 style={{padding:"3px 10px",borderRadius:"6px",border:"1px solid rgba(74,222,128,0.3)",background:"rgba(74,222,128,0.08)",color:"#4ade80",fontSize:"11px",cursor:"pointer",fontWeight:600}}>
                                 {h.p1.split(" ").pop()} won
                               </button>
-                              <button onClick={(e) => {e.stopPropagation(); markPredictionResult(h.id, h.p2);}}
+                              <button onClick={(e) => {e.stopPropagation(); if(window.confirm(`Mark ${h.p2} as winner? Only confirm if this match is fully finished.`)) markPredictionResult(h.id, h.p2);}}
                                 style={{padding:"3px 10px",borderRadius:"6px",border:"1px solid rgba(248,113,113,0.3)",background:"rgba(248,113,113,0.08)",color:"#f87171",fontSize:"11px",cursor:"pointer",fontWeight:600}}>
                                 {h.p2.split(" ").pop()} won
                               </button>
@@ -1811,6 +1811,17 @@ export default function App() {
                   {resolved.length === 0 ? (
                     <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"14px",padding:"24px",textAlign:"center",color:"#475569"}}>
                       No results tracked yet. Go to Match History and mark outcomes after matches finish.
+                    </div>
+                  ) : resolved.length < 5 ? (
+                    <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"14px",padding:"24px",textAlign:"center"}}>
+                      <div style={{fontSize:"32px",marginBottom:"8px"}}>📊</div>
+                      <div style={{color:"#94a3b8",fontSize:"14px",marginBottom:"4px"}}>Not enough data yet</div>
+                      <div style={{color:"#64748b",fontSize:"12px"}}>{resolved.length}/5 results needed for a meaningful accuracy score.</div>
+                      <div style={{marginTop:"12px",display:"flex",gap:"4px",justifyContent:"center"}}>
+                        {[...Array(5)].map((_,i) => (
+                          <div key={i} style={{width:"32px",height:"6px",borderRadius:"999px",background:i < resolved.length ? "#22d3ee" : "#1e293b"}} />
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px"}}>
