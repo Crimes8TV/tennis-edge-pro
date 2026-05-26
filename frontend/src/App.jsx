@@ -593,12 +593,14 @@ export default function App() {
             {/* Daily Stats Bar */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"28px"}}>
               {[
-                {label:"Matches Today", value:fixtures.length, icon:"🎾", color:"#22d3ee"},
-                {label:"Live Now",      value:fixtures.filter(m=>m.live).length, icon:"🔴", color:"#f87171"},
-                {label:"Value Picks",   value:valuePicks.filter(p=>!!p.bestOdds).length, icon:"💰", color:"#4ade80"},
-                {label:"My Watchlist",  value:watchlist.length, icon:"🔖", color:"#facc15"},
+                {label:"Matches Today", value:fixtures.length, icon:"🎾", color:"#22d3ee", tab:"matches"},
+                {label:"Live Now",      value:fixtures.filter(m=>m.live).length, icon:"🔴", color:"#f87171", tab:"matches"},
+                {label:"Value Picks",   value:valuePicks.filter(p=>!!p.bestOdds).length, icon:"💰", color:"#4ade80", tab:"valuepicks"},
+                {label:"My Watchlist",  value:watchlist.length, icon:"🔖", color:"#facc15", tab:"watchlist"},
               ].map((s,i) => (
-                <div key={i} style={{background:"#0f172a",border:`1px solid ${s.color}22`,borderRadius:"14px",padding:"14px 16px",display:"flex",alignItems:"center",gap:"12px"}}>
+                <div key={i} onClick={() => setTab(s.tab)} style={{background:"#0f172a",border:`1px solid ${s.color}22`,borderRadius:"14px",padding:"14px 16px",display:"flex",alignItems:"center",gap:"12px",cursor:"pointer",transition:"all 0.2s"}}
+                  onMouseEnter={e => e.currentTarget.style.borderColor=s.color}
+                  onMouseLeave={e => e.currentTarget.style.borderColor=`${s.color}22`}>
                   <span style={{fontSize:"22px"}}>{s.icon}</span>
                   <div>
                     <div style={{fontSize:"22px",fontWeight:900,color:s.color,lineHeight:1}}>{s.value}</div>
