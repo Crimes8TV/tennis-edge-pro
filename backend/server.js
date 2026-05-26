@@ -20,15 +20,12 @@ const apiGet = (params) =>
 app.get("/api/players", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
-
     const [atpRes, fixturesRes] = await Promise.allSettled([
       apiGet({ method: "get_standings", event_type: "ATP" }),
       apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: 281 })
     ]);
-
     const atpRaw = atpRes.status === "fulfilled" ? atpRes.value.data?.result || [] : [];
     const fixturesRaw = fixturesRes.status === "fulfilled" ? fixturesRes.value.data?.result || [] : [];
-
     const atpPlayers = atpRaw.map(p => ({
       name: p.player || "Unknown",
       rank: parseInt(p.place) || 999,
@@ -40,11 +37,9 @@ app.get("/api/players", async (req, res) => {
       hard: 80, clay: 75, grass: 70,
       form: [80, 82, 78, 85, 87]
     }));
-
     const atpNames = new Set(atpPlayers.map(p => p.name.toLowerCase()));
     const challengerPlayers = [];
     const seen = new Set();
-
     fixturesRaw.forEach(m => {
       [m.event_first_player, m.event_second_player].forEach(shortName => {
         if (!shortName) return;
@@ -54,8 +49,7 @@ app.get("/api/players", async (req, res) => {
         const alreadyIn = [...atpNames].some(n => n.includes(lastName.toLowerCase()));
         if (!alreadyIn) {
           challengerPlayers.push({
-            name: shortName,
-            rank: 200 + challengerPlayers.length,
+            name: shortName, rank: 200 + challengerPlayers.length,
             points: 0, country: "", player_key: null,
             elo: 1500, serve: 65, return: 65, clutch: 70, momentum: 70,
             hard: 70, clay: 70, grass: 65, form: [70, 72, 68, 71, 70]
@@ -63,7 +57,6 @@ app.get("/api/players", async (req, res) => {
         }
       });
     });
-
     res.json([...atpPlayers, ...challengerPlayers]);
   } catch (err) {
     console.error("STANDINGS ERROR:", err.message);
@@ -77,44 +70,22 @@ app.get("/api/player/:name", async (req, res) => {
     const playerName = req.params.name;
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
-    const found = standings.find(p =>
-      (p.player || "").toLowerCase().includes(playerName.toLowerCase())
-    );
-
+    const found = standings.find(p => (p.player || "").toLowerCase().includes(playerName.toLowerCase()));
     if (!found?.player_key) {
-      return res.json({
-        name: playerName,
-        stats: { winRate: "-", serveRating: "-", returnRating: "-", fitness: "-" },
-        surfaces: { hard: "-", clay: "-", grass: "-" },
-        recentForm: []
-      });
+      return res.json({ name: playerName, stats: { winRate: "-", serveRating: "-", returnRating: "-", fitness: "-" }, surfaces: { hard: "-", clay: "-", grass: "-" }, recentForm: [] });
     }
-
     const playerRes = await apiGet({ method: "get_players", player_key: found.player_key });
     const playerData = playerRes.data?.result?.[0];
     if (!playerData) throw new Error("Keine Spielerdaten");
-
     const stats = playerData.stats?.find(s => s.type === "singles") || {};
-    const hardWon = parseInt(stats.hard_won) || 0;
-    const hardLost = parseInt(stats.hard_lost) || 0;
-    const clayWon = parseInt(stats.clay_won) || 0;
-    const clayLost = parseInt(stats.clay_lost) || 0;
-    const grassWon = parseInt(stats.grass_won) || 0;
-    const grassLost = parseInt(stats.grass_lost) || 0;
-    const totalWon = parseInt(stats.matches_won) || 0;
-    const totalLost = parseInt(stats.matches_lost) || 0;
+    const hardWon = parseInt(stats.hard_won) || 0, hardLost = parseInt(stats.hard_lost) || 0;
+    const clayWon = parseInt(stats.clay_won) || 0, clayLost = parseInt(stats.clay_lost) || 0;
+    const grassWon = parseInt(stats.grass_won) || 0, grassLost = parseInt(stats.grass_lost) || 0;
+    const totalWon = parseInt(stats.matches_won) || 0, totalLost = parseInt(stats.matches_lost) || 0;
     const total = totalWon + totalLost;
-
     res.json({
-      name: playerData.player_name,
-      country: playerData.player_country,
-      logo: playerData.player_logo,
-      stats: {
-        winRate: total > 0 ? Math.round((totalWon / total) * 100) : "-",
-        titles: stats.titles || 0,
-        rank: found.place,
-        points: found.points
-      },
+      name: playerData.player_name, country: playerData.player_country, logo: playerData.player_logo,
+      stats: { winRate: total > 0 ? Math.round((totalWon / total) * 100) : "-", titles: stats.titles || 0, rank: found.place, points: found.points },
       surfaces: {
         hard: hardWon + hardLost > 0 ? Math.round((hardWon / (hardWon + hardLost)) * 100) : "-",
         clay: clayWon + clayLost > 0 ? Math.round((clayWon / (clayWon + clayLost)) * 100) : "-",
@@ -133,18 +104,11 @@ app.get("/api/live", async (req, res) => {
   try {
     const response = await apiGet({ method: "get_livescore", event_type_key: 265 });
     const matches = response.data?.result || [];
-    const formatted = matches.map(m => ({
-      player1: m.event_first_player,
-      player2: m.event_second_player,
-      score: m.event_final_result || "-",
-      status: m.event_status || "",
-      tournament: m.tournament_name || ""
-    }));
-    res.json(formatted);
-  } catch (err) {
-    console.error("LIVE ERROR:", err.message);
-    res.json([]);
-  }
+    res.json(matches.map(m => ({
+      player1: m.event_first_player, player2: m.event_second_player,
+      score: m.event_final_result || "-", status: m.event_status || "", tournament: m.tournament_name || ""
+    })));
+  } catch (err) { console.error("LIVE ERROR:", err.message); res.json([]); }
 });
 
 // ─── H2H ──────────────────────────────────────────────────────────────────────
@@ -152,45 +116,25 @@ app.get("/api/h2h", async (req, res) => {
   try {
     const { p1_key, p2_key } = req.query;
     if (!p1_key || !p2_key) return res.status(400).json({ error: "Spieler-Keys fehlen" });
-
-    const response = await apiGet({
-      method: "get_H2H",
-      first_player_key: p1_key,
-      second_player_key: p2_key
-    });
-
+    const response = await apiGet({ method: "get_H2H", first_player_key: p1_key, second_player_key: p2_key });
     const result = response.data?.result || {};
     const h2h = result.H2H || [];
     const p1Results = result.firstPlayerResults || [];
     const p2Results = result.secondPlayerResults || [];
-
     let p1Wins = 0, p2Wins = 0;
     h2h.forEach(match => {
       if (match.event_winner === "First Player") p1Wins++;
       else if (match.event_winner === "Second Player") p2Wins++;
     });
-
     const filterSelfMatches = (matches) => matches.filter(m => {
       const p1 = (m.event_first_player || "").toLowerCase().trim();
       const p2 = (m.event_second_player || "").toLowerCase().trim();
       if (!p1 || !p2 || p1 === p2) return false;
-      const p1Last = p1.split(" ").pop();
-      const p2Last = p2.split(" ").pop();
-      if (p1Last === p2Last) return false;
+      if (p1.split(" ").pop() === p2.split(" ").pop()) return false;
       return true;
     }).slice(0, 5);
-
-    res.json({
-      h2h_matches: h2h.slice(0, 10),
-      p1_wins: p1Wins,
-      p2_wins: p2Wins,
-      p1_recent: filterSelfMatches(p1Results),
-      p2_recent: filterSelfMatches(p2Results)
-    });
-  } catch (err) {
-    console.error("H2H ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der H2H-Daten" });
-  }
+    res.json({ h2h_matches: h2h.slice(0, 10), p1_wins: p1Wins, p2_wins: p2Wins, p1_recent: filterSelfMatches(p1Results), p2_recent: filterSelfMatches(p2Results) });
+  } catch (err) { console.error("H2H ERROR:", err.message); res.status(500).json({ error: "Fehler beim Laden der H2H-Daten" }); }
 });
 
 // ─── ODDS ─────────────────────────────────────────────────────────────────────
@@ -198,121 +142,66 @@ app.get("/api/odds/:match_key", async (req, res) => {
   try {
     const response = await apiGet({ method: "get_odds", match_key: req.params.match_key });
     res.json(response.data?.result || {});
-  } catch (err) {
-    console.error("ODDS ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Quoten" });
-  }
+  } catch (err) { console.error("ODDS ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
 });
 
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
   const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
-  const form1 = Number(req.query.form1 || 75);
-  const form2 = Number(req.query.form2 || 75);
-  const clutch1 = Number(req.query.clutch1 || 70);
-  const clutch2 = Number(req.query.clutch2 || 70);
-  const momentum1 = Number(req.query.momentum1 || 75);
-  const momentum2 = Number(req.query.momentum2 || 75);
-
+  const form1 = Number(req.query.form1 || 75), form2 = Number(req.query.form2 || 75);
+  const clutch1 = Number(req.query.clutch1 || 70), clutch2 = Number(req.query.clutch2 || 70);
+  const momentum1 = Number(req.query.momentum1 || 75), momentum2 = Number(req.query.momentum2 || 75);
   const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
-  const elo1 = eloFromRank(rank1);
-  const elo2 = eloFromRank(rank2);
+  const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
-
   const getSurfaceModifier = (rank, surf) => {
-    const r = Number(rank);
-    const variance = Math.max(2, 8 - r * 0.05);
-    const mods = {
-      hard:  Math.round((Math.random() - 0.5) * variance),
-      clay:  Math.round((Math.random() - 0.5) * variance),
-      grass: Math.round((Math.random() - 0.5) * variance)
-    };
-    return mods[surf] || 0;
+    const variance = Math.max(2, 8 - Number(rank) * 0.05);
+    return { hard: Math.round((Math.random()-0.5)*variance), clay: Math.round((Math.random()-0.5)*variance), grass: Math.round((Math.random()-0.5)*variance) }[surf] || 0;
   };
-
-  const surfMod1 = getSurfaceModifier(rank1, surface);
-  const surfMod2 = getSurfaceModifier(rank2, surface);
+  const surfMod1 = getSurfaceModifier(rank1, surface), surfMod2 = getSurfaceModifier(rank2, surface);
   const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
-
-  let score1 = expected1 * 100 * 0.50 + form1 * 0.20 + clutch1 * 0.10 + momentum1 * 0.15 + surfMod1 * surfaceWeight;
-  let score2 = expected2 * 100 * 0.50 + form2 * 0.20 + clutch2 * 0.10 + momentum2 * 0.15 + surfMod2 * surfaceWeight;
-
-  const surface1 = Number(req.query.surface1 || 0);
-  const surface2 = Number(req.query.surface2 || 0);
-  if (surface1 > 0 || surface2 > 0) { score1 += surface1 * 0.5; score2 += surface2 * 0.5; }
-
-  const p1Win = Math.round((score1 / (score1 + score2)) * 100);
-  const rankDiff = Math.abs(rank1 - rank2);
-  const rankingFactor = Math.min(70, 20 + rankDiff * 0.6);
-  const formFactor = Math.max(10, 40 - rankDiff * 0.2);
-  const clutchFactor = 10 + Math.random() * 10;
-  const momentumFactor = Math.max(10, 100 - rankingFactor - formFactor - clutchFactor);
-  const gap = Math.abs(p1Win - 50);
-  const rankBoost = Math.min(30, rankDiff * 0.4);
-  const confidence = Math.min(99, Math.round(gap * 1.8 + rankBoost));
-
+  let score1 = expected1*100*0.50 + form1*0.20 + clutch1*0.10 + momentum1*0.15 + surfMod1*surfaceWeight;
+  let score2 = expected2*100*0.50 + form2*0.20 + clutch2*0.10 + momentum2*0.15 + surfMod2*surfaceWeight;
+  const surface1 = Number(req.query.surface1 || 0), surface2 = Number(req.query.surface2 || 0);
+  if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.5; score2 += surface2*0.5; }
+  const p1Win = Math.round((score1/(score1+score2))*100);
+  const rankDiff = Math.abs(rank1-rank2);
+  const rankingFactor = Math.min(70, 20+rankDiff*0.6);
+  const formFactor = Math.max(10, 40-rankDiff*0.2);
+  const clutchFactor = 10+Math.random()*10;
+  const momentumFactor = Math.max(10, 100-rankingFactor-formFactor-clutchFactor);
+  const confidence = Math.min(99, Math.round(Math.abs(p1Win-50)*1.8+Math.min(30,rankDiff*0.4)));
   const deriveStats = (rank, elo) => {
-    const base = Math.max(55, Math.min(88, 90 - Math.sqrt(rank) * 2.5));
-    const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
-    const rand = () => (Math.random() - 0.5) * 6;
-    return {
-      serve:    Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
-      return:   Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
-      clutch:   Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
-      momentum: Math.min(92, Math.max(55, Math.round(base + eloBonus + rand()))),
-    };
+    const base = Math.max(55, Math.min(88, 90-Math.sqrt(rank)*2.5));
+    const eloBonus = Math.max(-5, Math.min(5, (elo-1900)*0.02));
+    const rand = () => (Math.random()-0.5)*6;
+    return { serve: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))), return: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))), clutch: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))), momentum: Math.min(92,Math.max(55,Math.round(base+eloBonus+rand()))) };
   };
-  const p1Stats = deriveStats(Number(rank1), elo1);
-  const p2Stats = deriveStats(Number(rank2), elo2);
-
-  const surfaceSetMod = surface === "clay" ? 0.03 : surface === "grass" ? -0.02 : 0;
-  const setWinP1 = Math.min(0.85, Math.max(0.15, expected1 + surfaceSetMod + (surfMod1 - surfMod2) * 0.01));
-  const setWinP2 = 1 - setWinP1;
-
-  const expectedGamesPerSetWinner = 6 + Math.max(0, (Math.max(setWinP1, setWinP2) - 0.5) * 2);
-  const expectedGamesPerSetLoser = Math.max(1, 6 - (Math.max(setWinP1, setWinP2) - 0.5) * 8);
-  const favoriteIsP1 = setWinP1 >= setWinP2;
-  const favWinProb = Math.max(setWinP1, setWinP2);
-  const favorite = favoriteIsP1 ? p1 : p2;
-  const underdog = favoriteIsP1 ? p2 : p1;
-
-  const p = favWinProb, q = 1 - p;
-  const sc20 = p*p, sc21 = 2*p*p*q, sc12 = 2*p*q*q, sc02 = q*q;
-  const favGames20 = 2*expectedGamesPerSetWinner, dogGames20 = 2*expectedGamesPerSetLoser;
-  const favGames21 = 2*expectedGamesPerSetWinner+expectedGamesPerSetLoser, dogGames21 = 2*expectedGamesPerSetLoser+expectedGamesPerSetWinner;
-  const favGames12 = expectedGamesPerSetWinner+2*expectedGamesPerSetLoser, dogGames12 = expectedGamesPerSetLoser+2*expectedGamesPerSetWinner;
-  const favGames02 = 2*expectedGamesPerSetLoser, dogGames02 = 2*expectedGamesPerSetWinner;
-  const expFavGames = sc20*favGames20+sc21*favGames21+sc12*favGames12+sc02*favGames02;
-  const expDogGames = sc20*dogGames20+sc21*dogGames21+sc12*dogGames12+sc02*dogGames02;
-  const handicapLine = Math.round((expFavGames - expDogGames) * 2) / 2;
-
-  let handicapPick, handicapReason;
-  if (handicapLine >= 2) {
-    handicapPick = `${favorite} -${handicapLine} Games`;
-    handicapReason = `${favorite} dominiert erwartungsgemäß um ~${handicapLine} Games.`;
-  } else if (handicapLine >= 0.5) {
-    handicapPick = `${favorite} -${handicapLine} Games (knapp)`;
-    handicapReason = `Kleiner Vorteil für ${favorite}. Handicap nur bei guter Quote spielen.`;
-  } else {
-    handicapPick = `Kein klares Handicap`;
-    handicapReason = `Zu ausgeglichen für eine Handicap-Empfehlung.`;
-  }
-
+  const p1Stats = deriveStats(Number(rank1), elo1), p2Stats = deriveStats(Number(rank2), elo2);
+  const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
+  const setWinP1 = Math.min(0.85, Math.max(0.15, expected1+surfaceSetMod+(surfMod1-surfMod2)*0.01));
+  const setWinP2 = 1-setWinP1;
+  const expGPSW = 6+Math.max(0,(Math.max(setWinP1,setWinP2)-0.5)*2);
+  const expGPSL = Math.max(1, 6-(Math.max(setWinP1,setWinP2)-0.5)*8);
+  const favoriteIsP1 = setWinP1>=setWinP2;
+  const favorite = favoriteIsP1?p1:p2, underdog = favoriteIsP1?p2:p1;
+  const p=Math.max(setWinP1,setWinP2), q=1-p;
+  const expFav = p*p*2*expGPSW + 2*p*p*q*(2*expGPSW+expGPSL) + 2*p*q*q*(expGPSW+2*expGPSL) + q*q*2*expGPSL;
+  const expDog = p*p*2*expGPSL + 2*p*p*q*(2*expGPSL+expGPSW) + 2*p*q*q*(expGPSL+2*expGPSW) + q*q*2*expGPSW;
+  const handicapLine = Math.round((expFav-expDog)*2)/2;
+  const handicapPick = handicapLine>=2?`${favorite} -${handicapLine} Games`:handicapLine>=0.5?`${favorite} -${handicapLine} Games (knapp)`:`Kein klares Handicap`;
+  const handicapReason = handicapLine>=2?`${favorite} dominiert erwartungsgemäß um ~${handicapLine} Games.`:handicapLine>=0.5?`Kleiner Vorteil für ${favorite}.`:`Zu ausgeglichen.`;
   res.json({
-    player1: p1, player2: p2, surface,
-    elo: { [p1]: Math.round(elo1), [p2]: Math.round(elo2) },
-    prediction: { [p1]: p1Win, [p2]: 100 - p1Win },
-    confidence,
-    playerStats: { [p1]: p1Stats, [p2]: p2Stats },
-    setWinProb: { [p1]: Math.round(setWinP1 * 100), [p2]: Math.round(setWinP2 * 100) },
-    handicap: {
-      line: handicapLine, favorite, underdog, pick: handicapPick, reason: handicapReason,
-      expGames: { [favorite]: Math.round(expFavGames*10)/10, [underdog]: Math.round(expDogGames*10)/10 }
-    },
-    factors: { ranking: Math.round(rankingFactor), form: Math.round(formFactor), clutch: Math.round(clutchFactor), momentum: Math.round(momentumFactor), surface },
-    explain: p1Win > 60 ? `${p1} hat klare Vorteile durch Ranking, Form und Matchup-Stärke.` : p1Win < 40 ? `${p2} hat klare Vorteile durch Ranking, Form und Matchup-Stärke.` : `Das Match ist sehr ausgeglichen.`,
-    edge: p1Win > 65 ? `${p1} klar überlegen` : p1Win > 55 ? `${p1} leichter Vorteil` : p1Win < 35 ? `${p2} klar überlegen` : p1Win < 45 ? `${p2} leichter Vorteil` : "sehr ausgeglichen"
+    player1:p1, player2:p2, surface,
+    elo:{[p1]:Math.round(elo1),[p2]:Math.round(elo2)},
+    prediction:{[p1]:p1Win,[p2]:100-p1Win}, confidence,
+    playerStats:{[p1]:p1Stats,[p2]:p2Stats},
+    setWinProb:{[p1]:Math.round(setWinP1*100),[p2]:Math.round(setWinP2*100)},
+    handicap:{line:handicapLine,favorite,underdog,pick:handicapPick,reason:handicapReason,expGames:{[favorite]:Math.round(expFav*10)/10,[underdog]:Math.round(expDog*10)/10}},
+    factors:{ranking:Math.round(rankingFactor),form:Math.round(formFactor),clutch:Math.round(clutchFactor),momentum:Math.round(momentumFactor),surface},
+    explain:p1Win>60?`${p1} hat klare Vorteile.`:p1Win<40?`${p2} hat klare Vorteile.`:`Sehr ausgeglichen.`,
+    edge:p1Win>65?`${p1} klar überlegen`:p1Win>55?`${p1} leichter Vorteil`:p1Win<35?`${p2} klar überlegen`:p1Win<45?`${p2} leichter Vorteil`:"sehr ausgeglichen"
   });
 });
 
@@ -320,98 +209,54 @@ app.get("/api/predict", async (req, res) => {
 app.get("/api/valuepicks", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
-    const fixturesRes = await apiGet({
-      method: "get_fixtures", date_start: today, date_stop: today, event_type_key: 265
-    });
+    const fixturesRes = await apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: 265 });
     const matches = fixturesRes.data?.result || [];
     if (matches.length === 0) return res.json([]);
-
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
-
     const getFullName = (shortName) => {
-      const parts = shortName.trim().split(" ");
-      const lastName = parts[parts.length - 1].toLowerCase();
-      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
+      const lastName = shortName.trim().split(" ").pop().toLowerCase();
+      const found = standings.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName);
       return found ? found.player : shortName;
     };
-
     const getRank = (name) => {
-      const parts = name.trim().split(" ");
-      const lastName = parts[parts.length - 1].toLowerCase();
-      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
-      return found ? parseInt(found.place) || 100 : 100;
+      const lastName = name.trim().split(" ").pop().toLowerCase();
+      const found = standings.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName);
+      return found ? parseInt(found.place)||100 : 100;
     };
-
-    const eloFromRank = (rank) => Math.max(1500, 2400 - rank * 6);
+    const eloFromRank = (rank) => Math.max(1500, 2400-rank*6);
     const valuePicks = [];
-
-    for (const match of matches.slice(0, 15)) {
-      const p1Short = match.event_first_player;
-      const p2Short = match.event_second_player;
+    for (const match of matches.slice(0,15)) {
+      const p1Short = match.event_first_player, p2Short = match.event_second_player;
       if (!p1Short || !p2Short) continue;
-
-      const p1 = getFullName(p1Short);
-      const p2 = getFullName(p2Short);
-      const rank1 = getRank(p1Short);
-      const rank2 = getRank(p2Short);
-      const elo1 = eloFromRank(rank1);
-      const elo2 = eloFromRank(rank2);
-      const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
-      const prob1 = Math.round(expected1 * 100);
-      const prob2 = 100 - prob1;
-
-      let odds1 = null, odds2 = null, bookmaker = "-";
+      const p1=getFullName(p1Short), p2=getFullName(p2Short);
+      const rank1=getRank(p1Short), rank2=getRank(p2Short);
+      const elo1=eloFromRank(rank1), elo2=eloFromRank(rank2);
+      const expected1 = 1/(1+Math.pow(10,(elo2-elo1)/400));
+      const prob1=Math.round(expected1*100), prob2=100-prob1;
+      let odds1=null, odds2=null, bookmaker="-";
       try {
         const oddsRes = await apiGet({ method: "get_odds", match_key: match.event_key });
         const oddsData = oddsRes.data?.result?.[match.event_key];
         const homeAway = oddsData?.["Home/Away"];
         if (homeAway) {
-          const books = Object.keys(homeAway.Home || {});
-          if (books.length > 0) {
-            bookmaker = books[0];
-            odds1 = parseFloat(homeAway.Home[bookmaker]);
-            odds2 = parseFloat(homeAway.Away[bookmaker]);
-          }
+          const books = Object.keys(homeAway.Home||{});
+          if (books.length > 0) { bookmaker=books[0]; odds1=parseFloat(homeAway.Home[bookmaker]); odds2=parseFloat(homeAway.Away[bookmaker]); }
         }
-      } catch (e) {}
-
-      let pick = null, edge = null, bestOdds = null;
+      } catch(e) {}
+      let pick=null, edge=null, bestOdds=null;
       if (odds1 && odds2) {
-        const implied1 = Math.round(100 / odds1);
-        const implied2 = Math.round(100 / odds2);
-        const edge1 = prob1 - implied1;
-        const edge2 = prob2 - implied2;
-        if (edge1 > edge2 && edge1 > 2) { pick = p1; edge = edge1; bestOdds = odds1; }
-        else if (edge2 > edge1 && edge2 > 2) { pick = p2; edge = edge2; bestOdds = odds2; }
-      } else {
-        if (Math.abs(prob1 - 50) > 8) {
-          pick = prob1 > prob2 ? p1 : p2;
-          edge = Math.abs(prob1 - 50) - 8;
-          bestOdds = null;
-        }
-      }
-
+        const e1=prob1-Math.round(100/odds1), e2=prob2-Math.round(100/odds2);
+        if (e1>e2&&e1>2){pick=p1;edge=e1;bestOdds=odds1;} else if(e2>e1&&e2>2){pick=p2;edge=e2;bestOdds=odds2;}
+      } else if (Math.abs(prob1-50)>8) { pick=prob1>prob2?p1:p2; edge=Math.abs(prob1-50)-8; }
       if (pick) {
-        const ourProb = pick === p1 ? prob1 : prob2;
-        const impliedProb = bestOdds ? Math.round(100 / bestOdds) : null;
-        valuePicks.push({
-          match: `${p1} vs ${p2}`,
-          tournament: match.tournament_name || "",
-          pick, ourProb, impliedProb, bestOdds,
-          edge: Math.round(edge * 10) / 10,
-          bookmaker, matchKey: match.event_key,
-          time: match.event_time || ""
-        });
+        const ourProb=pick===p1?prob1:prob2;
+        valuePicks.push({ match:`${p1} vs ${p2}`, tournament:match.tournament_name||"", pick, ourProb, impliedProb:bestOdds?Math.round(100/bestOdds):null, bestOdds, edge:Math.round(edge*10)/10, bookmaker, matchKey:match.event_key, time:match.event_time||"" });
       }
     }
-
-    valuePicks.sort((a, b) => b.edge - a.edge);
-    res.json(valuePicks.slice(0, 10));
-  } catch (err) {
-    console.error("VALUE PICKS ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Value Picks" });
-  }
+    valuePicks.sort((a,b)=>b.edge-a.edge);
+    res.json(valuePicks.slice(0,10));
+  } catch(err) { console.error("VALUE PICKS ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
 });
 
 // ─── HEUTIGE FIXTURES ────────────────────────────────────────────────────────
@@ -423,76 +268,41 @@ app.get("/api/fixtures/today", async (req, res) => {
       { key: 281, label: "Challenger Singles" },
       { key: 282, label: "Challenger Doubles" }
     ];
-
     const [fixtureResults, liveResults] = await Promise.all([
-      Promise.allSettled(
-        eventTypes.map(et =>
-          apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: et.key })
-            .then(r => (r.data?.result || []).map(m => ({ ...m, _category: et.label })))
-        )
-      ),
-      Promise.allSettled(
-        eventTypes.map(et =>
-          apiGet({ method: "get_livescore", event_type_key: et.key })
-            .then(r => (r.data?.result || []).map(m => ({ ...m, _category: et.label })))
-        )
-      )
+      Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_fixtures", date_start:today, date_stop:today, event_type_key:et.key }).then(r=>(r.data?.result||[]).map(m=>({...m,_category:et.label}))))),
+      Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_livescore", event_type_key:et.key }).then(r=>(r.data?.result||[]).map(m=>({...m,_category:et.label})))))
     ]);
-
-    const allFixtures = fixtureResults.filter(r => r.status === "fulfilled").flatMap(r => r.value);
-    const allLive = liveResults.filter(r => r.status === "fulfilled").flatMap(r => r.value);
-
+    const allFixtures = fixtureResults.filter(r=>r.status==="fulfilled").flatMap(r=>r.value);
+    const allLive = liveResults.filter(r=>r.status==="fulfilled").flatMap(r=>r.value);
     const liveMap = new Map();
-    allLive.forEach(m => {
-      const key = `${m.event_first_player}|${m.event_second_player}`;
-      liveMap.set(key, m);
-    });
-
+    allLive.forEach(m => liveMap.set(`${m.event_first_player}|${m.event_second_player}`, m));
     const formatted = allFixtures.map(m => {
       const key = `${m.event_first_player}|${m.event_second_player}`;
       const liveMatch = liveMap.get(key);
-      const isLive = !!liveMatch || m.event_live === "1" || m.event_live === 1;
-      const isFinished = m.event_status === "Finished" || m.event_status === "After Extra Time";
-      const src = liveMatch || m;
-
-      const parseScore = (val) => val !== undefined && val !== null ? String(val).split(".")[0] : "-";
+      const isLive = !!liveMatch || m.event_live==="1" || m.event_live===1;
+      const isFinished = m.event_status==="Finished" || m.event_status==="After Extra Time";
+      const src = liveMatch||m;
+      const parseScore = (val) => val!==undefined&&val!==null?String(val).split(".")[0]:"-";
       const setScores = [];
-      if (Array.isArray(src.scores) && src.scores.length > 0) {
-        const sorted = [...src.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
-        sorted.forEach(s => {
-          if (s.score_first !== undefined && s.score_first !== null) {
-            setScores.push({ p1: parseScore(s.score_first), p2: parseScore(s.score_second) });
-          }
+      if (Array.isArray(src.scores)&&src.scores.length>0) {
+        [...src.scores].sort((a,b)=>parseInt(a.score_set)-parseInt(b.score_set)).forEach(s=>{
+          if (s.score_first!==undefined&&s.score_first!==null) setScores.push({p1:parseScore(s.score_first),p2:parseScore(s.score_second)});
         });
       }
-
       return {
-        player1: m.event_first_player,
-        player2: m.event_second_player,
-        score: src.event_final_result || "-",
-        gameScore: src.event_game_result || "-",
-        sets: setScores,
-        status: isLive ? (src.event_status || "Live") : isFinished ? "Beendet" : m.event_status || "Geplant",
-        tournament: m.tournament_name || "",
-        category: m._category || "",
-        time: m.event_time || "",
-        live: isLive,
-        finished: isFinished,
-        matchKey: m.event_key
+        player1:m.event_first_player, player2:m.event_second_player,
+        score:src.event_final_result||"-", gameScore:src.event_game_result||"-",
+        sets:setScores, status:isLive?(src.event_status||"Live"):isFinished?"Beendet":m.event_status||"Geplant",
+        tournament:m.tournament_name||"", category:m._category||"",
+        time:m.event_time||"", live:isLive, finished:isFinished, matchKey:m.event_key
       };
-    }).sort((a, b) => {
-      if (a.live && !b.live) return -1;
-      if (!a.live && b.live) return 1;
-      if (a.finished && !b.finished) return 1;
-      if (!a.finished && b.finished) return -1;
-      return a.time > b.time ? 1 : -1;
+    }).sort((a,b)=>{
+      if(a.live&&!b.live)return -1; if(!a.live&&b.live)return 1;
+      if(a.finished&&!b.finished)return 1; if(!a.finished&&b.finished)return -1;
+      return a.time>b.time?1:-1;
     });
-
     res.json(formatted);
-  } catch (err) {
-    console.error("FIXTURES TODAY ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Fixtures" });
-  }
+  } catch(err) { console.error("FIXTURES TODAY ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
 });
 
 // ─── MATCH DETAILS ────────────────────────────────────────────────────────────
@@ -502,87 +312,52 @@ app.get("/api/match/:matchKey", async (req, res) => {
     const today = new Date().toISOString().split("T")[0];
     const eventTypes = [265, 281, 282];
     let match = null;
-
-    const liveResults = await Promise.allSettled(
-      eventTypes.map(et => apiGet({ method: "get_livescore", event_type_key: et }))
-    );
+    const liveResults = await Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_livescore", event_type_key:et })));
     for (const r of liveResults) {
-      if (r.status === "fulfilled") {
-        const found = (r.value.data?.result || []).find(m => String(m.event_key) === String(matchKey));
-        if (found) { match = { ...found, _isLive: true }; break; }
+      if (r.status==="fulfilled") {
+        const found = (r.value.data?.result||[]).find(m=>String(m.event_key)===String(matchKey));
+        if (found) { match={...found,_isLive:true}; break; }
       }
     }
-
     if (!match) {
-      const fixtureResults = await Promise.allSettled(
-        eventTypes.map(et => apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: et }))
-      );
+      const fixtureResults = await Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_fixtures", date_start:today, date_stop:today, event_type_key:et })));
       for (const r of fixtureResults) {
-        if (r.status === "fulfilled") {
-          const found = (r.value.data?.result || []).find(m => String(m.event_key) === String(matchKey));
-          if (found) { match = found; break; }
+        if (r.status==="fulfilled") {
+          const found = (r.value.data?.result||[]).find(m=>String(m.event_key)===String(matchKey));
+          if (found) { match=found; break; }
         }
       }
     }
-
     if (!match) return res.status(404).json({ error: "Match nicht gefunden" });
-
     const extractSets = (m) => {
       const sets = [];
-      if (Array.isArray(m.scores) && m.scores.length > 0) {
-        const sorted = [...m.scores].sort((a, b) => parseInt(a.score_set) - parseInt(b.score_set));
-        sorted.forEach(s => {
-          if (s.score_first !== undefined && s.score_first !== null) {
-            sets.push({ p1: String(s.score_first).split(".")[0], p2: String(s.score_second ?? "-").split(".")[0], set: parseInt(s.score_set) });
-          }
+      if (Array.isArray(m.scores)&&m.scores.length>0) {
+        [...m.scores].sort((a,b)=>parseInt(a.score_set)-parseInt(b.score_set)).forEach(s=>{
+          if (s.score_first!==undefined&&s.score_first!==null) sets.push({p1:String(s.score_first).split(".")[0],p2:String(s.score_second??"").split(".")[0],set:parseInt(s.score_set)});
         });
       }
-      if (sets.length === 0) {
-        const scoreStr = m.event_final_result || "";
-        if (scoreStr.includes(",")) {
-          scoreStr.split(",").forEach((s, i) => {
-            const parts = s.trim().split("-");
-            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-              sets.push({ p1: parts[0].trim(), p2: parts[1].trim(), set: i + 1 });
-            }
-          });
-        }
+      if (sets.length===0) {
+        const scoreStr=m.event_final_result||"";
+        if (scoreStr.includes(",")) scoreStr.split(",").forEach((s,i)=>{const parts=s.trim().split("-");if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1]))sets.push({p1:parts[0].trim(),p2:parts[1].trim(),set:i+1});});
       }
       return sets;
     };
-
     let sets = extractSets(match);
-    if (sets.length === 0) {
-      const scoreStr = match.event_final_result || "";
-      const parts = scoreStr.replace(/ /g, "").split("-");
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-        sets = [{ p1: parts[0], p2: parts[1], set: 1, isTotalSets: true }];
-      }
+    if (sets.length===0) {
+      const parts=(match.event_final_result||"").replace(/ /g,"").split("-");
+      if (parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])) sets=[{p1:parts[0],p2:parts[1],set:1,isTotalSets:true}];
     }
-
-    const isLive = match._isLive || match.event_live === "1" || match.event_live === 1;
-    const server = match.event_serve === "1" ? 1 : match.event_serve === "2" ? 2 : null;
-
+    const isLive = match._isLive||match.event_live==="1"||match.event_live===1;
+    const server = match.event_serve==="1"?1:match.event_serve==="2"?2:null;
     res.json({
-      player1: match.event_first_player,
-      player2: match.event_second_player,
-      score: match.event_final_result || "-",
-      gameScore: match.event_game_result || "-",
-      status: match.event_status || "-",
-      tournament: match.tournament_name || "",
-      round: match.tournament_round || "",
-      sets, scores: match.scores || [],
-      statistics: match.statistics || [],
-      pointbypoint: match.pointbypoint || [],
-      server, live: isLive,
-      time: match.event_time || "",
-      date: match.event_date || "",
-      surface: match.event_ground || ""
+      player1:match.event_first_player, player2:match.event_second_player,
+      score:match.event_final_result||"-", gameScore:match.event_game_result||"-",
+      status:match.event_status||"-", tournament:match.tournament_name||"",
+      round:match.tournament_round||"", sets, scores:match.scores||[],
+      statistics:match.statistics||[], pointbypoint:match.pointbypoint||[],
+      server, live:isLive, time:match.event_time||"", date:match.event_date||"", surface:match.event_ground||""
     });
-  } catch (err) {
-    console.error("MATCH DETAIL ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Match-Details" });
-  }
+  } catch(err) { console.error("MATCH DETAIL ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
 });
 
 // ─── PLAYER NEWS ──────────────────────────────────────────────────────────────
@@ -590,339 +365,261 @@ app.get("/api/news/:player", async (req, res) => {
   try {
     const playerName = decodeURIComponent(req.params.player);
     const query = encodeURIComponent(`${playerName} tennis`);
-    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=de&gl=DE&ceid=DE:de`;
-    const response = await axios.get(rssUrl, { headers: { "User-Agent": "Mozilla/5.0" }, timeout: 5000 });
-    const xml = response.data;
+    const response = await axios.get(`https://news.google.com/rss/search?q=${query}&hl=de&gl=DE&ceid=DE:de`, { headers:{"User-Agent":"Mozilla/5.0"}, timeout:5000 });
     const items = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
-    while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
-      const item = match[1];
-      const title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/))?.[1] || "";
-      const link = (item.match(/<link>(.*?)<\/link>/) || [])?.[1] || "";
-      const pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])?.[1] || "";
-      const source = (item.match(/<source[^>]*>(.*?)<\/source>/) || [])?.[1] || "";
-      if (title) {
-        items.push({
-          title: title.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"'),
-          link, pubDate: pubDate ? new Date(pubDate).toLocaleDateString("de-DE") : "", source
-        });
-      }
+    while ((match=itemRegex.exec(response.data))!==null&&items.length<5) {
+      const item=match[1];
+      const title=(item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)||item.match(/<title>(.*?)<\/title>/))?.[1]||"";
+      const link=(item.match(/<link>(.*?)<\/link>/))?.[1]||"";
+      const pubDate=(item.match(/<pubDate>(.*?)<\/pubDate>/))?.[1]||"";
+      const source=(item.match(/<source[^>]*>(.*?)<\/source>/))?.[1]||"";
+      if (title) items.push({ title:title.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#39;/g,"'").replace(/&quot;/g,'"'), link, pubDate:pubDate?new Date(pubDate).toLocaleDateString("de-DE"):"", source });
     }
     res.json(items);
-  } catch (err) {
-    console.error("NEWS ERROR:", err.message);
-    res.json([]);
-  }
+  } catch(err) { console.error("NEWS ERROR:", err.message); res.json([]); }
 });
 
-// ─── TURNIER PREDICTIONS (nur Singles) ───────────────────────────────────────
+// ─── TURNIER PREDICTIONS (nur Singles, fixes: korrekte Spieleranzahl + W/O Kennzeichnung) ──
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
     const today = new Date();
-    const start = new Date(today);
-    start.setDate(today.getDate() - 1);
-    const end = new Date(today);
-    end.setDate(today.getDate() + 14);
+    const start = new Date(today); start.setDate(today.getDate()-1);
+    const end = new Date(today); end.setDate(today.getDate()+14);
+    const dateStart=start.toISOString().split("T")[0];
+    const dateEnd=end.toISOString().split("T")[0];
+    const todayStr=today.toISOString().split("T")[0];
 
-    const dateStart = start.toISOString().split("T")[0];
-    const dateEnd   = end.toISOString().split("T")[0];
-    const todayStr  = today.toISOString().split("T")[0];
-
-    // Nur Singles laden (kein Doubles mehr)
     const [singlesRes, standingsRes] = await Promise.allSettled([
-      apiGet({ method: "get_fixtures", date_start: dateStart, date_stop: dateEnd, event_type_key: 265 }),
-      apiGet({ method: "get_standings", event_type: "ATP" })
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265 }),
+      apiGet({ method:"get_standings", event_type:"ATP" })
     ]);
+    const singles = singlesRes.status==="fulfilled"?singlesRes.value.data?.result||[]:[];
+    const standings = standingsRes.status==="fulfilled"?standingsRes.value.data?.result||[]:[];
 
-    const singles   = singlesRes.status   === "fulfilled" ? singlesRes.value.data?.result   || [] : [];
-    const standings = standingsRes.status === "fulfilled" ? standingsRes.value.data?.result || [] : [];
-
-    const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
+    const eloFromRank = (rank) => Math.max(1500, 2400-Number(rank)*6);
 
     const rankCache = new Map();
     const getRank = (name) => {
       if (!name) return 300;
       if (rankCache.has(name)) return rankCache.get(name);
       const lastName = name.toLowerCase().trim().split(" ").pop();
-      const found = standings.find(p => (p.player || "").toLowerCase().trim().split(" ").pop() === lastName);
-      const rank = found ? parseInt(found.place) || 300 : 300;
-      rankCache.set(name, rank);
-      return rank;
+      const found = standings.find(p=>(p.player||"").toLowerCase().trim().split(" ").pop()===lastName);
+      const rank = found?parseInt(found.place)||300:300;
+      rankCache.set(name, rank); return rank;
     };
 
     const fullNameCache = new Map();
     const getFullName = (shortName) => {
-      if (!shortName) return shortName || "";
+      if (!shortName) return "";
       if (fullNameCache.has(shortName)) return fullNameCache.get(shortName);
       const lastName = shortName.trim().split(" ").pop().toLowerCase();
-      const found = standings.find(p => (p.player || "").toLowerCase().split(" ").pop() === lastName);
-      const full = found ? found.player : shortName;
-      fullNameCache.set(shortName, full);
-      return full;
+      const found = standings.find(p=>(p.player||"").toLowerCase().split(" ").pop()===lastName);
+      const full = found?found.player:shortName;
+      fullNameCache.set(shortName, full); return full;
     };
 
-    const ROUND_ORDER = {
-      "1/64-finals": 1, "1/32-finals": 2, "1/16-finals": 3,
-      "1/8-finals": 4, "quarter-finals": 5, "semi-finals": 6, "final": 7
-    };
+    const ROUND_ORDER = { "1/64-finals":1,"1/32-finals":2,"1/16-finals":3,"1/8-finals":4,"quarter-finals":5,"semi-finals":6,"final":7 };
 
     const normalizeRoundName = (raw) => {
       if (!raw) return null;
       const dashIdx = raw.lastIndexOf(" - ");
-      let clean = dashIdx !== -1 ? raw.substring(dashIdx + 3).trim() : raw.trim();
+      let clean = dashIdx!==-1?raw.substring(dashIdx+3).trim():raw.trim();
       const cl = clean.toLowerCase();
-      if (cl.includes("qual") || cl.includes("pre-") || cl.includes("qualifying")) return null;
-      if (cl === "final" || cl === "finals")       return "Final";
-      if (cl.includes("semi"))                     return "Semi-Finals";
-      if (cl.includes("quarter"))                  return "Quarter-Finals";
-      if (cl.includes("1/8") || cl === "r16" || cl === "round of 16") return "1/8-Finals";
-      if (cl.includes("1/16") || cl === "r32" || cl === "round 1" || cl === "r1" || cl === "first round" || cl === "round of 32") return "1/16-Finals";
-      if (cl.includes("1/32") || cl === "round of 64") return "1/32-Finals";
+      if (cl.includes("qual")||cl.includes("pre-")||cl.includes("qualifying")) return null;
+      if (cl==="final"||cl==="finals") return "Final";
+      if (cl.includes("semi")) return "Semi-Finals";
+      if (cl.includes("quarter")) return "Quarter-Finals";
+      if (cl.includes("1/8")||cl==="r16"||cl==="round of 16") return "1/8-Finals";
+      if (cl.includes("1/16")||cl==="r32"||cl==="round 1"||cl==="r1"||cl==="first round"||cl==="round of 32") return "1/16-Finals";
+      if (cl.includes("1/32")||cl==="round of 64") return "1/32-Finals";
       if (cl.includes("1/64")) return "1/64-Finals";
       return clean;
     };
 
-    const getRoundOrder = (roundName) => {
-      return ROUND_ORDER[(roundName || "").toLowerCase()] || 0;
+    const getRoundOrder = (roundName) => ROUND_ORDER[(roundName||"").toLowerCase()]||0;
+
+    // Retirement/Walkover Erkennung
+    const isWalkoverOrRetired = (m) => {
+      const status = (m.event_status||"").toLowerCase();
+      return status.includes("walkover")||status.includes("w/o")||status.includes("retired")||status.includes("retirement")||status.includes("withdraw")||status.includes("default");
     };
 
     const isFinished = (m) => {
-      if (m.event_status === "Finished" || m.event_status === "After Extra Time") return true;
-      if (m.event_winner && m.event_winner !== "" && m.event_winner !== "0") return true;
-      if (m.event_live === "1" || m.event_live === 1) return false;
-      if (m.event_date && m.event_date < todayStr) return true;
+      if (m.event_status==="Finished"||m.event_status==="After Extra Time") return true;
+      if (isWalkoverOrRetired(m)) return true;
+      if (m.event_winner&&m.event_winner!==""&&m.event_winner!=="0") return true;
+      if (m.event_live==="1"||m.event_live===1) return false;
+      if (m.event_date&&m.event_date<todayStr) return true;
       return false;
     };
 
     const getWinner = (m, p1Name, p2Name) => {
       if (!isFinished(m)) return null;
-      if (m.event_winner === "First Player"  || m.event_winner === "1") return p1Name;
-      if (m.event_winner === "Second Player" || m.event_winner === "2") return p2Name;
-      const score = (m.event_final_result || "").replace(/ /g, "");
-      const parts = score.split("-");
-      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-        const s1 = parseInt(parts[0]), s2 = parseInt(parts[1]);
-        if (s1 > s2) return p1Name;
-        if (s2 > s1) return p2Name;
+      if (m.event_winner==="First Player"||m.event_winner==="1") return p1Name;
+      if (m.event_winner==="Second Player"||m.event_winner==="2") return p2Name;
+      const score=(m.event_final_result||"").replace(/ /g,"");
+      const parts=score.split("-");
+      if (parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])) {
+        const s1=parseInt(parts[0]),s2=parseInt(parts[1]);
+        if (s1>s2) return p1Name; if (s2>s1) return p2Name;
       }
       return null;
     };
 
-    // Nur Singles-Fixtures
-    const allFixtures = singles.map(m => ({ ...m, _disc: "Singles", event_type_key: 265 }));
+    const allFixtures = singles.map(m=>({...m,_disc:"Singles",event_type_key:265}));
 
     const tournMap = {};
     allFixtures.forEach(m => {
-      const roundName = normalizeRoundName(m.tournament_round || m.event_round || "");
+      const roundName = normalizeRoundName(m.tournament_round||m.event_round||"");
       if (!roundName) return;
-      const tKey = `${m.tournament_name || "Unbekannt"}|||Singles|||265`;
+      const tKey = `${m.tournament_name||"Unbekannt"}|||Singles|||265`;
       if (!tournMap[tKey]) {
-        tournMap[tKey] = {
-          name: m.tournament_name || "Unbekannt",
-          disc: "Singles",
-          eventTypeKey: "265",
-          dateStart: m.event_date || dateStart,
-          matches: []
-        };
+        tournMap[tKey] = { name:m.tournament_name||"Unbekannt", disc:"Singles", eventTypeKey:"265", dateStart:m.event_date||dateStart, matches:[] };
       }
-      if (m.event_date && m.event_date < tournMap[tKey].dateStart) {
-        tournMap[tKey].dateStart = m.event_date;
-      }
-      tournMap[tKey].matches.push({ ...m, _roundName: roundName });
+      if (m.event_date&&m.event_date<tournMap[tKey].dateStart) tournMap[tKey].dateStart=m.event_date;
+      tournMap[tKey].matches.push({...m,_roundName:roundName});
     });
 
     const result = Object.values(tournMap).map(tourn => {
+      // Deduplizierung
       const matchDedup = new Map();
       tourn.matches.forEach(m => {
-        const p1 = getFullName(m.event_first_player);
-        const p2 = getFullName(m.event_second_player);
-        if (!p1 || !p2) return;
-        const mKey = [p1, p2].sort().join("|||") + "|||" + m._roundName;
-        if (!matchDedup.has(mKey)) {
-          matchDedup.set(mKey, { ...m, _p1full: p1, _p2full: p2 });
-        } else {
-          const ex = matchDedup.get(mKey);
-          if (isFinished(m) && !isFinished(ex)) {
-            matchDedup.set(mKey, { ...m, _p1full: p1, _p2full: p2 });
-          }
-        }
+        const p1=getFullName(m.event_first_player), p2=getFullName(m.event_second_player);
+        if (!p1||!p2) return;
+        const mKey=[p1,p2].sort().join("|||")+"|||"+m._roundName;
+        if (!matchDedup.has(mKey)) matchDedup.set(mKey,{...m,_p1full:p1,_p2full:p2});
+        else { const ex=matchDedup.get(mKey); if(isFinished(m)&&!isFinished(ex)) matchDedup.set(mKey,{...m,_p1full:p1,_p2full:p2}); }
       });
+      const dedupedMatches=[...matchDedup.values()];
 
-      const dedupedMatches = [...matchDedup.values()];
-
+      // Alle Spieler sammeln
       const playerSet = new Map();
-      dedupedMatches.forEach(m => {
-        [m._p1full, m._p2full].forEach(name => {
-          if (!name || playerSet.has(name)) return;
-          const rank = getRank(name);
-          playerSet.set(name, { name, rank, elo: eloFromRank(rank) });
+      dedupedMatches.forEach(m=>{
+        [m._p1full,m._p2full].forEach(name=>{
+          if (!name||playerSet.has(name)) return;
+          const rank=getRank(name);
+          playerSet.set(name,{name,rank,elo:eloFromRank(rank)});
         });
       });
+      const allPlayers=[...playerSet.values()].sort((a,b)=>a.rank-b.rank);
 
-      const allPlayers = [...playerSet.values()].sort((a, b) => a.rank - b.rank);
-
+      // Abgeschlossene Matches
       const finishedMatches = dedupedMatches
-        .filter(m => isFinished(m) && getWinner(m, m._p1full, m._p2full))
-        .map(m => ({
-          winner: getWinner(m, m._p1full, m._p2full),
-          loser:  getWinner(m, m._p1full, m._p2full) === m._p1full ? m._p2full : m._p1full,
-          round:  m._roundName,
-          roundOrder: getRoundOrder(m._roundName)
-        }));
+        .filter(m=>isFinished(m)&&getWinner(m,m._p1full,m._p2full))
+        .map(m=>({ winner:getWinner(m,m._p1full,m._p2full), loser:getWinner(m,m._p1full,m._p2full)===m._p1full?m._p2full:m._p1full, round:m._roundName, roundOrder:getRoundOrder(m._roundName) }));
 
       const lastRoundPlayed = new Map();
-      dedupedMatches.forEach(m => {
-        const ro = getRoundOrder(m._roundName);
-        [m._p1full, m._p2full].forEach(name => {
-          if (!lastRoundPlayed.has(name) || lastRoundPlayed.get(name) < ro) {
-            lastRoundPlayed.set(name, ro);
-          }
-        });
+      dedupedMatches.forEach(m=>{
+        const ro=getRoundOrder(m._roundName);
+        [m._p1full,m._p2full].forEach(name=>{ if(!lastRoundPlayed.has(name)||lastRoundPlayed.get(name)<ro) lastRoundPlayed.set(name,ro); });
       });
 
       const eliminated = new Set();
-      finishedMatches.forEach(({ loser, roundOrder }) => {
-        const loserLastRound = lastRoundPlayed.get(loser) || 0;
-        if (loserLastRound <= roundOrder) eliminated.add(loser.toLowerCase());
+      finishedMatches.forEach(({loser,roundOrder})=>{
+        const loserLastRound=lastRoundPlayed.get(loser)||0;
+        if (loserLastRound<=roundOrder) eliminated.add(loser.toLowerCase());
       });
 
-      const maxFinishedRound = finishedMatches.reduce((max, m) => Math.max(max, m.roundOrder), 0);
-      const winnersOfHighestRound = new Set(
-        finishedMatches.filter(m => m.roundOrder === maxFinishedRound).map(m => m.winner.toLowerCase())
-      );
-      const allLosers = new Set(finishedMatches.map(m => m.loser.toLowerCase()));
+      const maxFinishedRound = finishedMatches.reduce((max,m)=>Math.max(max,m.roundOrder),0);
+      const winnersOfHighestRound = new Set(finishedMatches.filter(m=>m.roundOrder===maxFinishedRound).map(m=>m.winner.toLowerCase()));
+      const allLosers = new Set(finishedMatches.map(m=>m.loser.toLowerCase()));
 
+      // FIX: Kein rank-Filter mehr! Alle Spieler die noch nie verloren haben sind aktiv
       let activePlayers;
-      if (maxFinishedRound === 0) {
-        activePlayers = allPlayers;
-      } else if (maxFinishedRound === 7) {
-        activePlayers = allPlayers.filter(p => winnersOfHighestRound.has(p.name.toLowerCase()));
+      if (maxFinishedRound===0) {
+        activePlayers=allPlayers;
+      } else if (maxFinishedRound===7) {
+        activePlayers=allPlayers.filter(p=>winnersOfHighestRound.has(p.name.toLowerCase()));
       } else {
-        activePlayers = allPlayers.filter(p => {
-          const nameLow = p.name.toLowerCase();
-          const lastLow = nameLow.split(" ").pop();
-          return !allLosers.has(nameLow) && !allLosers.has(lastLow);
+        activePlayers=allPlayers.filter(p=>{
+          const nameLow=p.name.toLowerCase();
+          const lastLow=nameLow.split(" ").pop();
+          return !allLosers.has(nameLow)&&!allLosers.has(lastLow);
         });
       }
+      if (activePlayers.length===0) activePlayers=allPlayers.slice(0,8);
 
-      const atpActivePlayers = activePlayers.filter(p => p.rank <= 50);
-      if (atpActivePlayers.length >= 2) activePlayers = atpActivePlayers;
-      if (activePlayers.length === 0) activePlayers = allPlayers.slice(0, 8);
+      // Win-Probability
+      const top8=activePlayers.slice(0,8);
+      const rawScores=top8.map(p=>({...p,score:Math.exp(-p.rank*0.08)}));
+      const totalScore=rawScores.reduce((s,p)=>s+p.score,0)||1;
+      const winProbs=rawScores.map(p=>({...p,winProb:Math.max(1,Math.round((p.score/totalScore)*100))})).sort((a,b)=>b.winProb-a.winProb);
+      const probSum=winProbs.reduce((s,p)=>s+p.winProb,0);
+      if (winProbs.length>0&&probSum!==100) winProbs[0].winProb+=(100-probSum);
 
-      const playersForProb = activePlayers.length > 0 ? activePlayers : allPlayers.slice(0, 8);
-      const top8 = playersForProb.slice(0, 8);
-      const rawScores = top8.map(p => ({ ...p, score: Math.exp(-p.rank * 0.08) }));
-      const totalScore = rawScores.reduce((s, p) => s + p.score, 0) || 1;
-      const winProbs = rawScores
-        .map(p => ({ ...p, winProb: Math.max(1, Math.round((p.score / totalScore) * 100)) }))
-        .sort((a, b) => b.winProb - a.winProb);
-      const probSum = winProbs.reduce((s, p) => s + p.winProb, 0);
-      if (winProbs.length > 0 && probSum !== 100) winProbs[0].winProb += (100 - probSum);
-
+      // Runden aufbauen
       const roundsMap = {};
-      dedupedMatches.forEach(m => {
-        const key = m._roundName;
-        if (!roundsMap[key]) roundsMap[key] = { round: key, matches: [] };
-        const r1 = getRank(m._p1full);
-        const r2 = getRank(m._p2full);
-        const elo1 = eloFromRank(r1);
-        const elo2 = eloFromRank(r2);
-        const prob1 = Math.round(1 / (1 + Math.pow(10, (elo2 - elo1) / 400)) * 100);
-        const predPick = prob1 >= 50 ? m._p1full : m._p2full;
-        const fin = isFinished(m);
-        const actualWinner = fin ? getWinner(m, m._p1full, m._p2full) : null;
-        const score = m.event_final_result && m.event_final_result !== "-" ? m.event_final_result : null;
-        const winnerLast = actualWinner ? actualWinner.toLowerCase().split(" ").pop() : null;
-        const predLast   = predPick     ? predPick.toLowerCase().split(" ").pop()     : null;
-        const correct    = winnerLast && predLast ? winnerLast === predLast : null;
+      dedupedMatches.forEach(m=>{
+        const key=m._roundName;
+        if (!roundsMap[key]) roundsMap[key]={round:key,matches:[]};
+        const r1=getRank(m._p1full), r2=getRank(m._p2full);
+        const elo1=eloFromRank(r1), elo2=eloFromRank(r2);
+        const prob1=Math.round(1/(1+Math.pow(10,(elo2-elo1)/400))*100);
+        const predPick=prob1>=50?m._p1full:m._p2full;
+        const fin=isFinished(m);
+        const actualWinner=fin?getWinner(m,m._p1full,m._p2full):null;
+        const score=m.event_final_result&&m.event_final_result!=="-"?m.event_final_result:null;
+        const winnerLast=actualWinner?actualWinner.toLowerCase().split(" ").pop():null;
+        const predLast=predPick?predPick.toLowerCase().split(" ").pop():null;
+        const correct=winnerLast&&predLast?winnerLast===predLast:null;
+
+        // FIX: Walkover/Retired kennzeichnen
+        const isWO = isWalkoverOrRetired(m);
+        const matchStatus = isWO ? (m.event_status||"W/O") : null;
+
         roundsMap[key].matches.push({
-          player1: m._p1full, player2: m._p2full,
-          rank1: r1, rank2: r2,
-          prediction: predPick,
-          prob: Math.max(prob1, 100 - prob1),
-          date: m.event_date || "", time: m.event_time || "",
-          actualWinner, score, isFinished: fin, correct
+          player1:m._p1full, player2:m._p2full, rank1:r1, rank2:r2,
+          prediction:predPick, prob:Math.max(prob1,100-prob1),
+          date:m.event_date||"", time:m.event_time||"",
+          actualWinner, score, isFinished:fin, correct,
+          isWalkover:isWO, matchStatus
         });
       });
 
-      const MAX_PER_ROUND = {
-        "1/64-Finals": 64, "1/32-Finals": 32, "1/16-Finals": 16,
-        "1/8-Finals": 8, "Quarter-Finals": 4, "Semi-Finals": 2, "Final": 1
-      };
-
+      const MAX_PER_ROUND = { "1/64-Finals":64,"1/32-Finals":32,"1/16-Finals":16,"1/8-Finals":8,"Quarter-Finals":4,"Semi-Finals":2,"Final":1 };
       const sortedRounds = Object.values(roundsMap)
-        .sort((a, b) => getRoundOrder(a.round) - getRoundOrder(b.round))
-        .map(r => {
-          const max = MAX_PER_ROUND[r.round] || 999;
-          const sorted = [...r.matches].sort((a, b) => {
-            if (a.isFinished && !b.isFinished) return -1;
-            if (!a.isFinished && b.isFinished) return 1;
-            return (a.date || "").localeCompare(b.date || "");
-          });
-          return { ...r, matches: sorted.slice(0, max) };
+        .sort((a,b)=>getRoundOrder(a.round)-getRoundOrder(b.round))
+        .map(r=>{
+          const max=MAX_PER_ROUND[r.round]||999;
+          const sorted=[...r.matches].sort((a,b)=>{ if(a.isFinished&&!b.isFinished)return -1; if(!a.isFinished&&b.isFinished)return 1; return (a.date||"").localeCompare(b.date||""); });
+          return {...r,matches:sorted.slice(0,max)};
         })
-        .filter(r => r.matches.length > 0);
-
-      const favorite = allPlayers[0] || null;
+        .filter(r=>r.matches.length>0);
 
       return {
-        name: tourn.name,
-        type: "ATP Singles",
-        discipline: "Singles",
-        dateStart: tourn.dateStart,
-        playerCount: allPlayers.length,
-        favorite: favorite ? { name: favorite.name, rank: favorite.rank, elo: favorite.elo } : null,
-        winProbs: winProbs.slice(0, 5),
-        rounds: sortedRounds,
-        drawSet: allPlayers.length > 0,
-        eliminatedCount: eliminated.size,
-        activePlayerCount: activePlayers.length,
-        isLive: tourn.matches.some(m => m.event_live === "1" || m.event_live === 1),
-        hasStarted: eliminated.size > 0
+        name:tourn.name, type:"ATP Singles", discipline:"Singles",
+        dateStart:tourn.dateStart, playerCount:allPlayers.length,
+        favorite:allPlayers[0]?{name:allPlayers[0].name,rank:allPlayers[0].rank,elo:allPlayers[0].elo}:null,
+        winProbs:winProbs.slice(0,5), rounds:sortedRounds,
+        drawSet:allPlayers.length>0,
+        eliminatedCount:eliminated.size,
+        activePlayerCount:activePlayers.length,
+        isLive:tourn.matches.some(m=>m.event_live==="1"||m.event_live===1),
+        hasStarted:eliminated.size>0
       };
-    }).sort((a, b) => a.dateStart.localeCompare(b.dateStart));
+    }).sort((a,b)=>a.dateStart.localeCompare(b.dateStart));
 
     res.json(result);
-  } catch (err) {
-    console.error("TOURNAMENT PREDICTIONS ERROR:", err.message);
-    res.status(500).json({ error: "Fehler beim Laden der Turnier-Predictions" });
-  }
+  } catch(err) { console.error("TOURNAMENT PREDICTIONS ERROR:", err.message); res.status(500).json({ error: "Fehler" }); }
 });
 
 // ─── DEBUG ────────────────────────────────────────────────────────────────────
 app.get("/api/debug-tournament", async (req, res) => {
   try {
-    const tournName = (req.query.name || "").toLowerCase();
-    const today = new Date();
-    const start = new Date(today); start.setDate(today.getDate() - 1);
-    const end   = new Date(today); end.setDate(today.getDate() + 14);
-    const singlesRes = await apiGet({
-      method: "get_fixtures",
-      date_start: start.toISOString().split("T")[0],
-      date_stop: end.toISOString().split("T")[0],
-      event_type_key: 265
-    });
-    const all = singlesRes.data?.result || [];
-    const filtered = all.filter(m => !tournName || (m.tournament_name || "").toLowerCase().includes(tournName));
-    const debug = filtered.map(m => ({
-      event_key: m.event_key, tournament_name: m.tournament_name,
-      tournament_round: m.tournament_round, event_round: m.event_round,
-      event_date: m.event_date, event_time: m.event_time,
-      event_status: m.event_status, event_live: m.event_live,
-      event_winner: m.event_winner, event_final_result: m.event_final_result,
-      event_first_player: m.event_first_player, event_second_player: m.event_second_player,
-    }));
-    const byRound = {};
-    debug.forEach(m => {
-      const r = m.tournament_round || m.event_round || "?";
-      if (!byRound[r]) byRound[r] = [];
-      byRound[r].push(m);
-    });
-    res.json({ total: debug.length, byRound, raw: debug });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const tournName=(req.query.name||"").toLowerCase();
+    const today=new Date();
+    const start=new Date(today); start.setDate(today.getDate()-1);
+    const end=new Date(today); end.setDate(today.getDate()+14);
+    const singlesRes=await apiGet({ method:"get_fixtures", date_start:start.toISOString().split("T")[0], date_stop:end.toISOString().split("T")[0], event_type_key:265 });
+    const all=singlesRes.data?.result||[];
+    const filtered=all.filter(m=>!tournName||(m.tournament_name||"").toLowerCase().includes(tournName));
+    const debug=filtered.map(m=>({ event_key:m.event_key, tournament_name:m.tournament_name, tournament_round:m.tournament_round, event_round:m.event_round, event_date:m.event_date, event_time:m.event_time, event_status:m.event_status, event_live:m.event_live, event_winner:m.event_winner, event_final_result:m.event_final_result, event_first_player:m.event_first_player, event_second_player:m.event_second_player }));
+    const byRound={};
+    debug.forEach(m=>{ const r=m.tournament_round||m.event_round||"?"; if(!byRound[r])byRound[r]=[]; byRound[r].push(m); });
+    res.json({ total:debug.length, byRound, raw:debug });
+  } catch(err) { res.status(500).json({ error:err.message }); }
 });
 
 const PORT = process.env.PORT || 4000;
