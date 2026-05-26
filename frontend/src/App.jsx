@@ -150,16 +150,25 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
         // Get player data including form
         const getPlayerData = (name) => {
           const ln = (name||"").toLowerCase().split(" ").pop();
+          const firstInitial = (name||"").toLowerCase().trim()[0];
           return players.find(p => {
             const pn = typeof p.name === "string" ? p.name : p.name?.name || "";
-            return pn.toLowerCase().split(" ").pop() === ln;
+            const pnl = pn.toLowerCase();
+            // Match by last name
+            if (pnl.split(" ").pop() === ln) return true;
+            // Match by last name + first initial
+            if (pnl.includes(ln) && pnl[0] === firstInitial) return true;
+            return false;
           });
         };
         const pd1 = getPlayerData(m.player1);
         const pd2 = getPlayerData(m.player2);
 
-        const elo1 = pd1?.elo || 1800;
-        const elo2 = pd2?.elo || 1800;
+        const elo1 = pd1?.elo || Math.max(1500, 2400 - (pd1?.rank || 150) * 6);
+        const elo2 = pd2?.elo || Math.max(1500, 2400 - (pd2?.rank || 150) * 6);
+
+        // Log for debugging
+        console.log(`Over 3.5: ${m.player1}(elo:${elo1}) vs ${m.player2}(elo:${elo2}) pd1found:${!!pd1} pd2found:${!!pd2}`);
 
         // Elo win probability
         const eloP = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
