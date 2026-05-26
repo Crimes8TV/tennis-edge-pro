@@ -309,7 +309,6 @@ app.get("/api/predict", async (req, res) => {
   };
   const p1Stats = deriveStats(p1, Number(rank1), elo1, form1Data);
   const p2Stats = deriveStats(p2, Number(rank2), elo2, form2Data);
-  const p2Stats = deriveStats(p2, Number(rank2), elo2);
   const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
   const setWinP1 = Math.min(0.85, Math.max(0.15, expected1+surfaceSetMod+(surfMod1-surfMod2)*0.01));
   const setWinP2 = 1-setWinP1;
