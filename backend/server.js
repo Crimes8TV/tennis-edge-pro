@@ -308,6 +308,7 @@ async function getPlayerForm(playerName, standings) {
       // Hand stats — look up opponent's hand
       const opponentName = isFirst ? m.event_second_player : m.event_first_player;
       const oppHand = getPlayerHand(opponentName);
+      console.log(`  Hand lookup: "${opponentName}" → ${oppHand||"not found"}`);
       if (oppHand === "R" || oppHand === "L") {
         handTotal[oppHand]++;
         if (won) handWins[oppHand]++;
@@ -889,7 +890,11 @@ app.get("/api/tournament-predictions", async (req, res) => {
   } catch(err) { console.error("TOURNAMENT PREDICTIONS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
-// ─── DEBUG PLAYER FULL ───────────────────────────────────────────────────────
+// ─── CACHE CLEAR ─────────────────────────────────────────────────────────────
+app.get("/api/clear-cache", (req, res) => {
+  formCache.clear();
+  res.json({ ok: true, message: `Cache cleared` });
+});
 app.get("/api/debug-player-full", async (req, res) => {
   try {
     const name = (req.query.name||"sinner").toLowerCase();
