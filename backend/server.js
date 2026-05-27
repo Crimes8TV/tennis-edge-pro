@@ -685,9 +685,15 @@ app.get("/api/news/:player", async (req, res) => {
 // ─── TURNIER PREDICTIONS (nur Singles, fixes: korrekte Spieleranzahl + W/O Kennzeichnung) ──
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
-    const dateStart = getBerlinDate(-10); // enough for longest tournament rounds
     const dateEnd = getBerlinDate(14);
     const todayStr = getBerlinDate();
+    // Load broad range first, then filter to main draw dates only
+    const dateStart = getBerlinDate(-16); // broad enough to catch any tournament
+
+    // Main draw round keywords — qualifying rounds are already filtered by normalizeRoundName
+    // But we also filter by date: only keep matches from the last 14 days
+    // (Qualifying ends ~7 days before main draw, main draw lasts ~14 days)
+    const mainDrawCutoff = getBerlinDate(-14);
 
     const [singlesRes, standingsRes] = await Promise.allSettled([
       apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265 }),
@@ -783,9 +789,21 @@ app.get("/api/tournament-predictions", async (req, res) => {
     });
 
     const result = Object.values(tournMap).map(tourn => {
+      // Find the first main draw date for this tournament
+      // Main draw starts when we see 1/64-Finals or 1/32-Finals (largest rounds)
+      const mainDrawRounds = ["1/64-Finals","1/32-Finals","1/16-Finals"];
+      const mainDrawMatches = tourn.matches.filter(m => mainDrawRounds.includes(m._roundName));
+      const mainDrawStart = mainDrawMatches.length > 0
+        ? mainDrawMatches.map(m => m.event_date||"").filter(Boolean).sort()[0]
+        : null;
+
+      // Filter: only keep matches from main draw start date onwards
+      const filteredMatches = mainDrawStart
+        ? tourn.matches.filter(m => !m.event_date || m.event_date >= mainDrawStart)
+        : tourn.matches;
       // Deduplizierung
       const matchDedup = new Map();
-      tourn.matches.forEach(m => {
+      filteredMatches.forEach(m => {
         const p1=getFullName(m.event_first_player), p2=getFullName(m.event_second_player);
         if (!p1||!p2) return;
         const mKey=[p1,p2].sort().join("|||")+"|||"+m._roundName;
@@ -890,13 +908,13 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
       return {
         name:tourn.name, type:"ATP Singles", discipline:"Singles",
-        dateStart:tourn._minDate||tourn.dateStart, playerCount:allPlayers.length,
+        dateStart:mainDrawStart||tourn._minDate||tourn.dateStart, playerCount:allPlayers.length,
         favorite:allPlayers[0]?{name:allPlayers[0].name,rank:allPlayers[0].rank,elo:allPlayers[0].elo}:null,
         winProbs:winProbs.slice(0,5), rounds:sortedRounds,
         drawSet:allPlayers.length>0,
         eliminatedCount:eliminated.size,
         activePlayerCount:activePlayers.length,
-        isLive:tourn.matches.some(m=>m.event_live==="1"||m.event_live===1),
+        isLive:filteredMatches.some(m=>m.event_live==="1"||m.event_live===1),
         hasStarted:eliminated.size>0
       };
     }).sort((a,b)=>a.dateStart.localeCompare(b.dateStart));
