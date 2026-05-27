@@ -426,10 +426,11 @@ app.get("/api/predict", async (req, res) => {
   const surfMod2 = getSurfaceModifier(p2, rank2, surface);
   const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
 
-  // Weighting: Elo 40%, Form 25%, Surface 35%
-  let score1 = expected1*100*0.40 + form1*0.25 + surfMod1*surfaceWeight + handMod1;
-  let score2 = expected2*100*0.40 + form2*0.25 + surfMod2*surfaceWeight + handMod2;
-  if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.35; score2 += surface2*0.35; }
+  // Weighting: Elo 30%, Form 40%, Surface 25%, Hand 5%
+  const surfaceWeightAdj = surface === "clay" ? 1.4 : surface === "grass" ? 1.2 : 1.0;
+  let score1 = expected1*100*0.30 + form1*0.40 + surfMod1*surfaceWeightAdj + handMod1*0.05;
+  let score2 = expected2*100*0.30 + form2*0.40 + surfMod2*surfaceWeightAdj + handMod2*0.05;
+  if (surface1 > 0 || surface2 > 0) { score1 += surface1*0.25; score2 += surface2*0.25; }
 
   const p1Win = Math.round((score1/(score1+score2))*100);
   const rankDiff = Math.abs(rank1-rank2);
