@@ -685,7 +685,7 @@ app.get("/api/news/:player", async (req, res) => {
 // ─── TURNIER PREDICTIONS (nur Singles, fixes: korrekte Spieleranzahl + W/O Kennzeichnung) ──
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
-    const dateStart = getBerlinDate(-1);
+    const dateStart = getBerlinDate(-21); // 3 weeks back to catch all rounds
     const dateEnd = getBerlinDate(14);
     const todayStr = getBerlinDate();
 
