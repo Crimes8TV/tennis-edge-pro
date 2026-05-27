@@ -63,6 +63,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
 function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare }) {
   const isLive = m.live;
   const isFinished = m.finished;
+  const isCancelled = m.cancelled;
   const catAtp = m.category?.includes("ATP");
   const sets = Array.isArray(m.sets) && m.sets.length > 0 ? m.sets : [];
   const setCount = sets.length === 0 && m.score && m.score !== "-"
@@ -70,13 +71,14 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
   const gameParts = m.gameScore && m.gameScore !== "-" ? m.gameScore.split("-").map(s => s.trim()) : null;
 
   return (
-    <div className="matchCard">
+    <div className="matchCard" style={isCancelled ? {borderColor:"rgba(250,204,21,0.3)",opacity:0.75} : {}}>
       <div onClick={onClick} style={{cursor:"pointer"}}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
-            {isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
+            {isCancelled ? <span style={{ fontSize: "11px", color: "#facc15", fontWeight: 700 }}>⚠️ Cancelled</span>
+              : isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
               : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Finished</span>
               : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>}
           </div>
@@ -119,7 +121,7 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
       </div>
 
       {/* Action buttons for upcoming matches */}
-      {!isFinished && (
+      {!isFinished && !isCancelled && (
         <div style={{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap"}}>
           <button
             onClick={(e) => { e.stopPropagation(); onClick(); }}
