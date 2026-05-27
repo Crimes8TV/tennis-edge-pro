@@ -558,13 +558,17 @@ app.get("/api/valuepicks", async (req, res) => {
 app.get("/api/fixtures/today", async (req, res) => {
   try {
     const today = getBerlinDate();
+    const tomorrow = getBerlinDate(1);
+    const showTomorrow = isAfter18Berlin();
+    const dateStop = showTomorrow ? tomorrow : today;
+
     const eventTypes = [
       { key: 265, label: "ATP Singles" },
       { key: 281, label: "Challenger Singles" },
       { key: 282, label: "Challenger Doubles" }
     ];
     const [fixtureResults, liveResults] = await Promise.all([
-      Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_fixtures", date_start:today, date_stop:today, event_type_key:et.key }).then(r=>(r.data?.result||[]).map(m=>({...m,_category:et.label}))))),
+      Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_fixtures", date_start:today, date_stop:dateStop, event_type_key:et.key }).then(r=>(r.data?.result||[]).map(m=>({...m,_category:et.label}))))),
       Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_livescore", event_type_key:et.key }).then(r=>(r.data?.result||[]).map(m=>({...m,_category:et.label})))))
     ]);
     const allFixtures = fixtureResults.filter(r=>r.status==="fulfilled").flatMap(r=>r.value);
