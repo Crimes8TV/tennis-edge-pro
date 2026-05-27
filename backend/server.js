@@ -580,6 +580,7 @@ app.get("/api/fixtures/today", async (req, res) => {
       const liveMatch = liveMap.get(key);
       const isLive = !!liveMatch || m.event_live==="1" || m.event_live===1;
       const isFinished = m.event_status==="Finished" || m.event_status==="After Extra Time";
+      const isCancelled = ["cancelled","canceled","walkover","w/o","retired","retirement","abandoned"].some(s => (m.event_status||"").toLowerCase().includes(s));
       const src = liveMatch||m;
       const parseScore = (val) => val!==undefined&&val!==null?String(val).split(".")[0]:"-";
       const setScores = [];
@@ -591,9 +592,9 @@ app.get("/api/fixtures/today", async (req, res) => {
       return {
         player1:m.event_first_player, player2:m.event_second_player,
         score:src.event_final_result||"-", gameScore:src.event_game_result||"-",
-        sets:setScores, status:isLive?(src.event_status||"Live"):isFinished?"Beendet":m.event_status||"Geplant",
+        sets:setScores, status:isLive?(src.event_status||"Live"):isFinished?"Finished":isCancelled?"Cancelled":m.event_status||"Scheduled",
         tournament:m.tournament_name||"", category:m._category||"",
-        time:m.event_time||"", live:isLive, finished:isFinished, matchKey:m.event_key
+        time:m.event_time||"", live:isLive, finished:isFinished, cancelled:isCancelled, matchKey:m.event_key
       };
     }).sort((a,b)=>{
       if(a.live&&!b.live)return -1; if(!a.live&&b.live)return 1;
