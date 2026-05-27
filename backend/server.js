@@ -16,6 +16,19 @@ const BASE_URL = "https://api.api-tennis.com/tennis/";
 const apiGet = (params) =>
   axios.get(BASE_URL, { params: { APIkey: API_KEY, ...params } });
 
+// Helper: is it after 18:00 in Berlin?
+const isAfter18Berlin = () => {
+  const hour = parseInt(new Date().toLocaleString("sv-SE", { timeZone: "Europe/Berlin", hour: "2-digit", hour12: false }).slice(11, 13));
+  return hour >= 18;
+};
+const getBerlinDate = (offsetDays = 0) => {
+  const now = new Date();
+  // Add offset days
+  now.setDate(now.getDate() + offsetDays);
+  // Convert to Berlin time
+  return now.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }); // returns YYYY-MM-DD
+};
+
 // ─── ATP PLAYER HAND DATABASE (Jeff Sackmann / tennis_atp) ───────────────────
 let playerHandDB = {}; // { "lastname_firstname": "R"|"L"|"U" }
 let playerHandDBLoaded = false;
@@ -66,7 +79,7 @@ function getPlayerHand(name) {
 // ─── SPIELERLISTE ─────────────────────────────────────────────────────────────
 app.get("/api/players", async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getBerlinDate();
     const [atpRes, fixturesRes] = await Promise.allSettled([
       apiGet({ method: "get_standings", event_type: "ATP" }),
       apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: 281 })
@@ -247,7 +260,7 @@ async function getPlayerForm(playerName, standings) {
     // If still not found, search today's fixtures for player_key
     if (!found?.player_key) {
       try {
-        const today = new Date().toISOString().split("T")[0];
+        const today = getBerlinDate();
         const fixRes = await apiGet({ method: "get_fixtures", date_start: today, date_stop: today });
         const fixtures = fixRes.data?.result || [];
         for (const m of fixtures) {
@@ -266,11 +279,8 @@ async function getPlayerForm(playerName, standings) {
     if (!found?.player_key) return null;
     const playerKey = String(found.player_key);
 
-    const today = new Date();
-    const threeMonthsAgo = new Date(today);
-    threeMonthsAgo.setMonth(today.getMonth() - 3);
-    const dateStart = threeMonthsAgo.toISOString().split("T")[0];
-    const dateEnd = today.toISOString().split("T")[0];
+    const dateEnd = getBerlinDate();
+    const dateStart = getBerlinDate(-90); // 3 months ago
 
     const res = await apiGet({
       method: "get_fixtures",
@@ -493,7 +503,7 @@ app.get("/api/predict", async (req, res) => {
 // ─── VALUE PICKS ──────────────────────────────────────────────────────────────
 app.get("/api/valuepicks", async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getBerlinDate();
     const fixturesRes = await apiGet({ method: "get_fixtures", date_start: today, date_stop: today, event_type_key: 265 });
     const matches = fixturesRes.data?.result || [];
     if (matches.length === 0) return res.json([]);
@@ -547,7 +557,7 @@ app.get("/api/valuepicks", async (req, res) => {
 // ─── HEUTIGE FIXTURES ────────────────────────────────────────────────────────
 app.get("/api/fixtures/today", async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getBerlinDate();
     const eventTypes = [
       { key: 265, label: "ATP Singles" },
       { key: 281, label: "Challenger Singles" },
@@ -594,7 +604,7 @@ app.get("/api/fixtures/today", async (req, res) => {
 app.get("/api/match/:matchKey", async (req, res) => {
   try {
     const { matchKey } = req.params;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getBerlinDate();
     const eventTypes = [265, 281, 282];
     let match = null;
     const liveResults = await Promise.allSettled(eventTypes.map(et => apiGet({ method:"get_livescore", event_type_key:et })));
@@ -669,12 +679,9 @@ app.get("/api/news/:player", async (req, res) => {
 // ─── TURNIER PREDICTIONS (nur Singles, fixes: korrekte Spieleranzahl + W/O Kennzeichnung) ──
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
-    const today = new Date();
-    const start = new Date(today); start.setDate(today.getDate()-1);
-    const end = new Date(today); end.setDate(today.getDate()+14);
-    const dateStart=start.toISOString().split("T")[0];
-    const dateEnd=end.toISOString().split("T")[0];
-    const todayStr=today.toISOString().split("T")[0];
+    const dateStart = getBerlinDate(-1);
+    const dateEnd = getBerlinDate(14);
+    const todayStr = getBerlinDate();
 
     const [singlesRes, standingsRes] = await Promise.allSettled([
       apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265 }),
@@ -911,7 +918,7 @@ app.get("/api/debug-player", async (req, res) => {
   try {
     const name = (req.query.name||"").toLowerCase();
     const lastName = name.split(" ").pop();
-    const today = new Date().toISOString().split("T")[0];
+    const today = getBerlinDate();
     const results = {};
 
     // Check ATP standings
@@ -944,10 +951,7 @@ app.get("/api/debug-player", async (req, res) => {
 app.get("/api/debug-tournament", async (req, res) => {
   try {
     const tournName=(req.query.name||"").toLowerCase();
-    const today=new Date();
-    const start=new Date(today); start.setDate(today.getDate()-1);
-    const end=new Date(today); end.setDate(today.getDate()+14);
-    const singlesRes=await apiGet({ method:"get_fixtures", date_start:start.toISOString().split("T")[0], date_stop:end.toISOString().split("T")[0], event_type_key:265 });
+    const singlesRes=await apiGet({ method:"get_fixtures", date_start:getBerlinDate(-1), date_stop:getBerlinDate(14), event_type_key:265 });
     const all=singlesRes.data?.result||[];
     const filtered=all.filter(m=>!tournName||(m.tournament_name||"").toLowerCase().includes(tournName));
     const debug=filtered.map(m=>({ event_key:m.event_key, tournament_name:m.tournament_name, tournament_round:m.tournament_round, event_round:m.event_round, event_date:m.event_date, event_time:m.event_time, event_status:m.event_status, event_live:m.event_live, event_winner:m.event_winner, event_final_result:m.event_final_result, event_first_player:m.event_first_player, event_second_player:m.event_second_player }));
