@@ -726,7 +726,7 @@ export default function App() {
                 <div className="dashSectionHeader">
                   {fixtures.some(m => m.live)
                     ? <><span className="liveDot" />{fixtures.filter(m=>m.live).length} Live · Today {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</>
-                    : <>📅 Today — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</>}
+                    : <>📅 {new Date().getHours() >= 18 ? `Today + Tomorrow` : "Today"} — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})}</>}
                 </div>
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
@@ -799,7 +799,7 @@ export default function App() {
           <>
             <Header title="Matches" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              📅 Today — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
+              📅 {new Date().getHours() >= 18 ? `Today + Tomorrow` : "Today"} — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
               {fixtures.filter(m=>m.live).length > 0 && <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>🔴 {fixtures.filter(m=>m.live).length} Live</span>}
             </p>
             <div>
