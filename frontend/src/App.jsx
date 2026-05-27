@@ -1649,6 +1649,7 @@ export default function App() {
                         {/* Draw Visualization */}
                         {(tournamentView[globalIdx]||"list")==="draw" && tourn.rounds?.length>0 && (
                           <div style={{overflowX:"auto",paddingBottom:"12px"}}>
+                            <div style={{marginBottom:"12px",fontSize:"13px",fontWeight:700,color:"#22d3ee"}}>🌳 {tourn.name} — Draw View</div>
                             <div style={{display:"flex",gap:"0",minWidth:`${tourn.rounds.length*220}px`}}>
                               {[...tourn.rounds].reverse().map((r,ri) => (
                                 <div key={ri} style={{flex:1,minWidth:"200px",padding:"0 6px"}}>
