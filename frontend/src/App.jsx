@@ -214,6 +214,10 @@ export default function App() {
   const [surface, setSurface] = useState("hard");
   const [bestOf, setBestOf] = useState(3);
   const [tournamentSection, setTournamentSection] = useState("active");
+  const [matchSearch, setMatchSearch] = useState("");
+  const [dashShowAll, setDashShowAll] = useState(false);
+  const [standings, setStandings] = useState([]);
+  const [standingsLoading, setStandingsLoading] = useState(false);
 
   // ── Favorite Players ─────────────────────────────────────────────────────────
   const [favoritePlayers, setFavoritePlayers] = useState(() => {
@@ -596,6 +600,9 @@ export default function App() {
         <button onClick={() => setTab("predictor")}><Zap /> Match Predictor</button>
         <button onClick={() => setTab("h2h")}><Trophy /> Head-to-Head</button>
         <button onClick={() => setTab("tournamentpred")}><Star /> Tournament Prediction</button>
+        <button onClick={() => { setTab("standings"); if(standings.length===0){setStandingsLoading(true);fetch("https://tennis-edge-backend.onrender.com/api/players").then(r=>r.json()).then(d=>{setStandings(Array.isArray(d)?d.filter(p=>p.rank<200&&p.points>0):[]);setStandingsLoading(false);}).catch(()=>setStandingsLoading(false));} }} style={tab==="standings"?{borderColor:"rgba(74,222,128,0.4)",color:"#4ade80"}:{}}>
+          🏅 ATP Rankings
+        </button>
         <button onClick={() => setTab("watchlist")} style={tab==="watchlist"?{borderColor:"rgba(250,204,21,0.4)",color:"#facc15"}:{}}>
           🔖 My Watchlist {watchlist.length > 0 && <span style={{marginLeft:"6px",background:"rgba(250,204,21,0.2)",color:"#facc15",borderRadius:"999px",padding:"1px 7px",fontSize:"11px",fontWeight:700}}>{watchlist.length}</span>}
         </button>
@@ -621,6 +628,7 @@ export default function App() {
           {id:"tournamentpred", icon:<Star size={18}/>, label:"Cups"},
           {id:"h2h",       icon:<Trophy size={18}/>, label:"H2H"},
           {id:"player",    icon:<Search size={18}/>, label:"Players"},
+          {id:"standings", icon:<span style={{fontSize:"16px"}}>🏅</span>, label:"Rankings"},
           {id:"watchlist", icon:<span style={{fontSize:"16px"}}>🔖</span>, label:"Saved"},
           {id:"history",   icon:<span style={{fontSize:"16px"}}>🕐</span>, label:"History"},
           {id:"performance",icon:<span style={{fontSize:"16px"}}>📈</span>, label:"Stats"},
@@ -742,9 +750,8 @@ export default function App() {
                 </div>
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
-                  : <div className="matchCardGrid">
-                      {/* CHANGE 4: Cancelled ans Ende sortieren */}
-                      {[...fixtures].sort((a,b) => {
+                  : (() => {
+                      const sorted = [...fixtures].sort((a,b) => {
                         if (a.live && !b.live) return -1;
                         if (!a.live && b.live) return 1;
                         const aAtp = a.category?.includes("ATP") ? 0 : 1;
@@ -753,13 +760,33 @@ export default function App() {
                         const aSing = a.category?.includes("Singles") ? 0 : 1;
                         const bSing = b.category?.includes("Singles") ? 0 : 1;
                         if (aSing !== bSing) return aSing - bSing;
-                        // Cancelled ans Ende
                         const aCan = a.cancelled ? 1 : 0;
                         const bCan = b.cancelled ? 1 : 0;
                         return aCan - bCan;
-                      }).slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
-                      {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
-                    </div>}
+                      });
+                      const limit = dashShowAll ? sorted.length : 6;
+                      const shown = sorted.slice(0, limit);
+                      return (
+                        <div className="matchCardGrid">
+                          {shown.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
+                          {!dashShowAll && fixtures.length > 6 && (
+                            <div style={{gridColumn:"1/-1",display:"flex",gap:"10px",alignItems:"center",justifyContent:"space-between",padding:"10px 0"}}>
+                              <button onClick={() => setDashShowAll(true)} style={{background:"rgba(34,211,238,0.08)",border:"1px solid rgba(34,211,238,0.25)",color:"#22d3ee",borderRadius:"10px",padding:"8px 18px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
+                                ➕ Alle {fixtures.length} Matches anzeigen
+                              </button>
+                              <span style={{color:"#22d3ee",fontSize:"12px",cursor:"pointer"}} onClick={() => setTab("matches")}>Matches-Tab →</span>
+                            </div>
+                          )}
+                          {dashShowAll && fixtures.length > 6 && (
+                            <div style={{gridColumn:"1/-1",textAlign:"center",paddingTop:"4px"}}>
+                              <button onClick={() => setDashShowAll(false)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",color:"#475569",borderRadius:"8px",padding:"6px 14px",fontSize:"12px",cursor:"pointer"}}>
+                                ▲ Weniger anzeigen
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
               </div>
               <div>
                 <div className="dashSectionHeader" style={{justifyContent:"space-between"}}>
@@ -812,19 +839,48 @@ export default function App() {
         {tab === "matches" && (
           <>
             <Header title="Matches" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"16px"}}>
               📅 {new Date().getHours() >= 18 ? `Today + Tomorrow` : "Today"} — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
               {fixtures.filter(m=>m.live).length > 0 && <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>🔴 {fixtures.filter(m=>m.live).length} Live</span>}
-              {/* CHANGE 4b: Cancelled Zähler anzeigen */}
               {fixtures.filter(m=>m.cancelled).length > 0 && <span style={{marginLeft:"10px",color:"#ef4444",fontWeight:700}}>🚫 {fixtures.filter(m=>m.cancelled).length} Abgesagt</span>}
             </p>
+
+            {/* Suchfeld */}
+            <div style={{position:"relative",marginBottom:"20px"}}>
+              <Search size={15} style={{position:"absolute",left:"14px",top:"50%",transform:"translateY(-50%)",color:"#22d3ee",pointerEvents:"none"}} />
+              <input
+                type="text"
+                value={matchSearch}
+                onChange={e => setMatchSearch(e.target.value)}
+                placeholder="Spieler oder Turnier suchen..."
+                style={{width:"100%",boxSizing:"border-box",padding:"10px 14px 10px 40px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(34,211,238,0.2)",borderRadius:"12px",color:"#e2e8f0",fontSize:"14px",outline:"none",transition:"border-color 0.2s"}}
+                onFocus={e=>e.target.style.borderColor="rgba(34,211,238,0.5)"}
+                onBlur={e=>e.target.style.borderColor="rgba(34,211,238,0.2)"}
+              />
+              {matchSearch && <button onClick={()=>setMatchSearch("")} style={{position:"absolute",right:"12px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:"16px",lineHeight:1}}>✕</button>}
+            </div>
             <div>
               {fixturesLoading ? <p style={{color:"#94a3b8"}}>⏳ Loading matches...</p>
                 : fixtures.length === 0 ? <p style={{color:"#94a3b8"}}>No matches found today.</p>
                 : (() => {
+                    const searchLower = matchSearch.toLowerCase().trim();
+                    const filteredFixtures = searchLower
+                      ? fixtures.filter(m =>
+                          (m.player1||"").toLowerCase().includes(searchLower) ||
+                          (m.player2||"").toLowerCase().includes(searchLower) ||
+                          (m.tournament||"").toLowerCase().includes(searchLower)
+                        )
+                      : fixtures;
+
+                    if (filteredFixtures.length === 0) return (
+                      <div style={{textAlign:"center",padding:"40px 20px",color:"#475569"}}>
+                        <div style={{fontSize:"32px",marginBottom:"12px"}}>🔍</div>
+                        <div style={{fontSize:"14px"}}>Kein Match gefunden für <strong style={{color:"#e2e8f0"}}>„{matchSearch}"</strong></div>
+                      </div>
+                    );
                     const categoryOrder = ["ATP Singles","ATP Doubles","Challenger Singles","Challenger Doubles"];
                     const grouped = {};
-                    fixtures.forEach(m => {
+                    filteredFixtures.forEach(m => {
                       const cat = m.category || "Sonstige";
                       const tourn = m.tournament || "Unbekannt";
                       const key = `${cat}|||${tourn}`;
@@ -2088,6 +2144,92 @@ export default function App() {
                 </div>
               );
             })()}
+          </>
+        )}
+
+        {tab === "standings" && (
+          <>
+            <Header title="ATP Rankings" />
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
+              🏅 ATP World Tour Rankings — Top 200
+            </p>
+
+            {standingsLoading ? (
+              <p style={{color:"#94a3b8"}}>⏳ Loading rankings...</p>
+            ) : standings.length === 0 ? (
+              <div style={{textAlign:"center",padding:"40px",color:"#475569"}}>
+                <div style={{fontSize:"32px",marginBottom:"12px"}}>🏅</div>
+                <p>No rankings data available.</p>
+                <button className="predictBtn" style={{width:"auto",padding:"10px 24px",marginTop:"8px"}} onClick={() => {
+                  setStandingsLoading(true);
+                  fetch("https://tennis-edge-backend.onrender.com/api/players")
+                    .then(r=>r.json()).then(d=>{setStandings(Array.isArray(d)?d.filter(p=>p.rank<200&&p.points>0):[]);setStandingsLoading(false);})
+                    .catch(()=>setStandingsLoading(false));
+                }}>🔄 Laden</button>
+              </div>
+            ) : (
+              <>
+                {/* Top 3 Podium */}
+                {standings.length >= 3 && (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px",marginBottom:"28px"}}>
+                    {[standings[1], standings[0], standings[2]].map((p, i) => {
+                      const podiumPos = [2, 1, 3][i];
+                      const colors = ["#94a3b8","#facc15","#b45309"];
+                      const sizes = ["80px","100px","80px"];
+                      const color = colors[i];
+                      return (
+                        <div key={p.name} onClick={() => {setPlayer(p.name);setTab("player");}}
+                          style={{background:"#0f172a",border:`1px solid ${color}44`,borderRadius:"16px",padding:"16px",textAlign:"center",cursor:"pointer",transition:"all 0.2s",order:i===1?-1:0}}
+                          onMouseEnter={e=>e.currentTarget.style.borderColor=color}
+                          onMouseLeave={e=>e.currentTarget.style.borderColor=`${color}44`}>
+                          <div style={{fontSize:i===0?"32px":"28px",marginBottom:"4px"}}>{["🥈","🥇","🥉"][i]}</div>
+                          <div style={{fontSize:i===0?"28px":"22px",fontWeight:900,color,marginBottom:"2px"}}>#{podiumPos}</div>
+                          <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0",marginBottom:"4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                          <div style={{fontSize:"11px",color:"#475569"}}>{p.points?.toLocaleString()} Pts</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Full Rankings Table */}
+                <div style={{background:"#0f172a",borderRadius:"16px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.07)"}}>
+                  {/* Header */}
+                  <div style={{display:"grid",gridTemplateColumns:"48px 1fr 80px 80px",gap:"8px",padding:"10px 16px",background:"rgba(255,255,255,0.03)",borderBottom:"1px solid rgba(255,255,255,0.07)",fontSize:"11px",color:"#475569",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>
+                    <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>Punkte</span><span style={{textAlign:"right"}}>Aktion</span>
+                  </div>
+                  {standings.slice(0,100).map((p, i) => {
+                    const isTop3 = p.rank <= 3;
+                    const isTop10 = p.rank <= 10;
+                    const rankColor = isTop3 ? "#facc15" : isTop10 ? "#22d3ee" : "#94a3b8";
+                    return (
+                      <div key={p.name} style={{display:"grid",gridTemplateColumns:"48px 1fr 80px 80px",gap:"8px",padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.04)",alignItems:"center",transition:"background 0.15s",cursor:"pointer"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                        onClick={() => {setPlayer(p.name);setTab("player");}}>
+                        <span style={{fontSize:"14px",fontWeight:800,color:rankColor}}>#{p.rank}</span>
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:"14px",fontWeight:isTop10?700:500,color:isTop10?"#e2e8f0":"#cbd5e1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                          {p.country && <div style={{fontSize:"11px",color:"#475569",marginTop:"1px"}}>{p.country}</div>}
+                        </div>
+                        <span style={{fontSize:"13px",fontWeight:600,color:rankColor,textAlign:"right"}}>{p.points?.toLocaleString()}</span>
+                        <div style={{display:"flex",gap:"4px",justifyContent:"flex-end"}}>
+                          <button onClick={(e)=>{e.stopPropagation();setPlayer(p.name);setTab("player");}}
+                            style={{padding:"3px 8px",borderRadius:"6px",border:"1px solid rgba(34,211,238,0.25)",background:"rgba(34,211,238,0.06)",color:"#22d3ee",fontSize:"10px",fontWeight:600,cursor:"pointer"}}>
+                            📊
+                          </button>
+                          <button onClick={(e)=>{e.stopPropagation();setP1(p.name);setTab("predictor");}}
+                            style={{padding:"3px 8px",borderRadius:"6px",border:"1px solid rgba(139,92,246,0.25)",background:"rgba(139,92,246,0.06)",color:"#a78bfa",fontSize:"10px",fontWeight:600,cursor:"pointer"}}>
+                            ⚡
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{textAlign:"center",fontSize:"12px",color:"#334155",marginTop:"16px"}}>Nur Spieler mit Ranking-Punkten · Klick auf Spieler → Analyzer</p>
+              </>
+            )}
           </>
         )}
 
