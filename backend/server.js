@@ -23,14 +23,12 @@ const isAfter18Berlin = () => {
 };
 const getBerlinDate = (offsetDays = 0) => {
   const now = new Date();
-  // Add offset days
   now.setDate(now.getDate() + offsetDays);
-  // Convert to Berlin time
-  return now.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }); // returns YYYY-MM-DD
+  return now.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
 };
 
-// ─── ATP PLAYER HAND DATABASE (Jeff Sackmann / tennis_atp) ───────────────────
-let playerHandDB = {}; // { "lastname_firstname": "R"|"L"|"U" }
+// ─── ATP PLAYER HAND DATABASE ─────────────────────────────────────────────────
+let playerHandDB = {};
 let playerHandDBLoaded = false;
 
 async function loadPlayerHandDB() {
@@ -39,19 +37,18 @@ async function loadPlayerHandDB() {
       "https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_players.csv",
       { timeout: 10000 }
     );
-    const lines = res.data.split("\n").slice(1); // skip header
+    const lines = res.data.split("\n").slice(1);
     lines.forEach(line => {
       const parts = line.split(",");
       if (parts.length < 5) return;
       const firstName = (parts[1] || "").trim().toLowerCase();
       const lastName = (parts[2] || "").trim().toLowerCase();
-      const hand = (parts[3] || "").trim().toUpperCase(); // R, L, U or empty
+      const hand = (parts[3] || "").trim().toUpperCase();
       if (!lastName) return;
-      // Store by lastname and by lastname_firstname for better matching
       const key = lastName;
       const fullKey = `${lastName}_${firstName}`;
       if (hand === "R" || hand === "L") {
-        playerHandDB[key] = playerHandDB[key] || hand; // first match wins
+        playerHandDB[key] = playerHandDB[key] || hand;
         playerHandDB[fullKey] = hand;
       }
     });
@@ -62,16 +59,13 @@ async function loadPlayerHandDB() {
   }
 }
 
-// Load on startup
 loadPlayerHandDB();
 
-// Helper: get hand for a player name
 function getPlayerHand(name) {
   if (!name) return null;
   const parts = name.toLowerCase().trim().split(" ");
   const lastName = parts[parts.length - 1];
   const firstName = parts.length > 1 ? parts[0] : "";
-  // Try full key first, then last name only
   const fullKey = `${lastName}_${firstName}`;
   return playerHandDB[fullKey] || playerHandDB[lastName] || null;
 }
@@ -191,8 +185,6 @@ app.get("/api/h2h", async (req, res) => {
     const h2h = result.H2H || [];
     const p1Results = result.firstPlayerResults || [];
     const p2Results = result.secondPlayerResults || [];
-
-    // Count wins by matching actual player names, not just First/Second Player
     const p1Last = (p1_name || "").toLowerCase().trim().split(" ").pop();
     const p2Last = (p2_name || "").toLowerCase().trim().split(" ").pop();
     let p1Wins = 0, p2Wins = 0;
@@ -205,7 +197,7 @@ app.get("/api/h2h", async (req, res) => {
       const winnerName = winnerIsFirst ? fp : sp;
       if (p1Last && winnerName.includes(p1Last)) p1Wins++;
       else if (p2Last && winnerName.includes(p2Last)) p2Wins++;
-      else if (winnerIsFirst) p1Wins++; // fallback
+      else if (winnerIsFirst) p1Wins++;
       else p2Wins++;
     });
     const filterSelfMatches = (matches) => matches.filter(m => {
@@ -227,7 +219,6 @@ app.get("/api/odds/:match_key", async (req, res) => {
   } catch (err) { console.error("ODDS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
-
 // ─── In-memory cache for form data (5 min TTL) ───────────────────────────────
 const formCache = new Map();
 const FORM_TTL = 5 * 60 * 1000;
@@ -240,15 +231,12 @@ async function getPlayerForm(playerName, standings) {
 
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
-    const fullLower = playerName.toLowerCase().trim();
 
-    // Search by last name OR any word in the full name
     let found = standings.find(p => {
       const pn = (p.player||"").toLowerCase();
       return pn.split(" ").some(word => word === lastName) || pn.includes(lastName);
     });
 
-    // If not found, try Challenger standings
     if (!found?.player_key) {
       try {
         const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
@@ -257,7 +245,6 @@ async function getPlayerForm(playerName, standings) {
       } catch(e) { /* ignore */ }
     }
 
-    // If still not found, search today's fixtures for player_key
     if (!found?.player_key) {
       try {
         const today = getBerlinDate();
@@ -280,7 +267,7 @@ async function getPlayerForm(playerName, standings) {
     const playerKey = String(found.player_key);
 
     const dateEnd = getBerlinDate();
-    const dateStart = getBerlinDate(-90); // 3 months ago
+    const dateStart = getBerlinDate(-90);
 
     const res = await apiGet({
       method: "get_fixtures",
@@ -315,7 +302,6 @@ async function getPlayerForm(playerName, standings) {
       surfaceTotal[surf]++;
       if (won) surfaceWins[surf]++;
 
-      // Hand stats — look up opponent's hand
       const opponentName = isFirst ? m.event_second_player : m.event_first_player;
       const oppHand = getPlayerHand(opponentName);
       console.log(`  Hand lookup: "${opponentName}" → ${oppHand||"not found"}`);
@@ -374,7 +360,6 @@ app.get("/api/predict", async (req, res) => {
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
 
-  // Fetch real form + standings in parallel
   let form1Data = null, form2Data = null, standings = [];
   try {
     const [atpRes, chalRes] = await Promise.allSettled([
@@ -390,7 +375,6 @@ app.get("/api/predict", async (req, res) => {
     ]);
   } catch(e) { console.error("Form fetch error:", e.message); }
 
-  // Händigkeit / Hand advantage
   const hand1 = getPlayerHand(p1);
   const hand2 = getPlayerHand(p2);
   let handMod1 = 0, handMod2 = 0;
@@ -398,11 +382,9 @@ app.get("/api/predict", async (req, res) => {
   else if (hand1 === "R" && hand2 === "L") { handMod1 = -2.5; handMod2 = 2.5; }
   if (surface === "clay") { handMod1 *= 1.3; handMod2 *= 1.3; }
 
-  // Real form if available, fallback to rank-based estimate
   const form1 = form1Data ? form1Data.form : Math.max(30, Math.min(85, 85 - Number(rank1) * 0.2));
   const form2 = form2Data ? form2Data.form : Math.max(30, Math.min(85, 85 - Number(rank2) * 0.2));
 
-  // Further adjust using actual historical record vs opponent's hand type
   if (form1Data?.handRates && hand2) {
     const rate = hand2 === "R" ? form1Data.handRates.vsRight : form1Data.handRates.vsLeft;
     if (rate && rate.total >= 3) handMod1 += (rate.pct - 50) * 0.08;
@@ -412,7 +394,6 @@ app.get("/api/predict", async (req, res) => {
     if (rate && rate.total >= 3) handMod2 += (rate.pct - 50) * 0.08;
   }
 
-  // Real surface win rates if available
   const surfRate1 = form1Data?.surfaceRates?.[surface];
   const surfRate2 = form2Data?.surfaceRates?.[surface];
   const surface1 = surfRate1 != null ? surfRate1 : Number(req.query.surface1 || 0);
@@ -424,9 +405,7 @@ app.get("/api/predict", async (req, res) => {
   };
   const surfMod1 = getSurfaceModifier(p1, rank1, surface);
   const surfMod2 = getSurfaceModifier(p2, rank2, surface);
-  const surfaceWeight = surface === "clay" ? 1.8 : surface === "grass" ? 1.5 : 1.2;
 
-  // Weighting: Elo 30%, Form 40%, Surface 25%, Hand 5%
   const surfaceWeightAdj = surface === "clay" ? 1.4 : surface === "grass" ? 1.2 : 1.0;
   let score1 = expected1*100*0.30 + form1*0.40 + surfMod1*surfaceWeightAdj + handMod1*0.05;
   let score2 = expected2*100*0.30 + form2*0.40 + surfMod2*surfaceWeightAdj + handMod2*0.05;
@@ -463,20 +442,13 @@ app.get("/api/predict", async (req, res) => {
   const favorite = favoriteIsP1?p1:p2, underdog = favoriteIsP1?p2:p1;
   const p=Math.max(setWinP1,setWinP2), q=1-p;
 
-  // Best of 3 vs Best of 5 Berechnung
   let expFav, expDog;
   if (bo === 5) {
-    // Best of 5: erster der 3 Sätze gewinnt
-    const sc30 = p*p*p;
-    const sc31 = 3*p*p*p*q;
-    const sc32 = 6*p*p*p*q*q;
-    const sc03 = q*q*q;
-    const sc13 = 3*p*q*q*q;
-    const sc23 = 6*p*p*q*q*q;
+    const sc30 = p*p*p, sc31 = 3*p*p*p*q, sc32 = 6*p*p*p*q*q;
+    const sc03 = q*q*q, sc13 = 3*p*q*q*q, sc23 = 6*p*p*q*q*q;
     expFav = sc30*(3*expGPSW) + sc31*(3*expGPSW+expGPSL) + sc32*(3*expGPSW+2*expGPSL) + sc03*(3*expGPSL) + sc13*(expGPSW+3*expGPSL) + sc23*(2*expGPSW+3*expGPSL);
     expDog = sc30*(3*expGPSL) + sc31*(expGPSL*3+expGPSW) + sc32*(3*expGPSL+2*expGPSW) + sc03*(3*expGPSW) + sc13*(expGPSL+3*expGPSW) + sc23*(2*expGPSL+3*expGPSW);
   } else {
-    // Best of 3: erster der 2 Sätze gewinnt
     const sc20 = p*p, sc21 = 2*p*p*q, sc12 = 2*p*q*q, sc02 = q*q;
     expFav = sc20*2*expGPSW + sc21*(2*expGPSW+expGPSL) + sc12*(expGPSW+2*expGPSL) + sc02*2*expGPSL;
     expDog = sc20*2*expGPSL + sc21*(2*expGPSL+expGPSW) + sc12*(expGPSL+2*expGPSW) + sc02*2*expGPSW;
@@ -523,6 +495,11 @@ app.get("/api/valuepicks", async (req, res) => {
     const eloFromRank = (rank) => Math.max(1500, 2400-rank*6);
     const valuePicks = [];
     for (const match of matches.slice(0,15)) {
+      // ── FIX: Skip cancelled/walkover matches for value picks ──────────────
+      const statusNorm = (match.event_status||"").toLowerCase().replace(/ /g, "");
+      const isCancelled = ["cancelled","canceled","walkover","w/o","retired","retirement","abandoned","withdrawal"].some(s => statusNorm.includes(s));
+      if (isCancelled) continue;
+
       const p1Short = match.event_first_player, p2Short = match.event_second_player;
       if (!p1Short || !p2Short) continue;
       const p1=getFullName(p1Short), p2=getFullName(p2Short);
@@ -555,7 +532,7 @@ app.get("/api/valuepicks", async (req, res) => {
   } catch(err) { console.error("VALUE PICKS ERROR:", err.message); res.status(500).json({ error: "Error" }); }
 });
 
-// ─── HEUTIGE FIXTURES ────────────────────────────────────────────────────────
+// ─── HEUTIGE FIXTURES ─────────────────────────────────────────────────────────
 app.get("/api/fixtures/today", async (req, res) => {
   try {
     const today = getBerlinDate();
@@ -576,12 +553,17 @@ app.get("/api/fixtures/today", async (req, res) => {
     const allLive = liveResults.filter(r=>r.status==="fulfilled").flatMap(r=>r.value);
     const liveMap = new Map();
     allLive.forEach(m => liveMap.set(`${m.event_first_player}|${m.event_second_player}`, m));
+
     const formatted = allFixtures.map(m => {
       const key = `${m.event_first_player}|${m.event_second_player}`;
       const liveMatch = liveMap.get(key);
       const isLive = !!liveMatch || m.event_live==="1" || m.event_live===1;
       const isFinished = m.event_status==="Finished" || m.event_status==="After Extra Time";
-      const isCancelled = ["cancelled","canceled","walkover","w/o","retired","retirement","abandoned"].some(s => (m.event_status||"").toLowerCase().includes(s));
+
+      // ── FIX: Normalize status before checking (handles "Walk Over" with space) ──
+      const statusNorm = (m.event_status||"").toLowerCase().replace(/ /g, "");
+      const isCancelled = ["cancelled","canceled","walkover","w/o","retired","retirement","abandoned","withdrawal"].some(s => statusNorm.includes(s));
+
       const src = liveMatch||m;
       const parseScore = (val) => val!==undefined&&val!==null?String(val).split(".")[0]:"-";
       const setScores = [];
@@ -682,17 +664,12 @@ app.get("/api/news/:player", async (req, res) => {
   } catch(err) { console.error("NEWS ERROR:", err.message); res.json([]); }
 });
 
-// ─── TURNIER PREDICTIONS (nur Singles, fixes: korrekte Spieleranzahl + W/O Kennzeichnung) ──
+// ─── TURNIER PREDICTIONS ──────────────────────────────────────────────────────
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
     const dateEnd = getBerlinDate(14);
     const todayStr = getBerlinDate();
-    // Load broad range first, then filter to main draw dates only
-    const dateStart = getBerlinDate(-16); // broad enough to catch any tournament
-
-    // Main draw round keywords — qualifying rounds are already filtered by normalizeRoundName
-    // But we also filter by date: only keep matches from the last 14 days
-    // (Qualifying ends ~7 days before main draw, main draw lasts ~14 days)
+    const dateStart = getBerlinDate(-16);
     const mainDrawCutoff = getBerlinDate(-14);
 
     const [singlesRes, standingsRes] = await Promise.allSettled([
@@ -744,9 +721,9 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
     const getRoundOrder = (roundName) => ROUND_ORDER[(roundName||"").toLowerCase()]||0;
 
-    // Retirement/Walkover Erkennung
+    // ── FIX: Normalize status before checking (handles "Walk Over" with space) ──
     const isWalkoverOrRetired = (m) => {
-      const status = (m.event_status||"").toLowerCase();
+      const status = (m.event_status||"").toLowerCase().replace(/ /g, "");
       return status.includes("walkover")||status.includes("w/o")||status.includes("retired")||status.includes("retirement")||status.includes("withdraw")||status.includes("default")||status.includes("cancelled")||status.includes("canceled")||status.includes("abandoned");
     };
 
@@ -755,7 +732,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (isWalkoverOrRetired(m)) return true;
       if (m.event_winner&&m.event_winner!==""&&m.event_winner!=="0") return true;
       if (m.event_live==="1"||m.event_live===1) return false;
-      // Only mark as finished if event_winner is known — don't guess from date alone
       return false;
     };
 
@@ -782,26 +758,22 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (!tournMap[tKey]) {
         tournMap[tKey] = { name:m.tournament_name||"Unbekannt", disc:"Singles", eventTypeKey:"265", dateStart:m.event_date||dateStart, matches:[] };
       }
-      // Use earliest MAIN DRAW date (not Quali) — already filtered above
       if (m.event_date && m.event_date > tournMap[tKey].dateStart) tournMap[tKey].dateStart = m.event_date;
       if (!tournMap[tKey]._minDate || m.event_date < tournMap[tKey]._minDate) tournMap[tKey]._minDate = m.event_date;
       tournMap[tKey].matches.push({...m,_roundName:roundName});
     });
 
     const result = Object.values(tournMap).map(tourn => {
-      // Find the first main draw date for this tournament
-      // Main draw starts when we see 1/64-Finals or 1/32-Finals (largest rounds)
       const mainDrawRounds = ["1/64-Finals","1/32-Finals","1/16-Finals"];
       const mainDrawMatches = tourn.matches.filter(m => mainDrawRounds.includes(m._roundName));
       const mainDrawStart = mainDrawMatches.length > 0
         ? mainDrawMatches.map(m => m.event_date||"").filter(Boolean).sort()[0]
         : null;
 
-      // Filter: only keep matches from main draw start date onwards
       const filteredMatches = mainDrawStart
         ? tourn.matches.filter(m => !m.event_date || m.event_date >= mainDrawStart)
         : tourn.matches;
-      // Deduplizierung
+
       const matchDedup = new Map();
       filteredMatches.forEach(m => {
         const p1=getFullName(m.event_first_player), p2=getFullName(m.event_second_player);
@@ -812,7 +784,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
       });
       const dedupedMatches=[...matchDedup.values()];
 
-      // Alle Spieler sammeln
       const playerSet = new Map();
       dedupedMatches.forEach(m=>{
         [m._p1full,m._p2full].forEach(name=>{
@@ -823,7 +794,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
       });
       const allPlayers=[...playerSet.values()].sort((a,b)=>a.rank-b.rank);
 
-      // Abgeschlossene Matches
       const finishedMatches = dedupedMatches
         .filter(m=>isFinished(m)&&getWinner(m,m._p1full,m._p2full))
         .map(m=>({ winner:getWinner(m,m._p1full,m._p2full), loser:getWinner(m,m._p1full,m._p2full)===m._p1full?m._p2full:m._p1full, round:m._roundName, roundOrder:getRoundOrder(m._roundName) }));
@@ -844,7 +814,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
       const winnersOfHighestRound = new Set(finishedMatches.filter(m=>m.roundOrder===maxFinishedRound).map(m=>m.winner.toLowerCase()));
       const allLosers = new Set(finishedMatches.map(m=>m.loser.toLowerCase()));
 
-      // FIX: Kein rank-Filter mehr! Alle Spieler die noch nie verloren haben sind aktiv
       let activePlayers;
       if (maxFinishedRound===0) {
         activePlayers=allPlayers;
@@ -859,7 +828,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
       }
       if (activePlayers.length===0) activePlayers=allPlayers.slice(0,8);
 
-      // Win-Probability
       const top8=activePlayers.slice(0,8);
       const rawScores=top8.map(p=>({...p,score:Math.exp(-p.rank*0.08)}));
       const totalScore=rawScores.reduce((s,p)=>s+p.score,0)||1;
@@ -867,7 +835,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
       const probSum=winProbs.reduce((s,p)=>s+p.winProb,0);
       if (winProbs.length>0&&probSum!==100) winProbs[0].winProb+=(100-probSum);
 
-      // Runden aufbauen
       const roundsMap = {};
       dedupedMatches.forEach(m=>{
         const key=m._roundName;
@@ -882,8 +849,6 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const winnerLast=actualWinner?actualWinner.toLowerCase().split(" ").pop():null;
         const predLast=predPick?predPick.toLowerCase().split(" ").pop():null;
         const correct=winnerLast&&predLast?winnerLast===predLast:null;
-
-        // FIX: Walkover/Retired kennzeichnen
         const isWO = isWalkoverOrRetired(m);
         const matchStatus = isWO ? (m.event_status||"W/O") : null;
 
@@ -928,6 +893,7 @@ app.get("/api/clear-cache", (req, res) => {
   formCache.clear();
   res.json({ ok: true, message: `Cache cleared` });
 });
+
 app.get("/api/debug-player-full", async (req, res) => {
   try {
     const name = (req.query.name||"sinner").toLowerCase();
@@ -940,26 +906,21 @@ app.get("/api/debug-player-full", async (req, res) => {
     res.json({ standings_entry: found, full_player_data: playerData });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
+
 app.get("/api/debug-player", async (req, res) => {
   try {
     const name = (req.query.name||"").toLowerCase();
     const lastName = name.split(" ").pop();
     const today = getBerlinDate();
     const results = {};
-
-    // Check ATP standings
     const atpRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const atpFound = (atpRes.data?.result||[]).find(p => (p.player||"").toLowerCase().includes(lastName));
     results.atp_standings = atpFound ? { name: atpFound.player, key: atpFound.player_key, rank: atpFound.place } : "not found";
-
-    // Check Challenger standings
     try {
       const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
       const chalFound = (chalRes.data?.result||[]).find(p => (p.player||"").toLowerCase().includes(lastName));
       results.challenger_standings = chalFound ? { name: chalFound.player, key: chalFound.player_key } : "not found";
     } catch(e) { results.challenger_standings = "error: " + e.message; }
-
-    // Check today fixtures
     const fixRes = await apiGet({ method: "get_fixtures", date_start: today, date_stop: today });
     const fixMatches = (fixRes.data?.result||[]).filter(m =>
       (m.event_first_player||"").toLowerCase().includes(lastName) ||
@@ -970,10 +931,10 @@ app.get("/api/debug-player", async (req, res) => {
       p2: m.event_second_player, p2_key: m.event_second_player_key,
       tournament: m.tournament_name
     }));
-
     res.json(results);
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
+
 app.get("/api/debug-tournament", async (req, res) => {
   try {
     const tournName=(req.query.name||"").toLowerCase();
