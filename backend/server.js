@@ -685,7 +685,7 @@ app.get("/api/news/:player", async (req, res) => {
 // ─── TURNIER PREDICTIONS (nur Singles, fixes: korrekte Spieleranzahl + W/O Kennzeichnung) ──
 app.get("/api/tournament-predictions", async (req, res) => {
   try {
-    const dateStart = getBerlinDate(-21); // 3 weeks back to catch all rounds
+    const dateStart = getBerlinDate(-10); // enough for longest tournament rounds
     const dateEnd = getBerlinDate(14);
     const todayStr = getBerlinDate();
 
@@ -749,7 +749,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (isWalkoverOrRetired(m)) return true;
       if (m.event_winner&&m.event_winner!==""&&m.event_winner!=="0") return true;
       if (m.event_live==="1"||m.event_live===1) return false;
-      if (m.event_date&&m.event_date<todayStr) return true;
+      // Only mark as finished if event_winner is known — don't guess from date alone
       return false;
     };
 
@@ -776,7 +776,9 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (!tournMap[tKey]) {
         tournMap[tKey] = { name:m.tournament_name||"Unbekannt", disc:"Singles", eventTypeKey:"265", dateStart:m.event_date||dateStart, matches:[] };
       }
-      if (m.event_date&&m.event_date<tournMap[tKey].dateStart) tournMap[tKey].dateStart=m.event_date;
+      // Use earliest MAIN DRAW date (not Quali) — already filtered above
+      if (m.event_date && m.event_date > tournMap[tKey].dateStart) tournMap[tKey].dateStart = m.event_date;
+      if (!tournMap[tKey]._minDate || m.event_date < tournMap[tKey]._minDate) tournMap[tKey]._minDate = m.event_date;
       tournMap[tKey].matches.push({...m,_roundName:roundName});
     });
 
@@ -888,7 +890,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
       return {
         name:tourn.name, type:"ATP Singles", discipline:"Singles",
-        dateStart:tourn.dateStart, playerCount:allPlayers.length,
+        dateStart:tourn._minDate||tourn.dateStart, playerCount:allPlayers.length,
         favorite:allPlayers[0]?{name:allPlayers[0].name,rank:allPlayers[0].rank,elo:allPlayers[0].elo}:null,
         winProbs:winProbs.slice(0,5), rounds:sortedRounds,
         drawSet:allPlayers.length>0,
