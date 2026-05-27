@@ -1586,6 +1586,54 @@ export default function App() {
                     {isExpanded && (
                       <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",padding:"16px 20px"}}>
 
+                        {/* Live Prediction Accuracy */}
+                        {(() => {
+                          const allMatches = (tourn.rounds||[]).flatMap(r => r.matches||[]);
+                          const finished = allMatches.filter(m => m.isFinished && !m.isWalkover && m.actualWinner && m.prediction);
+                          const correct = finished.filter(m => m.correct === true).length;
+                          const wrong = finished.filter(m => m.correct === false).length;
+                          const total = finished.length;
+                          const accuracy = total > 0 ? Math.round((correct/total)*100) : null;
+                          const byRound = {};
+                          finished.forEach(m => {
+                            const round = (tourn.rounds||[]).find(r => r.matches?.includes(m))?.round || "?";
+                            if (!byRound[round]) byRound[round] = {correct:0,total:0};
+                            byRound[round].total++;
+                            if (m.correct) byRound[round].correct++;
+                          });
+                          if (total === 0) return (
+                            <div style={{marginBottom:"16px",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",fontSize:"12px",color:"#475569"}}>
+                              📊 No finished matches yet — accuracy tracker will update automatically
+                            </div>
+                          );
+                          const accColor = accuracy >= 70 ? "#4ade80" : accuracy >= 50 ? "#facc15" : "#f87171";
+                          return (
+                            <div style={{marginBottom:"16px",padding:"12px 16px",borderRadius:"12px",background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)"}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+                                <span style={{fontSize:"13px",fontWeight:700,color:"#818cf8"}}>📊 Prediction Accuracy — {tourn.name}</span>
+                                <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                                  <span style={{fontSize:"11px",color:"#64748b"}}>{total} matches resolved</span>
+                                  <span style={{fontSize:"20px",fontWeight:900,color:accColor}}>{accuracy}%</span>
+                                </div>
+                              </div>
+                              {/* Progress bar */}
+                              <div style={{height:"6px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"10px",display:"flex"}}>
+                                <div style={{width:`${Math.round(correct/total*100)}%`,background:"#4ade80",transition:"width 0.4s"}} />
+                                <div style={{width:`${Math.round(wrong/total*100)}%`,background:"#f87171"}} />
+                              </div>
+                              <div style={{display:"flex",gap:"16px",flexWrap:"wrap"}}>
+                                <span style={{fontSize:"12px",color:"#4ade80"}}>✅ Correct: {correct}</span>
+                                <span style={{fontSize:"12px",color:"#f87171"}}>❌ Wrong: {wrong}</span>
+                                {Object.entries(byRound).map(([round, d]) => (
+                                  <span key={round} style={{fontSize:"11px",color:"#64748b"}}>
+                                    {round}: {d.correct}/{d.total}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         {/* View Toggle: List vs Draw */}
                         <div style={{display:"flex",gap:"8px",marginBottom:"16px"}}>
                           {["list","draw"].map(v => (
