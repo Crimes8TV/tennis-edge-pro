@@ -17,7 +17,6 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
     return () => document.removeEventListener("mousedown", handler);
   }, []);
   const filtered = query ? players.filter(p => p.toLowerCase().includes(query.toLowerCase())) : players;
-  // Show favorites first when no query
   const sortedFiltered = query ? filtered : [
     ...filtered.filter(p => favorites.includes(p)),
     ...filtered.filter(p => !favorites.includes(p))
@@ -60,6 +59,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
   );
 }
 
+// ── CHANGE 1 & 2: MatchCard — Cancelled Banner + Badge ──────────────────────
 function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare }) {
   const isLive = m.live;
   const isFinished = m.finished;
@@ -71,13 +71,36 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
   const gameParts = m.gameScore && m.gameScore !== "-" ? m.gameScore.split("-").map(s => s.trim()) : null;
 
   return (
-    <div className="matchCard" style={isCancelled ? {borderColor:"rgba(250,204,21,0.3)",opacity:0.75} : {}}>
+    // CHANGE 2: rötlicher Border + Graustich für cancelled
+    <div className="matchCard" style={isCancelled ? {borderColor:"rgba(239,68,68,0.35)",opacity:0.72,filter:"grayscale(0.25)"} : {}}>
+
+      {/* CHANGE 2: Roter Banner-Strip oben bei cancelled */}
+      {isCancelled && (
+        <div style={{
+          background:"rgba(239,68,68,0.1)",
+          borderBottom:"1px solid rgba(239,68,68,0.25)",
+          padding:"6px 14px",
+          display:"flex",
+          alignItems:"center",
+          gap:"7px",
+          fontSize:"11px",
+          fontWeight:700,
+          color:"#ef4444",
+          letterSpacing:"0.5px"
+        }}>
+          <span style={{width:"7px",height:"7px",borderRadius:"50%",background:"#ef4444",flexShrink:0,display:"inline-block"}} />
+          MATCH ABGESAGT / CANCELLED
+        </div>
+      )}
+
       <div onClick={onClick} style={{cursor:"pointer"}}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
-            {isCancelled ? <span style={{ fontSize: "11px", color: "#facc15", fontWeight: 700 }}>⚠️ Cancelled</span>
+            {/* CHANGE 1: Cancelled Badge — rot statt gelb, klarer sichtbar */}
+            {isCancelled
+              ? <span style={{ fontSize: "11px", color: "#ef4444", fontWeight: 700, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", padding: "2px 8px" }}>🚫 Abgesagt</span>
               : isLive ? <span style={{ fontSize: "11px", color: "#f87171", fontWeight: 700 }}>LIVE · {m.status}</span>
               : isFinished ? <span style={{ fontSize: "11px", color: "#475569" }}>✅ Finished</span>
               : <span style={{ fontSize: "12px", color: "#94a3b8" }}>🕐 {m.time}</span>}
@@ -113,14 +136,15 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
           </div>
         ) : (
           <div style={{ marginBottom: "8px" }}>
-            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px" }}>{m.player1}</div>
-            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600 }}>{m.player2}</div>
+            {/* CHANGE: bei cancelled leicht durchgestrichen */}
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", textDecoration: isCancelled ? "line-through" : "none", textDecorationColor: "#ef4444" }}>{m.player1}</div>
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, textDecoration: isCancelled ? "line-through" : "none", textDecorationColor: "#ef4444" }}>{m.player2}</div>
           </div>
         )}
         <div className="matchCardMeta">{m.tournament}</div>
       </div>
 
-      {/* Action buttons for upcoming matches */}
+      {/* CHANGE 3: Action buttons — bei cancelled komplett ausgeblendet (macht keinen Sinn) */}
       {!isFinished && !isCancelled && (
         <div style={{display:"flex",gap:"6px",marginTop:"8px",flexWrap:"wrap"}}>
           <button
@@ -198,7 +222,7 @@ export default function App() {
   const toggleFavoritePlayer = (name) => {
     const updated = favoritePlayers.includes(name)
       ? favoritePlayers.filter(n => n !== name)
-      : [...favoritePlayers, name].slice(0, 5); // max 5
+      : [...favoritePlayers, name].slice(0, 5);
     setFavoritePlayers(updated);
     localStorage.setItem("favoritePlayers", JSON.stringify(updated));
   };
@@ -210,15 +234,14 @@ export default function App() {
   });
   const addToHistory = (p1, p2, surface, result) => {
     const entry = {
-      id: Date.now(),
-      p1, p2, surface,
+      id: Date.now(), p1, p2, surface,
       prediction: result?.prediction,
       winner: result?.prediction?.[p1] > result?.prediction?.[p2] ? p1 : p2,
       confidence: result?.confidence,
       date: new Date().toISOString(),
       bo: result?.bo || 3
     };
-    const updated = [entry, ...matchHistory].slice(0, 50); // keep last 50
+    const updated = [entry, ...matchHistory].slice(0, 50);
     setMatchHistory(updated);
     localStorage.setItem("matchHistory", JSON.stringify(updated));
   };
@@ -279,7 +302,6 @@ export default function App() {
     const n = new Notification(title, { body, icon: "/favicon.ico" });
     if (onClick) n.onclick = onClick;
   };
-  // Check watchlist matches going live
   useEffect(() => {
     if (notifPermission !== "granted" || watchlist.length === 0) return;
     const liveKeys = fixtures.filter(m => m.live).map(m => `${m.player1}|${m.player2}|${m.tournament}`);
@@ -335,7 +357,6 @@ export default function App() {
     if (found) return found;
     found = safePlayers.find(p => getPlayerName(p).toLowerCase().includes(lastName)) || null;
     if (found) return found;
-    // Fallback: return a placeholder so prediction still works
     if (name.length > 1) return { name, rank: 100, elo: 1800, hard: 0, clay: 0, grass: 0 };
     return null;
   };
@@ -482,9 +503,8 @@ export default function App() {
 
   const [playersLoading, setPlayersLoading] = useState(true);
 
-  // Show welcome screen only on very first load (< 2 seconds)
   if (playersLoading && playerNames.length === 0) {
-    setTimeout(() => setPlayersLoading(false), 3000); // max 3s then show app anyway
+    setTimeout(() => setPlayersLoading(false), 3000);
     return (
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#020817"}}>
         <div style={{textAlign:"center",maxWidth:"620px",padding:"40px 20px"}}>
@@ -515,12 +535,10 @@ export default function App() {
               <text x="240" y="162" font-family="system-ui,sans-serif" font-size="10" font-weight="500" fill="#4ade80" text-anchor="middle" letter-spacing="4">SMART TENNIS ANALYTICS</text>
             </svg>
           </div>
-
           <p style={{color:"#64748b",fontSize:"15px",marginBottom:"36px",lineHeight:1.7}}>
             Your all-in-one platform for professional tennis analytics —<br/>
             live scores, AI predictions, value picks and much more.
           </p>
-
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"12px",marginBottom:"40px",textAlign:"left"}}>
             {[
               {icon:"🎾",title:"Live Scores",desc:"Real-time match tracking with set-by-set breakdowns"},
@@ -537,12 +555,10 @@ export default function App() {
               </div>
             ))}
           </div>
-
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"12px"}}>
             <div style={{width:"18px",height:"18px",borderRadius:"50%",border:"2px solid rgba(34,211,238,0.2)",borderTopColor:"#22d3ee",animation:"spin 0.8s linear infinite"}} />
             <span style={{color:"#64748b",fontSize:"14px"}}>Loading player data...</span>
           </div>
-
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
@@ -587,8 +603,6 @@ export default function App() {
           📈 Performance
         </button>
         {selectedMatchKey && <button onClick={() => setTab("matchdetail")} style={{borderColor:"rgba(248,113,113,0.4)",color:"#f87171"}}>🔴 Match Detail</button>}
-
-        {/* Sidebar bottom controls */}
         <div style={{marginTop:"auto",paddingTop:"16px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
           <button onClick={() => setTab("history")} style={{marginBottom:"8px"}}>
             🕐 Match History
@@ -651,8 +665,6 @@ export default function App() {
         {tab === "dashboard" && (
           <>
             <Header title="Live Dashboard" />
-
-            {/* Daily Stats Bar */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"28px"}}>
               {[
                 {label:"Matches Today", value:`${fixtures.length} (${fixtures.filter(m=>m.live).length} Live)`, icon:"🎾", color:"#22d3ee", tab:"matches"},
@@ -672,7 +684,6 @@ export default function App() {
               ))}
             </div>
 
-            {/* Accuracy + ROI Quick Stats */}
             {(() => {
               const resolved = accuracyLog.filter(l => l.correct !== undefined);
               const correct = resolved.filter(l => l.correct).length;
@@ -705,7 +716,6 @@ export default function App() {
               );
             })()}
 
-            {/* Match History Quick Stats */}
             {matchHistory.length > 0 && (() => {
               const last10 = matchHistory.slice(0,10);
               return (
@@ -733,18 +743,20 @@ export default function App() {
                 {fixturesLoading ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>⏳ Loading matches...</p>
                   : fixtures.length === 0 ? <p style={{color:"#94a3b8",fontSize:"14px",padding:"16px 0"}}>No matches today.</p>
                   : <div className="matchCardGrid">
+                      {/* CHANGE 4: Cancelled ans Ende sortieren */}
                       {[...fixtures].sort((a,b) => {
-                        // Live first
                         if (a.live && !b.live) return -1;
                         if (!a.live && b.live) return 1;
-                        // ATP before Challenger
                         const aAtp = a.category?.includes("ATP") ? 0 : 1;
                         const bAtp = b.category?.includes("ATP") ? 0 : 1;
                         if (aAtp !== bAtp) return aAtp - bAtp;
-                        // Singles before Doubles
                         const aSing = a.category?.includes("Singles") ? 0 : 1;
                         const bSing = b.category?.includes("Singles") ? 0 : 1;
-                        return aSing - bSing;
+                        if (aSing !== bSing) return aSing - bSing;
+                        // Cancelled ans Ende
+                        const aCan = a.cancelled ? 1 : 0;
+                        const bCan = b.cancelled ? 1 : 0;
+                        return aCan - bCan;
                       }).slice(0,5).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
                       {fixtures.length > 5 && <p style={{color:"#22d3ee",fontSize:"12px",marginTop:"8px",cursor:"pointer"}} onClick={() => setTab("matches")}>+{fixtures.length-5} more → show all</p>}
                     </div>}
@@ -803,6 +815,8 @@ export default function App() {
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
               📅 {new Date().getHours() >= 18 ? `Today + Tomorrow` : "Today"} — {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"})} · {fixtures.length} Matches
               {fixtures.filter(m=>m.live).length > 0 && <span style={{marginLeft:"10px",color:"#f87171",fontWeight:700}}>🔴 {fixtures.filter(m=>m.live).length} Live</span>}
+              {/* CHANGE 4b: Cancelled Zähler anzeigen */}
+              {fixtures.filter(m=>m.cancelled).length > 0 && <span style={{marginLeft:"10px",color:"#ef4444",fontWeight:700}}>🚫 {fixtures.filter(m=>m.cancelled).length} Abgesagt</span>}
             </p>
             <div>
               {fixturesLoading ? <p style={{color:"#94a3b8"}}>⏳ Loading matches...</p>
@@ -828,17 +842,21 @@ export default function App() {
                     return Object.entries(byCategory).map(([cat,keys]) => {
                       const isATP = cat.includes("ATP");
                       const liveInCat = keys.flatMap(k=>grouped[k].matches).filter(m=>m.live).length;
+                      const cancelledInCat = keys.flatMap(k=>grouped[k].matches).filter(m=>m.cancelled).length;
                       return (
                         <div key={cat} style={{marginBottom:"32px"}}>
                           <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",paddingBottom:"10px",borderBottom:`2px solid ${isATP?"rgba(34,211,238,0.3)":"rgba(250,204,21,0.3)"}`,cursor:"pointer",userSelect:"none"}} onClick={() => toggleCategory(cat)}>
                             <span style={{fontSize:"16px",color:isATP?"#22d3ee":"#facc15",transition:"transform 0.2s",display:"inline-block",transform:collapsedCategories[cat]?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
                             <span style={{fontSize:"18px",fontWeight:800,color:isATP?"#22d3ee":"#facc15"}}>{cat}</span>
                             {liveInCat > 0 && <span style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",color:"#f87171",fontWeight:700}}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />{liveInCat} Live</span>}
+                            {/* CHANGE 4c: Cancelled Badge in Kategorie-Header */}
+                            {cancelledInCat > 0 && <span style={{fontSize:"11px",color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:"20px",padding:"2px 10px"}}>🚫 {cancelledInCat} abgesagt</span>}
                             <span style={{fontSize:"12px",color:"#475569"}}>{keys.flatMap(k=>grouped[k].matches).length} Matches</span>
                           </div>
                           {!collapsedCategories[cat] && keys.map(key => {
                             const {tourn,matches} = grouped[key];
                             const liveInTourn = matches.filter(m=>m.live).length;
+                            const cancelledInTourn = matches.filter(m=>m.cancelled).length;
                             const isColl = collapsedTournaments[key];
                             return (
                               <div key={key} style={{marginBottom:"16px",background:"rgba(255,255,255,0.02)",borderRadius:"14px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
@@ -846,11 +864,15 @@ export default function App() {
                                   <span style={{fontSize:"13px",color:"#64748b",transition:"transform 0.2s",display:"inline-block",transform:isColl?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
                                   <span style={{fontSize:"14px",fontWeight:700,color:"#cbd5e1"}}>🏆 {tourn}</span>
                                   {liveInTourn > 0 && <span style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"11px",color:"#f87171",fontWeight:700}}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />{liveInTourn} Live</span>}
+                                  {cancelledInTourn > 0 && <span style={{fontSize:"11px",color:"#ef4444",fontWeight:600}}>🚫 {cancelledInTourn} abgesagt</span>}
                                   <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{matches.length} Matches</span>
                                 </div>
-                                {!isColl && <div style={{padding:"0 12px 12px"}}><div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                                  {matches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
-                                </div></div>}
+                                {!isColl && <div style={{padding:"0 12px 12px"}}>
+                                  <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
+                                    {/* CHANGE 5: Cancelled innerhalb Turnier ans Ende */}
+                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
+                                  </div>
+                                </div>}
                               </div>
                             );
                           })}
@@ -1010,8 +1032,6 @@ export default function App() {
                 </button>
               ))}
             </div>
-
-            {/* Best of Toggle */}
             <div style={{display:"flex",gap:"8px",marginBottom:"16px",alignItems:"center"}}>
               <span style={{fontSize:"13px",color:"#64748b",marginRight:"4px"}}>Format:</span>
               {[3,5].map(bo => (
@@ -1032,7 +1052,6 @@ export default function App() {
               ))}
               {bestOf===5 && <span style={{fontSize:"11px",color:"#f59e0b",marginLeft:"4px"}}>Grand Slam Mode</span>}
             </div>
-
             <button className="predictBtn" onClick={predictMatch} disabled={!p1||!p2}>⚡ Calculate Prediction</button>
             <Panel title="Prediction Engine">
               {prediction && (
@@ -1050,7 +1069,6 @@ export default function App() {
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
 
-                  {/* Hand Matchup */}
                   {prediction.hand && (() => {
                     const h1 = prediction.hand[prediction.player1];
                     const h2 = prediction.hand[prediction.player2];
@@ -1069,7 +1087,6 @@ export default function App() {
                     );
                   })()}
 
-                  {/* Recent Form Display */}
                   {prediction.formData && (
                     <div style={{margin:"12px 0",padding:"14px 16px",borderRadius:"12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)"}}>
                       <div style={{fontSize:"12px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"10px"}}>📈 Recent Form (last 3 months)</div>
@@ -1093,20 +1110,15 @@ export default function App() {
                                 <span style={{fontSize:"13px",fontWeight:800,color:formColor}}>{fd.form}</span>
                               </div>
                               <div style={{fontSize:"11px",color:"#64748b",marginBottom:"6px"}}>{fd.wins}W - {fd.losses}L ({fd.total} matches)</div>
-                              {/* Hand win rates */}
                               {(fd.handRates?.vsRight || fd.handRates?.vsLeft) && (
                                 <div style={{display:"flex",gap:"6px",marginBottom:"6px",flexWrap:"wrap"}}>
                                   {fd.handRates.vsRight && (
-                                    <span style={{fontSize:"10px",padding:"1px 7px",borderRadius:"5px",
-                                      background:`rgba(34,211,238,0.1)`,border:"1px solid rgba(34,211,238,0.2)",
-                                      color:"#22d3ee"}}>
+                                    <span style={{fontSize:"10px",padding:"1px 7px",borderRadius:"5px",background:`rgba(34,211,238,0.1)`,border:"1px solid rgba(34,211,238,0.2)",color:"#22d3ee"}}>
                                       🤚 vs R: {fd.handRates.vsRight.pct}% ({fd.handRates.vsRight.wins}/{fd.handRates.vsRight.total})
                                     </span>
                                   )}
                                   {fd.handRates.vsLeft && (
-                                    <span style={{fontSize:"10px",padding:"1px 7px",borderRadius:"5px",
-                                      background:`rgba(250,204,21,0.1)`,border:"1px solid rgba(250,204,21,0.2)",
-                                      color:"#facc15"}}>
+                                    <span style={{fontSize:"10px",padding:"1px 7px",borderRadius:"5px",background:`rgba(250,204,21,0.1)`,border:"1px solid rgba(250,204,21,0.2)",color:"#facc15"}}>
                                       ✋ vs L: {fd.handRates.vsLeft.pct}% ({fd.handRates.vsLeft.wins}/{fd.handRates.vsLeft.total})
                                     </span>
                                   )}
@@ -1191,22 +1203,16 @@ export default function App() {
                               const oppRank = safePlayers.find(p => getPlayerName(p).toLowerCase() === oppName.toLowerCase())?.rank;
                               const reasons = [];
                               const oddsGap = ourProb - implProb;
-
-                              // Primary reason: always the odds gap
                               if (oddsGap > 10) reasons.push(`Bookmaker significantly undervalues ${bestPick} (${implProb}% implied vs ${ourProb}% model — gap of ${oddsGap}%)`);
                               else if (oddsGap > 5) reasons.push(`Bookmaker slightly undervalues ${bestPick} (${implProb}% implied vs ${ourProb}% model)`);
-
-                              // Only add stat reasons if bestPick is actually BETTER in those stats
                               if (pickStats && oppStats) {
                                 if (pickStats.serve - oppStats.serve >= 3) reasons.push(`Stronger serve (${pickStats.serve} vs ${oppStats.serve})`);
                                 if (pickStats.return - oppStats.return >= 3) reasons.push(`Stronger return (${pickStats.return} vs ${oppStats.return})`);
                                 if (pickStats.clutch - oppStats.clutch >= 3) reasons.push(`Higher clutch factor (${pickStats.clutch} vs ${oppStats.clutch})`);
                                 if (pickStats.momentum - oppStats.momentum >= 3) reasons.push(`Better momentum (${pickStats.momentum} vs ${oppStats.momentum})`);
                               }
-                              // Ranking/Elo only if bestPick is actually better
                               if (pickRank && oppRank && pickRank < oppRank) reasons.push(`Better world ranking (#${pickRank} vs #${oppRank})`);
                               if (eloVal && eloOpp && eloVal > eloOpp + 10) reasons.push(`Higher Elo rating (${eloVal} vs ${eloOpp}, Δ${eloVal - eloOpp})`);
-
                               if (reasons.length === 0) reasons.push(`Model detects ${oddsGap}% edge — bookmaker odds offer positive expected value`);
                               return (
                                 <>
@@ -1235,7 +1241,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* 🎯 Betting Tips */}
                   {(() => {
                     const p1w = prediction.prediction?.[prediction.player1] || 50;
                     const p2w = prediction.prediction?.[prediction.player2] || 50;
@@ -1246,17 +1251,11 @@ export default function App() {
                     const setP = (prediction.setWinProb?.[fav] || favProb) / 100;
                     const bo = prediction.bo || 3;
                     const setsToWin = bo === 5 ? 3 : 2;
-
-                    // Match Winner
                     const matchWinner = { pick: fav, prob: favProb, confidence: favProb > 70 ? "High" : favProb > 60 ? "Medium" : "Low", color: favProb > 70 ? "#4ade80" : favProb > 60 ? "#facc15" : "#94a3b8" };
-
-                    // Set Betting probabilities
                     const p = setP, q = 1 - p;
                     let setBets = [];
                     if (bo === 5) {
-                      const p30 = p*p*p;
-                      const p31 = 3*p*p*p*q;
-                      const p32 = 6*p*p*p*q*q;
+                      const p30 = p*p*p, p31 = 3*p*p*p*q, p32 = 6*p*p*p*q*q;
                       setBets = [
                         { score: `${fav.split(" ").pop()} 3-0`, prob: Math.round(p30*100), label: "3-0" },
                         { score: `${fav.split(" ").pop()} 3-1`, prob: Math.round(p31*100), label: "3-1" },
@@ -1264,41 +1263,32 @@ export default function App() {
                         { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q*q + 3*q*q*q*p + 6*q*q*q*p*p)*100), label: "Upset" },
                       ];
                     } else {
-                      const p20 = p*p;
-                      const p21 = 2*p*p*q;
+                      const p20 = p*p, p21 = 2*p*p*q;
                       setBets = [
                         { score: `${fav.split(" ").pop()} 2-0`, prob: Math.round(p20*100), label: "2-0" },
                         { score: `${fav.split(" ").pop()} 2-1`, prob: Math.round(p21*100), label: "2-1" },
                         { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q + 2*q*q*p)*100), label: "Upset" },
                       ];
                     }
-
-                    // Handicap
                     const hLine = prediction.handicap?.line || 0;
                     const hPick = prediction.handicap?.pick || `${fav} -${hLine} Games`;
                     const hConf = hLine >= 3 ? "High" : hLine >= 1.5 ? "Medium" : "Low";
                     const hColor = hLine >= 3 ? "#4ade80" : hLine >= 1.5 ? "#facc15" : "#94a3b8";
-
-                    // Total Games (Over/Under)
                     const expFavG = prediction.handicap?.expGames?.[fav] || (setsToWin * 6);
                     const expDogG = prediction.handicap?.expGames?.[dog] || (setsToWin * 4.5);
                     const expTotal = Math.round((expFavG + expDogG) * 10) / 10;
-                    const ouLine = bo === 5 ? Math.round(expTotal / 0.5) * 0.5 : Math.round(expTotal / 0.5) * 0.5;
+                    const ouLine = Math.round(expTotal / 0.5) * 0.5;
                     const ouPick = expTotal > ouLine ? `Over ${ouLine}` : `Under ${ouLine}`;
                     const ouConf = Math.abs(expTotal - ouLine) > 1.5 ? "High" : Math.abs(expTotal - ouLine) > 0.5 ? "Medium" : "Low";
                     const ouColor = ouConf === "High" ? "#4ade80" : ouConf === "Medium" ? "#facc15" : "#94a3b8";
-
                     const tipStyle = (conf) => ({
                       background: conf === "High" ? "rgba(74,222,128,0.06)" : conf === "Medium" ? "rgba(250,204,21,0.06)" : "rgba(255,255,255,0.03)",
                       border: `1px solid ${conf === "High" ? "rgba(74,222,128,0.2)" : conf === "Medium" ? "rgba(250,204,21,0.2)" : "rgba(255,255,255,0.07)"}`,
                       borderRadius: "12px", padding: "14px 16px", marginBottom: "10px"
                     });
-
                     return (
                       <div style={{marginTop:"20px",padding:"20px",borderRadius:"16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)"}}>
                         <h4 style={{margin:"0 0 16px",color:"#e2e8f0",fontSize:"15px",fontWeight:800}}>🎯 Betting Tips</h4>
-
-                        {/* 1. Match Winner */}
                         <div style={tipStyle(matchWinner.confidence)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
                             <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>1. Match Winner</span>
@@ -1310,8 +1300,6 @@ export default function App() {
                           </div>
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model gives {fav.split(" ").pop()} a {favProb}% win probability vs {dogProb}% for {dog.split(" ").pop()}.</p>
                         </div>
-
-                        {/* 2. Set Betting */}
                         <div style={tipStyle(setBets[0]?.prob > 40 ? "High" : "Medium")}>
                           <div style={{marginBottom:"10px"}}>
                             <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>2. Set Betting (Best of {bo})</span>
@@ -1327,8 +1315,6 @@ export default function App() {
                           </div>
                           <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Most likely outcome: <strong style={{color:"#22d3ee"}}>{setBets[0]?.score}</strong> ({setBets[0]?.prob}%)</p>
                         </div>
-
-                        {/* 3. Handicap */}
                         <div style={tipStyle(hConf)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
                             <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>3. Handicap (Games)</span>
@@ -1343,8 +1329,6 @@ export default function App() {
                           </div>
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>{prediction.handicap?.reason || `Expected game difference of ${hLine} games.`}</p>
                         </div>
-
-                        {/* 4. Total Games Over/Under */}
                         <div style={tipStyle(ouConf)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
                             <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>4. Total Games (Over/Under)</span>
@@ -1359,8 +1343,6 @@ export default function App() {
                           </div>
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model expects {expFavG} games for {fav.split(" ").pop()} + {expDogG} for {dog.split(" ").pop()} = {expTotal} total.</p>
                         </div>
-
-                        {/* 5. Over 3.5 Sets — Bo5 only */}
                         {bo === 5 && (() => {
                           const p5 = setP, q5 = 1 - p5;
                           const surfaceName = prediction.surface;
@@ -1371,15 +1353,12 @@ export default function App() {
                           const o35Conf = over35 >= 55 ? "High" : over35 >= 40 ? "Medium" : "Low";
                           const o35Color = over35 >= 55 ? "#4ade80" : over35 >= 40 ? "#facc15" : "#94a3b8";
                           const surfIcon = surfaceName === "clay" ? "🧱 Clay" : surfaceName === "grass" ? "🌿 Grass" : "🏟️ Hard";
-
-                          // Value detection
                           const oddsVal = parseFloat(String(odds35Str).replace(",","."));
                           const hasOdds = !isNaN(oddsVal) && oddsVal > 1;
                           const impliedProb = hasOdds ? Math.round(100 / oddsVal) : null;
                           const edge = hasOdds ? parseFloat((over35 - impliedProb).toFixed(1)) : null;
                           const isValue = edge !== null && edge > 0;
                           const edgeColor = edge > 5 ? "#4ade80" : edge > 0 ? "#facc15" : "#f87171";
-
                           return (
                             <div style={tipStyle(o35Conf)}>
                               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
@@ -1389,7 +1368,6 @@ export default function App() {
                                   <span style={{fontSize:"11px",fontWeight:700,color:o35Color,background:`${o35Color}22`,padding:"2px 8px",borderRadius:"6px"}}>{o35Conf} Confidence</span>
                                 </div>
                               </div>
-
                               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
                                 <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>
                                   {over35 >= 50 ? `✅ Over 3.5 Sets (${over35}%)` : `❌ Under 3.5 Sets (${100-over35}%)`}
@@ -1399,19 +1377,13 @@ export default function App() {
                                   <div style={{fontSize:"15px",fontWeight:800,color:"#94a3b8"}}>{Math.round(p30adj*100)}%</div>
                                 </div>
                               </div>
-
                               <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"10px"}}>
                                 <div style={{width:`${over35}%`,height:"100%",background:o35Color,borderRadius:"999px",transition:"width 0.4s"}} />
                               </div>
-
-                              {/* Bookmaker Odds Input */}
                               <div style={{background:"rgba(255,255,255,0.03)",borderRadius:"10px",padding:"10px 12px",border:"1px solid rgba(255,255,255,0.06)"}}>
                                 <div style={{fontSize:"11px",color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.5px"}}>💰 Bookmaker Odds — Over 3.5 Sets</div>
                                 <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
-                                  <input
-                                    type="text" inputMode="decimal"
-                                    placeholder="e.g. 1.85"
-                                    value={odds35Str}
+                                  <input type="text" inputMode="decimal" placeholder="e.g. 1.85" value={odds35Str}
                                     onChange={e => { setOdds35Str(e.target.value); const v = parseFloat(e.target.value.replace(",",".")); if(!isNaN(v)&&v>1) setOdds35(v); }}
                                     onBlur={e => { const v = parseFloat(e.target.value.replace(",",".")); if(!isNaN(v)&&v>1){setOdds35(v);setOdds35Str(String(v));} }}
                                     style={{flex:1,padding:"8px 12px",borderRadius:"8px",background:"#0f172a",border:"1px solid rgba(34,211,238,0.3)",color:"#e2e8f0",fontSize:"14px",outline:"none"}}
@@ -1423,41 +1395,28 @@ export default function App() {
                                     </div>
                                   )}
                                 </div>
-
-                                {/* Value Result */}
                                 {hasOdds && (
-                                  <div style={{marginTop:"10px",padding:"10px 12px",borderRadius:"8px",
-                                    background:isValue?"rgba(74,222,128,0.08)":"rgba(248,113,113,0.08)",
-                                    border:`1px solid ${isValue?"rgba(74,222,128,0.2)":"rgba(248,113,113,0.2)"}`}}>
+                                  <div style={{marginTop:"10px",padding:"10px 12px",borderRadius:"8px",background:isValue?"rgba(74,222,128,0.08)":"rgba(248,113,113,0.08)",border:`1px solid ${isValue?"rgba(74,222,128,0.2)":"rgba(248,113,113,0.2)"}`}}>
                                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                                       <div>
-                                        <div style={{fontSize:"13px",fontWeight:700,color:isValue?"#4ade80":"#f87171",marginBottom:"2px"}}>
-                                          {isValue ? "✅ Value Bet!" : "❌ No Value"}
-                                        </div>
-                                        <div style={{fontSize:"11px",color:"#64748b"}}>
-                                          Our model: <span style={{color:o35Color,fontWeight:700}}>{over35}%</span>
-                                          {" · "}Bookmaker: <span style={{color:"#f472b6",fontWeight:700}}>{impliedProb}%</span>
-                                        </div>
+                                        <div style={{fontSize:"13px",fontWeight:700,color:isValue?"#4ade80":"#f87171",marginBottom:"2px"}}>{isValue ? "✅ Value Bet!" : "❌ No Value"}</div>
+                                        <div style={{fontSize:"11px",color:"#64748b"}}>Our model: <span style={{color:o35Color,fontWeight:700}}>{over35}%</span>{" · "}Bookmaker: <span style={{color:"#f472b6",fontWeight:700}}>{impliedProb}%</span></div>
                                       </div>
                                       <div style={{textAlign:"right"}}>
                                         <div style={{fontSize:"11px",color:"#64748b"}}>Edge</div>
                                         <div style={{fontSize:"20px",fontWeight:900,color:edgeColor}}>{edge > 0 ? "+" : ""}{edge}%</div>
                                       </div>
                                     </div>
-                                    {isValue && <div style={{marginTop:"6px",fontSize:"11px",color:"#64748b"}}>
-                                      Odds of {oddsVal} imply {impliedProb}% — our model gives {over35}%. Positive edge at these odds.
-                                    </div>}
+                                    {isValue && <div style={{marginTop:"6px",fontSize:"11px",color:"#64748b"}}>Odds of {oddsVal} imply {impliedProb}% — our model gives {over35}%. Positive edge at these odds.</div>}
                                   </div>
                                 )}
                               </div>
-
                               <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>
                                 Based on set win prob. ({Math.round(setP*100)}% per set) + {surfaceName} surface. {surfaceName==="clay"?"Clay tends to produce longer matches.":surfaceName==="grass"?"Grass favours shorter matches.":"Hard courts are neutral."}
                               </p>
                             </div>
                           );
                         })()}
-
                         <p style={{margin:"8px 0 0",fontSize:"11px",color:"#334155",textAlign:"center"}}>⚠️ These are model-based estimates only. Always bet responsibly.</p>
                       </div>
                     );
@@ -1535,8 +1494,6 @@ export default function App() {
                 {tournamentPredsLoading?"⏳ Loading...":"🔄 Refresh"}
               </button>
             </div>
-
-            {/* Active / Finished Toggle */}
             <div style={{display:"flex",gap:"8px",marginBottom:"24px"}}>
               <button onClick={() => setTournamentSection("active")} style={{padding:"8px 20px",borderRadius:"10px",fontWeight:700,fontSize:"13px",cursor:"pointer",border:"none",background:tournamentSection==="active"?"linear-gradient(135deg,#22d3ee,#4ade80)":"rgba(255,255,255,0.05)",color:tournamentSection==="active"?"#0f172a":"#94a3b8",transition:"all 0.2s"}}>
                 🎾 Active / Live {activeTournaments.length > 0 && <span style={{marginLeft:"6px",background:"rgba(0,0,0,0.2)",borderRadius:"999px",padding:"1px 7px",fontSize:"11px"}}>{activeTournaments.length}</span>}
@@ -1545,7 +1502,6 @@ export default function App() {
                 ✅ Finished {finishedTournaments.length > 0 && <span style={{marginLeft:"6px",background:"rgba(100,116,139,0.3)",borderRadius:"999px",padding:"1px 7px",fontSize:"11px"}}>{finishedTournaments.length}</span>}
               </button>
             </div>
-
             {tournamentPredsLoading ? <p style={{color:"#94a3b8"}}>⏳ Loading tournament data...</p>
               : tournamentPreds.length === 0 ? (
                 <div style={{textAlign:"center",padding:"40px 0"}}>
@@ -1575,7 +1531,7 @@ export default function App() {
                               <span style={{color:"#4ade80",fontWeight:600}}>
                                 🎾 Live{tourn.activePlayerCount>1?` — ${tourn.activePlayerCount} players remaining`:tourn.activePlayerCount===1?" — Finale":""}
                               </span>
-                              {tourn.eliminatedCount>0&&<span style={{color:"#f87171"}}>({tourn.eliminatedCount} (eliminated))</span>}
+                              {tourn.eliminatedCount>0&&<span style={{color:"#f87171"}}>({tourn.eliminatedCount} eliminated)</span>}
                             </>
                           ) : <span>{tourn.playerCount} players in draw</span>}
                           {tourn.isLive&&<span style={{color:"#f87171",fontWeight:700}}>🔴 Live</span>}
@@ -1585,8 +1541,6 @@ export default function App() {
                     </div>
                     {isExpanded && (
                       <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",padding:"16px 20px"}}>
-
-                        {/* Live Prediction Accuracy */}
                         {(() => {
                           const allMatches = (tourn.rounds||[]).flatMap(r => r.matches||[]);
                           const finished = allMatches.filter(m => m.isFinished && !m.isWalkover && m.actualWinner && m.prediction);
@@ -1616,7 +1570,6 @@ export default function App() {
                                   <span style={{fontSize:"20px",fontWeight:900,color:accColor}}>{accuracy}%</span>
                                 </div>
                               </div>
-                              {/* Progress bar */}
                               <div style={{height:"6px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"10px",display:"flex"}}>
                                 <div style={{width:`${Math.round(correct/total*100)}%`,background:"#4ade80",transition:"width 0.4s"}} />
                                 <div style={{width:`${Math.round(wrong/total*100)}%`,background:"#f87171"}} />
@@ -1625,16 +1578,12 @@ export default function App() {
                                 <span style={{fontSize:"12px",color:"#4ade80"}}>✅ Correct: {correct}</span>
                                 <span style={{fontSize:"12px",color:"#f87171"}}>❌ Wrong: {wrong}</span>
                                 {Object.entries(byRound).map(([round, d]) => (
-                                  <span key={round} style={{fontSize:"11px",color:"#64748b"}}>
-                                    {round}: {d.correct}/{d.total}
-                                  </span>
+                                  <span key={round} style={{fontSize:"11px",color:"#64748b"}}>{round}: {d.correct}/{d.total}</span>
                                 ))}
                               </div>
                             </div>
                           );
                         })()}
-
-                        {/* View Toggle: List vs Draw */}
                         <div style={{display:"flex",gap:"8px",marginBottom:"16px"}}>
                           {["list","draw"].map(v => (
                             <button key={v} onClick={() => setTournamentView(prev => ({...prev,[globalIdx]:v}))}
@@ -1645,8 +1594,6 @@ export default function App() {
                             </button>
                           ))}
                         </div>
-
-                        {/* Draw Visualization */}
                         {(tournamentView[globalIdx]||"list")==="draw" && tourn.rounds?.length>0 && (
                           <div style={{overflowX:"auto",paddingBottom:"12px"}}>
                             <div style={{marginBottom:"12px",fontSize:"13px",fontWeight:700,color:"#22d3ee"}}>🌳 {tourn.name} — Draw View</div>
@@ -1664,9 +1611,7 @@ export default function App() {
                                         <div key={mi} onClick={() => {setP1(m.player1);setP2(m.player2);setTab("predictor");}}
                                           style={{background:m.isWalkover?"rgba(250,204,21,0.06)":m.isFinished?"rgba(74,222,128,0.05)":"rgba(255,255,255,0.03)",
                                             border:`1px solid ${m.isWalkover?"rgba(250,204,21,0.2)":m.isFinished?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.07)"}`,
-                                            borderRadius:"10px",padding:"8px 10px",cursor:"pointer",transition:"all 0.15s"
-                                          }}>
-                                          {/* Player 1 */}
+                                            borderRadius:"10px",padding:"8px 10px",cursor:"pointer",transition:"all 0.15s"}}>
                                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"5px"}}>
                                             <div style={{display:"flex",alignItems:"center",gap:"5px",minWidth:0,flex:1}}>
                                               {m.actualWinner===m.player1&&<span style={{fontSize:"9px"}}>🏆</span>}
@@ -1680,12 +1625,10 @@ export default function App() {
                                               {m.prediction===m.player1?`${favProb}%`:m.prediction===m.player2?`${100-favProb}%`:""}
                                             </span>
                                           </div>
-                                          {/* Mini bar */}
                                           <div style={{height:"3px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"5px"}}>
                                             <div style={{width:`${m.prediction===m.player1?favProb:100-favProb}%`,height:"100%",
                                               background:m.actualWinner===m.player1?"#4ade80":m.prediction===m.player1?"#22d3ee":"#475569",borderRadius:"999px"}} />
                                           </div>
-                                          {/* Player 2 */}
                                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                                             <div style={{display:"flex",alignItems:"center",gap:"5px",minWidth:0,flex:1}}>
                                               {m.actualWinner===m.player2&&<span style={{fontSize:"9px"}}>🏆</span>}
@@ -1710,8 +1653,6 @@ export default function App() {
                             </div>
                           </div>
                         )}
-
-                        {/* List View */}
                         {(tournamentView[globalIdx]||"list")==="list" && (<>
                           {tourn.winProbs?.length>0 && (
                           <div style={{marginBottom:"20px"}}>
@@ -1860,18 +1801,13 @@ export default function App() {
         {tab === "watchlist" && (
           <>
             <Header title="My Watchlist" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              Your saved matches — add notes and track your picks
-            </p>
-
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Your saved matches — add notes and track your picks</p>
             {watchlist.length === 0 ? (
               <div style={{textAlign:"center",padding:"60px 20px",background:"rgba(255,255,255,0.02)",borderRadius:"16px",border:"1px solid rgba(255,255,255,0.05)"}}>
                 <div style={{fontSize:"48px",marginBottom:"16px"}}>🔖</div>
                 <h3 style={{color:"#e2e8f0",marginBottom:"8px"}}>No matches saved yet</h3>
                 <p style={{color:"#64748b",fontSize:"14px",marginBottom:"24px"}}>Go to the Matches tab and click "Add to Watchlist" on any upcoming match.</p>
-                <button className="predictBtn" style={{width:"auto",padding:"10px 28px"}} onClick={() => setTab("matches")}>
-                  📅 Go to Matches
-                </button>
+                <button className="predictBtn" style={{width:"auto",padding:"10px 28px"}} onClick={() => setTab("matches")}>📅 Go to Matches</button>
               </div>
             ) : (
               <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
@@ -1880,7 +1816,6 @@ export default function App() {
                   const surface = (w.tournament||"").toLowerCase().includes("clay")||["roland","french","monte","madrid","rome","barcelona"].some(x=>(w.tournament||"").toLowerCase().includes(x)) ? {icon:"🧱",label:"Clay",color:"#ef4444"} : (w.tournament||"").toLowerCase().includes("grass")||["wimbledon","halle","queens"].some(x=>(w.tournament||"").toLowerCase().includes(x)) ? {icon:"🌿",label:"Grass",color:"#4ade80"} : {icon:"🏟️",label:"Hard",color:"#22d3ee"};
                   return (
                     <div key={w.key} style={{background:"#0f172a",borderRadius:"16px",border:"1px solid rgba(255,255,255,0.07)",overflow:"hidden"}}>
-                      {/* Match Header */}
                       <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"16px"}}>
                           <div style={{flex:1}}>
@@ -1908,8 +1843,6 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Notes Section */}
                       <div style={{padding:"16px 20px"}}>
                         <div style={{fontSize:"11px",color:"#475569",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"8px"}}>📝 My Notes</div>
                         <textarea
@@ -1920,17 +1853,11 @@ export default function App() {
                           onFocus={e => e.target.style.borderColor="rgba(34,211,238,0.3)"}
                           onBlur={e => e.target.style.borderColor="rgba(255,255,255,0.08)"}
                         />
-                        {note && (
-                          <div style={{display:"flex",justifyContent:"flex-end",marginTop:"4px"}}>
-                            <span style={{fontSize:"11px",color:"#334155"}}>✓ Auto-saved</span>
-                          </div>
-                        )}
+                        {note && (<div style={{display:"flex",justifyContent:"flex-end",marginTop:"4px"}}><span style={{fontSize:"11px",color:"#334155"}}>✓ Auto-saved</span></div>)}
                       </div>
                     </div>
                   );
                 })}
-
-                {/* Clear all */}
                 <div style={{textAlign:"center",paddingTop:"8px"}}>
                   <button onClick={() => { if(window.confirm("Clear all watchlist entries?")) saveWatchlist([]); }}
                     style={{padding:"6px 16px",borderRadius:"8px",border:"1px solid rgba(248,113,113,0.2)",background:"transparent",color:"#f87171",fontSize:"12px",cursor:"pointer"}}>
@@ -1946,7 +1873,6 @@ export default function App() {
           <>
             <Header title="Match History" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Your last {matchHistory.length} predictions</p>
-
             {matchHistory.length === 0 ? (
               <div style={{textAlign:"center",padding:"60px 20px",background:"rgba(255,255,255,0.02)",borderRadius:"16px",border:"1px solid rgba(255,255,255,0.05)"}}>
                 <div style={{fontSize:"48px",marginBottom:"16px"}}>🕐</div>
@@ -1965,7 +1891,6 @@ export default function App() {
                     🗑️ Clear History
                   </button>
                 </div>
-
                 <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
                   {matchHistory.map((h) => {
                     const p1prob = h.prediction?.[h.p1] || 50;
@@ -2038,8 +1963,6 @@ export default function App() {
           <>
             <Header title="Performance" />
             <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>Track your prediction accuracy and value bet ROI</p>
-
-            {/* Notification Toggle */}
             <div style={{background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"14px",padding:"14px 18px",marginBottom:"24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:"13px",fontWeight:700,color:"#818cf8",marginBottom:"4px"}}>🔔 Live Match Notifications</div>
@@ -2055,8 +1978,6 @@ export default function App() {
                 </button>
               )}
             </div>
-
-            {/* Prediction Accuracy */}
             {(() => {
               const resolved = accuracyLog.filter(l => l.correct !== undefined);
               const correct = resolved.filter(l => l.correct).length;
@@ -2113,8 +2034,6 @@ export default function App() {
                 </div>
               );
             })()}
-
-            {/* Value Bet ROI */}
             {(() => {
               const resolved = valuePerformance.filter(b => b.result !== null);
               const won = resolved.filter(b => b.result==="won");
@@ -2143,7 +2062,6 @@ export default function App() {
                           </div>
                         ))}
                       </div>
-                      {/* Bet List */}
                       <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
                         {valuePerformance.slice(0,20).map(b => (
                           <div key={b.id} style={{background:"#0f172a",borderRadius:"12px",padding:"12px 14px",border:`1px solid ${b.result==="won"?"rgba(74,222,128,0.2)":b.result==="lost"?"rgba(248,113,113,0.2)":"rgba(255,255,255,0.07)"}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:"12px"}}>
