@@ -484,7 +484,7 @@ app.get("/api/predict", async (req, res) => {
     setWinProb:{[p1]:Math.round(setWinP1*100),[p2]:Math.round(setWinP2*100)},
     handicap:{line:handicapLine,favorite,underdog,pick:handicapPick,reason:handicapReason,expGames:{[favorite]:Math.round(expFav*10)/10,[underdog]:Math.round(expDog*10)/10}},
     factors:{ranking:Math.round(rankingFactor),form:Math.round(formFactor),clutch:Math.round(clutchFactor),momentum:Math.round(momentumFactor),surface},
-    formData:{[p1]:form1Data?{form:form1Data.form,wins:form1Data.wins,losses:form1Data.losses,recentResults:form1Data.recentResults}:null,[p2]:form2Data?{form:form2Data.form,wins:form2Data.wins,losses:form2Data.losses,recentResults:form2Data.recentResults}:null},
+    formData:{[p1]:form1Data?{form:form1Data.form,wins:form1Data.wins,losses:form1Data.losses,recentResults:form1Data.recentResults,handRates:form1Data.handRates}:null,[p2]:form2Data?{form:form2Data.form,wins:form2Data.wins,losses:form2Data.losses,recentResults:form2Data.recentResults,handRates:form2Data.handRates}:null},
     explain:p1Win>60?`${p1} has clear advantages in ranking, form and matchup strength.`:p1Win<40?`${p2} has clear advantages in ranking, form and matchup strength.`:`Very evenly matched.`,
     edge:p1Win>65?`${p1} clearly superior`:p1Win>55?`${p1} slight advantage`:p1Win<35?`${p2} clearly superior`:p1Win<45?`${p2} slight advantage`:"very even"
   });
