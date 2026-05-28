@@ -434,10 +434,14 @@ app.get("/api/predict", async (req, res) => {
   const p1Stats = deriveStats(p1, Number(rank1), elo1, form1Data);
   const p2Stats = deriveStats(p2, Number(rank2), elo2, form2Data);
   const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
-  const setWinP1 = Math.min(0.85, Math.max(0.15, expected1+surfaceSetMod+(surfMod1-surfMod2)*0.01));
-  const setWinP2 = 1-setWinP1;
+
+  // ── FIX: setWinP1 von finalem p1Win ableiten (inkl. Form, Surface, Hand)
+  // statt nur von rohem Elo — damit Handicap/SetBetting konsistent mit Match Winner ist
+  const p1WinFrac = p1Win / 100;
+  const setWinP1 = Math.min(0.85, Math.max(0.15, p1WinFrac + surfaceSetMod));
+  const setWinP2 = 1 - setWinP1;
   const expGPSW = 6+Math.max(0,(Math.max(setWinP1,setWinP2)-0.5)*2);
-  const expGPSL = Math.max(1, 6-(Math.max(setWinP1,setWinP2)-0.5)*8);
+  const expGPSL = Math.max(1, 6-(Math.max(setWinP1,setWinP2)-0.5)*10); // steeper falloff for close matches
   const favoriteIsP1 = setWinP1>=setWinP2;
   const favorite = favoriteIsP1?p1:p2, underdog = favoriteIsP1?p2:p1;
   const p=Math.max(setWinP1,setWinP2), q=1-p;
