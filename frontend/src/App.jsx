@@ -218,6 +218,8 @@ export default function App() {
   const [dashShowAll, setDashShowAll] = useState(false);
   const [standings, setStandings] = useState([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
+  const [newsAnalysis, setNewsAnalysis] = useState(null);
+  const [newsAnalysisLoading, setNewsAnalysisLoading] = useState(false);
 
   // ── Favorite Players ─────────────────────────────────────────────────────────
   const [favoritePlayers, setFavoritePlayers] = useState(() => {
@@ -457,11 +459,101 @@ export default function App() {
     if (!p1 || !p2) return;
     const r1 = p1Data?.rank || 100;
     const r2 = p2Data?.rank || 100;
+    setNewsAnalysis(null);
     fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${r1}&rank2=${r2}&surface=${surface}&surface1=${p1Data?.[surface] || 0}&surface2=${p2Data?.[surface] || 0}&bo=${bestOf}`)
       .then(res => res.json()).then(data => {
         setPrediction(data);
         addToHistory(p1, p2, surface, data);
+        analyzeNewsForPrediction(p1, p2, data.prediction?.[p1] || 50);
       }).catch(err => console.error(err));
+  };
+
+  const analyzeNewsForPrediction = async (player1, player2, baseProb1) => {
+    setNewsAnalysisLoading(true);
+    try {
+      // Fetch news for both players in parallel
+      const [news1Res, news2Res] = await Promise.all([
+        fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player1)}`).then(r=>r.json()).catch(()=>[]),
+        fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player2)}`).then(r=>r.json()).catch(()=>[])
+      ]);
+
+      const headlines1 = (Array.isArray(news1Res) ? news1Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
+      const headlines2 = (Array.isArray(news2Res) ? news2Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
+
+      if (headlines1.length === 0 && headlines2.length === 0) {
+        setNewsAnalysis({ noNews: true });
+        setNewsAnalysisLoading(false);
+        return;
+      }
+
+      const prompt = `You are a tennis prediction assistant. Analyze these recent news headlines for two players and assess how they affect the match prediction.
+
+Player 1: ${player1}
+News: ${headlines1.length > 0 ? headlines1.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+
+Player 2: ${player2}
+News: ${headlines2.length > 0 ? headlines2.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+
+Current model prediction: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
+
+Analyze the headlines for: injuries, illness, fatigue, form (winning/losing streak), motivation, withdrawals, weather/surface issues, or any other match-relevant factors.
+
+Respond ONLY with a JSON object, no markdown, no explanation:
+{
+  "player1": {
+    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
+    "modifier": <integer from -8 to +8, 0 if neutral>,
+    "reason": "<one short sentence in German explaining the signal>",
+    "headlines_used": [<list of relevant headline indices, 1-based, empty if none relevant>]
+  },
+  "player2": {
+    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
+    "modifier": <integer from -8 to +8, 0 if neutral>,
+    "reason": "<one short sentence in German explaining the signal>",
+    "headlines_used": [<list of relevant headline indices, 1-based, empty if none relevant>]
+  },
+  "overall_impact": "low | medium | high",
+  "summary": "<one sentence in German summarizing the news impact on this match>"
+}`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      const text = data.content?.map(c=>c.text||"").join("").trim();
+      const clean = text.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(clean);
+
+      // Calculate adjusted probabilities
+      const rawMod1 = parsed.player1?.modifier || 0;
+      const rawMod2 = parsed.player2?.modifier || 0;
+      const netMod = rawMod1 - rawMod2; // net effect on player1
+      const adjustedProb1 = Math.min(95, Math.max(5, Math.round(baseProb1 + netMod)));
+      const adjustedProb2 = 100 - adjustedProb1;
+
+      setNewsAnalysis({
+        player1: { name: player1, ...parsed.player1, headlines: headlines1 },
+        player2: { name: player2, ...parsed.player2, headlines: headlines2 },
+        overall_impact: parsed.overall_impact,
+        summary: parsed.summary,
+        baseProb1: Math.round(baseProb1),
+        baseProb2: Math.round(100 - baseProb1),
+        adjustedProb1,
+        adjustedProb2,
+        netMod
+      });
+    } catch(err) {
+      console.error("News analysis error:", err);
+      setNewsAnalysis({ error: true });
+    }
+    setNewsAnalysisLoading(false);
   };
 
   useEffect(() => {
@@ -1081,7 +1173,7 @@ export default function App() {
                 <button key={s.value} className={`surfaceBtn ${surface===s.value?"active":""}`} onClick={() => {
                   setSurface(s.value);
                   if (prediction && p1Data && p2Data) {
-                    setTimeout(() => fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank||10}&rank2=${p2Data.rank||100}&surface=${s.value}&surface1=${p1Data?.[s.value]||0}&surface2=${p2Data?.[s.value]||0}&bo=${bestOf}`).then(res=>res.json()).then(data=>setPrediction(data)).catch(err=>console.error(err)),50);
+                    setTimeout(() => fetch(`https://tennis-edge-backend.onrender.com/api/predict?p1=${encodeURIComponent(p1)}&p2=${encodeURIComponent(p2)}&rank1=${p1Data.rank||10}&rank2=${p2Data.rank||100}&surface=${s.value}&surface1=${p1Data?.[s.value]||0}&surface2=${p2Data?.[s.value]||0}&bo=${bestOf}`).then(res=>res.json()).then(data=>{setPrediction(data);setNewsAnalysis(null);}).catch(err=>console.error(err)),50);
                   }
                 }}>
                   <span className="surfaceIcon">{s.icon}</span><span className="surfaceLabel">{s.label}</span>
@@ -1124,6 +1216,124 @@ export default function App() {
                   <p className="confidence">Confidence: {prediction.confidence}%</p>
                   <p className="edge">{prediction.edge}</p>
                   {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
+
+                  {/* ── NEWS ANALYSIS PANEL ───────────────────────────────── */}
+                  {newsAnalysisLoading && (
+                    <div style={{margin:"16px 0",padding:"16px",borderRadius:"14px",background:"rgba(139,92,246,0.06)",border:"1px solid rgba(139,92,246,0.2)",display:"flex",alignItems:"center",gap:"12px"}}>
+                      <div style={{width:"16px",height:"16px",borderRadius:"50%",border:"2px solid rgba(139,92,246,0.3)",borderTopColor:"#a78bfa",animation:"spin 0.8s linear infinite",flexShrink:0}} />
+                      <div>
+                        <div style={{fontSize:"13px",fontWeight:700,color:"#a78bfa",marginBottom:"2px"}}>📰 News-Analyse läuft...</div>
+                        <div style={{fontSize:"11px",color:"#64748b"}}>Aktuelle Nachrichten werden ausgewertet</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {newsAnalysis && !newsAnalysisLoading && (() => {
+                    if (newsAnalysis.error) return (
+                      <div style={{margin:"16px 0",padding:"12px 16px",borderRadius:"12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",fontSize:"12px",color:"#475569"}}>
+                        📰 News-Analyse konnte nicht geladen werden.
+                      </div>
+                    );
+                    if (newsAnalysis.noNews) return (
+                      <div style={{margin:"16px 0",padding:"12px 16px",borderRadius:"12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",fontSize:"12px",color:"#475569"}}>
+                        📰 Keine aktuellen News gefunden — News-Adjustment nicht möglich.
+                      </div>
+                    );
+
+                    const impactColor = newsAnalysis.overall_impact === "high" ? "#f87171" : newsAnalysis.overall_impact === "medium" ? "#facc15" : "#64748b";
+                    const signalIcon = (s) => ({ injury_risk:"🤕", poor_form:"📉", good_form:"📈", fatigue:"😴", neutral:"➖", withdrawal_risk:"⚠️", motivated:"🔥" })[s] || "➖";
+                    const signalColor = (s) => ({ injury_risk:"#f87171", poor_form:"#f87171", good_form:"#4ade80", fatigue:"#facc15", neutral:"#475569", withdrawal_risk:"#f97316", motivated:"#4ade80" })[s] || "#475569";
+                    const hasAdjustment = newsAnalysis.netMod !== 0;
+
+                    return (
+                      <div style={{margin:"16px 0",borderRadius:"14px",overflow:"hidden",border:`1px solid ${impactColor}33`,background:`${impactColor}08`}}>
+                        {/* Header */}
+                        <div style={{padding:"12px 16px",borderBottom:`1px solid ${impactColor}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                            <span style={{fontSize:"14px"}}>📰</span>
+                            <span style={{fontSize:"13px",fontWeight:800,color:"#e2e8f0"}}>News-Analyse</span>
+                            <span style={{fontSize:"10px",fontWeight:700,color:impactColor,background:`${impactColor}22`,padding:"2px 8px",borderRadius:"6px",textTransform:"uppercase"}}>
+                              {newsAnalysis.overall_impact} Impact
+                            </span>
+                          </div>
+                          <span style={{fontSize:"11px",color:"#475569"}}>powered by Claude</span>
+                        </div>
+
+                        <div style={{padding:"14px 16px"}}>
+                          {/* Summary */}
+                          <p style={{margin:"0 0 14px",fontSize:"13px",color:"#94a3b8",lineHeight:1.5,fontStyle:"italic"}}>„{newsAnalysis.summary}"</p>
+
+                          {/* Player signals */}
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"14px"}}>
+                            {[newsAnalysis.player1, newsAnalysis.player2].map((p, i) => (
+                              <div key={i} style={{padding:"10px 12px",borderRadius:"10px",background:"rgba(255,255,255,0.03)",border:`1px solid ${signalColor(p.signal)}33`}}>
+                                <div style={{fontSize:"11px",color:"#64748b",marginBottom:"4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                                <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"4px"}}>
+                                  <span style={{fontSize:"16px"}}>{signalIcon(p.signal)}</span>
+                                  <span style={{fontSize:"12px",fontWeight:700,color:signalColor(p.signal)}}>{p.modifier > 0 ? `+${p.modifier}%` : p.modifier < 0 ? `${p.modifier}%` : "±0%"}</span>
+                                </div>
+                                <div style={{fontSize:"11px",color:"#94a3b8",lineHeight:1.4}}>{p.reason}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Adjusted prediction */}
+                          {hasAdjustment ? (
+                            <div style={{padding:"12px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)"}}>
+                              <div style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"10px"}}>📊 Angepasste Wahrscheinlichkeit</div>
+                              <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:"8px",alignItems:"center"}}>
+                                <div>
+                                  <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{newsAnalysis.player1.name}</div>
+                                  <div style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
+                                    <span style={{fontSize:"22px",fontWeight:900,color:"#22d3ee"}}>{newsAnalysis.adjustedProb1}%</span>
+                                    <span style={{fontSize:"11px",color: newsAnalysis.adjustedProb1 > newsAnalysis.baseProb1 ? "#4ade80" : newsAnalysis.adjustedProb1 < newsAnalysis.baseProb1 ? "#f87171" : "#475569",fontWeight:700}}>
+                                      {newsAnalysis.adjustedProb1 > newsAnalysis.baseProb1 ? `▲+${newsAnalysis.adjustedProb1-newsAnalysis.baseProb1}` : newsAnalysis.adjustedProb1 < newsAnalysis.baseProb1 ? `▼${newsAnalysis.adjustedProb1-newsAnalysis.baseProb1}` : "="}
+                                    </span>
+                                  </div>
+                                  <div style={{fontSize:"10px",color:"#334155"}}>war {newsAnalysis.baseProb1}%</div>
+                                </div>
+                                <div style={{textAlign:"center",color:"#334155",fontSize:"12px",fontWeight:700}}>VS</div>
+                                <div style={{textAlign:"right"}}>
+                                  <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{newsAnalysis.player2.name}</div>
+                                  <div style={{display:"flex",alignItems:"baseline",gap:"6px",justifyContent:"flex-end"}}>
+                                    <span style={{fontSize:"11px",color: newsAnalysis.adjustedProb2 > newsAnalysis.baseProb2 ? "#4ade80" : newsAnalysis.adjustedProb2 < newsAnalysis.baseProb2 ? "#f87171" : "#475569",fontWeight:700}}>
+                                      {newsAnalysis.adjustedProb2 > newsAnalysis.baseProb2 ? `▲+${newsAnalysis.adjustedProb2-newsAnalysis.baseProb2}` : newsAnalysis.adjustedProb2 < newsAnalysis.baseProb2 ? `▼${newsAnalysis.adjustedProb2-newsAnalysis.baseProb2}` : "="}
+                                    </span>
+                                    <span style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{newsAnalysis.adjustedProb2}%</span>
+                                  </div>
+                                  <div style={{fontSize:"10px",color:"#334155"}}>war {newsAnalysis.baseProb2}%</div>
+                                </div>
+                              </div>
+                              {/* Adjusted probability bar */}
+                              <div style={{display:"flex",height:"8px",borderRadius:"999px",overflow:"hidden",marginTop:"10px"}}>
+                                <div style={{width:`${newsAnalysis.adjustedProb1}%`,background:"linear-gradient(90deg,#22d3ee,#4ade80)",transition:"width 0.5s ease"}} />
+                                <div style={{flex:1,background:"#f472b6"}} />
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",fontSize:"12px",color:"#475569",textAlign:"center"}}>
+                              ➖ Keine relevanten News gefunden — Prediction unverändert
+                            </div>
+                          )}
+
+                          {/* Headlines used */}
+                          <div style={{marginTop:"12px",display:"flex",gap:"8px",flexWrap:"wrap"}}>
+                            {[newsAnalysis.player1, newsAnalysis.player2].map((p,pi) =>
+                              (p.headlines_used||[]).map(idx => {
+                                const h = p.headlines?.[idx-1];
+                                if (!h) return null;
+                                return (
+                                  <div key={`${pi}-${idx}`} style={{fontSize:"10px",color:"#64748b",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"6px",padding:"3px 8px",lineHeight:1.4,maxWidth:"100%"}}>
+                                    📄 {h.length > 80 ? h.slice(0,80)+"…" : h}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {prediction.hand && (() => {
                     const h1 = prediction.hand[prediction.player1];
