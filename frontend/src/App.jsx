@@ -1398,23 +1398,82 @@ export default function App() {
                   {prediction.setWinProb && (
                     <div style={{margin:"16px 0",padding:"16px",borderRadius:"14px",background:"rgba(34,211,238,0.06)",border:"1px solid rgba(34,211,238,0.2)"}}>
                       <h4 style={{color:"#22d3ee",margin:"0 0 12px",fontSize:"14px"}}>🎾 Set Win Probability</h4>
-                      {[prediction.player1,prediction.player2].map(p => {
-                        const prob=prediction.setWinProb[p]; const isWinner=prob>=50;
-                        return (<div key={p} style={{marginBottom:"10px"}}><div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"4px"}}><span style={{color:"#cbd5e1"}}>{p}</span><strong style={{color:isWinner?"#4ade80":"#f472b6"}}>{prob}%  per set</strong></div><div style={{height:"8px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${prob}%`,height:"100%",background:isWinner?"linear-gradient(90deg,#22d3ee,#4ade80)":"#f472b6",borderRadius:"999px"}} /></div></div>);
+                      {[prediction.player1, prediction.player2].map(p => {
+                        const baseProb = prediction.setWinProb[p];
+                        // Apply news adjustment to set win prob too
+                        const hasAdj = newsAnalysis && !newsAnalysis.error && !newsAnalysis.noNews && newsAnalysis.netMod !== 0;
+                        const adjProb = hasAdj
+                          ? (p === prediction.player1
+                              ? Math.min(85, Math.max(15, baseProb + Math.round(newsAnalysis.netMod * 0.6)))
+                              : Math.min(85, Math.max(15, baseProb - Math.round(newsAnalysis.netMod * 0.6))))
+                          : baseProb;
+                        const isWinner = adjProb >= 50;
+                        return (
+                          <div key={p} style={{marginBottom:"10px"}}>
+                            <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"4px"}}>
+                              <span style={{color:"#cbd5e1"}}>{p}</span>
+                              <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                                {hasAdj && adjProb !== baseProb && <span style={{fontSize:"10px",color:adjProb>baseProb?"#4ade80":"#f87171"}}>{adjProb>baseProb?`▲+${adjProb-baseProb}`:`▼${adjProb-baseProb}`}</span>}
+                                <strong style={{color:isWinner?"#4ade80":"#f472b6"}}>{adjProb}% per set</strong>
+                              </div>
+                            </div>
+                            <div style={{height:"8px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                              <div style={{width:`${adjProb}%`,height:"100%",background:isWinner?"linear-gradient(90deg,#22d3ee,#4ade80)":"#f472b6",borderRadius:"999px"}} />
+                            </div>
+                          </div>
+                        );
                       })}
-                      <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Based on Elo, form, surface experience and ranking</p>
+                      <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>
+                        Based on Elo, form, surface experience and ranking
+                        {newsAnalysis && !newsAnalysis.error && !newsAnalysis.noNews && newsAnalysis.netMod !== 0 && <span style={{color:"#a78bfa"}}> · News-adjustiert</span>}
+                      </p>
                     </div>
                   )}
                   {prediction.handicap && (
                     <div style={{margin:"0 0 16px",padding:"16px",borderRadius:"14px",background:"rgba(250,204,21,0.06)",border:"1px solid rgba(250,204,21,0.25)"}}>
                       <h4 style={{color:"#facc15",margin:"0 0 12px",fontSize:"14px"}}>📊 Handicap Recommendation</h4>
-                      <span style={{color:"#e2e8f0",fontWeight:700,fontSize:"15px"}}>{prediction.handicap.pick}</span>
-                      <div style={{display:"flex",gap:"20px",margin:"10px 0"}}>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Exp. Games {prediction.handicap.favorite?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#4ade80"}}>{prediction.handicap.expGames?.[prediction.handicap.favorite]}</div></div>
-                        <div style={{textAlign:"center",alignSelf:"center",color:"#475569",fontSize:"18px"}}>:</div>
-                        <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Exp. Games {prediction.handicap.underdog?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#94a3b8"}}>{prediction.handicap.expGames?.[prediction.handicap.underdog]}</div></div>
-                      </div>
-                      <p style={{margin:0,fontSize:"13px",color:"#94a3b8"}}>{prediction.handicap.reason}</p>
+                      {(() => {
+                        const hasAdj = newsAnalysis && !newsAnalysis.error && !newsAnalysis.noNews && newsAnalysis.netMod !== 0;
+                        const dispFav = hasAdj ? (newsAnalysis.adjustedProb1 >= newsAnalysis.adjustedProb2 ? prediction.player1 : prediction.player2) : prediction.handicap.favorite;
+                        const dispDog = dispFav === prediction.player1 ? prediction.player2 : prediction.player1;
+                        const surfSetMod = prediction.surface==="clay"?0.03:prediction.surface==="grass"?-0.02:0;
+                        const adjP = hasAdj ? Math.min(0.85, Math.max(0.15, Math.max(newsAnalysis.adjustedProb1, newsAnalysis.adjustedProb2)/100 + surfSetMod)) : null;
+                        const adjQ = adjP ? 1 - adjP : null;
+                        const bo = prediction.bo || 3;
+                        let adjExpFav = prediction.handicap.expGames?.[dispFav];
+                        let adjExpDog = prediction.handicap.expGames?.[dispDog];
+                        let adjLine = prediction.handicap.line;
+                        let adjPick = prediction.handicap.pick;
+                        let adjReason = prediction.handicap.reason;
+                        if (hasAdj && adjP) {
+                          const expGPSW = 6 + Math.max(0, (adjP-0.5)*2);
+                          const expGPSL = Math.max(1, 6-(adjP-0.5)*10);
+                          const p=adjP, q=adjQ;
+                          const sc20=p*p, sc21=2*p*p*q, sc12=2*p*q*q, sc02=q*q;
+                          const sc30=p*p*p, sc31=3*p*p*p*q, sc32=6*p*p*p*q*q, sc03=q*q*q, sc13=3*p*q*q*q, sc23=6*p*p*q*q*q;
+                          if (bo===5) {
+                            adjExpFav=Math.round((sc30*(3*expGPSW)+sc31*(3*expGPSW+expGPSL)+sc32*(3*expGPSW+2*expGPSL)+sc03*(3*expGPSL)+sc13*(expGPSW+3*expGPSL)+sc23*(2*expGPSW+3*expGPSL))*10)/10;
+                            adjExpDog=Math.round((sc30*(3*expGPSL)+sc31*(3*expGPSL+expGPSW)+sc32*(3*expGPSL+2*expGPSW)+sc03*(3*expGPSW)+sc13*(expGPSL+3*expGPSW)+sc23*(2*expGPSL+3*expGPSW))*10)/10;
+                          } else {
+                            adjExpFav=Math.round((sc20*2*expGPSW+sc21*(2*expGPSW+expGPSL)+sc12*(expGPSW+2*expGPSL)+sc02*2*expGPSL)*10)/10;
+                            adjExpDog=Math.round((sc20*2*expGPSL+sc21*(2*expGPSL+expGPSW)+sc12*(expGPSL+2*expGPSW)+sc02*2*expGPSW)*10)/10;
+                          }
+                          adjLine=Math.round((adjExpFav-adjExpDog)*2)/2;
+                          adjPick=adjLine>=2?`${dispFav} -${adjLine} Games`:adjLine>=0.5?`${dispFav} -${adjLine} Games (knapp)`:"Kein klares Handicap";
+                          adjReason=adjLine>=2?`${dispFav} dominiert mit ~${adjLine} Games Vorsprung (News-adjustiert).`:adjLine>=0.5?`Leichter Vorteil für ${dispFav} (News-adjustiert).`:"Zu knapp für klares Handicap.";
+                        }
+                        return (
+                          <>
+                            <span style={{color:"#e2e8f0",fontWeight:700,fontSize:"15px"}}>{adjPick}</span>
+                            <div style={{display:"flex",gap:"20px",margin:"10px 0"}}>
+                              <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Exp. Games {dispFav?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#4ade80"}}>{adjExpFav}</div></div>
+                              <div style={{textAlign:"center",alignSelf:"center",color:"#475569",fontSize:"18px"}}>:</div>
+                              <div style={{textAlign:"center"}}><div style={{fontSize:"11px",color:"#64748b",marginBottom:"2px"}}>Exp. Games {dispDog?.split(" ").slice(-1)[0]}</div><div style={{fontSize:"20px",fontWeight:800,color:"#94a3b8"}}>{adjExpDog}</div></div>
+                            </div>
+                            <p style={{margin:0,fontSize:"13px",color:"#94a3b8"}}>{adjReason}</p>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                   <div className="valueBox">
@@ -1497,13 +1556,26 @@ export default function App() {
                   )}
 
                   {(() => {
-                    const p1w = prediction.prediction?.[prediction.player1] || 50;
-                    const p2w = prediction.prediction?.[prediction.player2] || 50;
+                    // ── News-adjustierte Wahrscheinlichkeiten wenn vorhanden ──
+                    const hasNewsAdj = newsAnalysis && !newsAnalysis.error && !newsAnalysis.noNews && newsAnalysis.netMod !== 0;
+                    const rawP1w = prediction.prediction?.[prediction.player1] || 50;
+                    const rawP2w = prediction.prediction?.[prediction.player2] || 50;
+                    const p1w = hasNewsAdj ? newsAnalysis.adjustedProb1 : rawP1w;
+                    const p2w = hasNewsAdj ? newsAnalysis.adjustedProb2 : rawP2w;
+
+                    // Fav/Dog basierend auf adjustierten Werten bestimmen
                     const fav = p1w >= p2w ? prediction.player1 : prediction.player2;
                     const dog = p1w >= p2w ? prediction.player2 : prediction.player1;
                     const favProb = Math.max(p1w, p2w);
                     const dogProb = Math.min(p1w, p2w);
-                    const setP = (prediction.setWinProb?.[fav] || favProb) / 100;
+
+                    // Set-Wahrscheinlichkeit ebenfalls adjustieren
+                    const surfaceSetMod = prediction.surface==="clay"?0.03:prediction.surface==="grass"?-0.02:0;
+                    const adjSetP = hasNewsAdj
+                      ? Math.min(0.85, Math.max(0.15, (favProb/100) + surfaceSetMod))
+                      : (prediction.setWinProb?.[fav] || favProb) / 100;
+                    const setP = adjSetP;
+
                     const bo = prediction.bo || 3;
                     const setsToWin = bo === 5 ? 3 : 2;
                     const matchWinner = { pick: fav, prob: favProb, confidence: favProb > 70 ? "High" : favProb > 60 ? "Medium" : "Low", color: favProb > 70 ? "#4ade80" : favProb > 60 ? "#facc15" : "#94a3b8" };
@@ -1525,12 +1597,31 @@ export default function App() {
                         { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q + 2*q*q*p)*100), label: "Upset" },
                       ];
                     }
-                    const hLine = prediction.handicap?.line || 0;
-                    const hPick = prediction.handicap?.pick || `${fav} -${hLine} Games`;
+
+                    // Handicap neu berechnen mit adjustierten Werten
+                    const expGPSW = 6 + Math.max(0, (p - 0.5) * 2);
+                    const expGPSL = Math.max(1, 6 - (p - 0.5) * 10);
+                    let expFavG, expDogG;
+                    if (hasNewsAdj) {
+                      // Neu berechnen statt Backend-Wert verwenden
+                      const sc20=p*p, sc21=2*p*p*q, sc12=2*p*q*q, sc02=q*q;
+                      const sc30=p*p*p, sc31=3*p*p*p*q, sc32=6*p*p*p*q*q;
+                      const sc03=q*q*q, sc13=3*p*q*q*q, sc23=6*p*p*q*q*q;
+                      if (bo === 5) {
+                        expFavG = Math.round((sc30*(3*expGPSW) + sc31*(3*expGPSW+expGPSL) + sc32*(3*expGPSW+2*expGPSL) + sc03*(3*expGPSL) + sc13*(expGPSW+3*expGPSL) + sc23*(2*expGPSW+3*expGPSL))*10)/10;
+                        expDogG = Math.round((sc30*(3*expGPSL) + sc31*(3*expGPSL+expGPSW) + sc32*(3*expGPSL+2*expGPSW) + sc03*(3*expGPSW) + sc13*(expGPSL+3*expGPSW) + sc23*(2*expGPSL+3*expGPSW))*10)/10;
+                      } else {
+                        expFavG = Math.round((sc20*2*expGPSW + sc21*(2*expGPSW+expGPSL) + sc12*(expGPSW+2*expGPSL) + sc02*2*expGPSL)*10)/10;
+                        expDogG = Math.round((sc20*2*expGPSL + sc21*(2*expGPSL+expGPSW) + sc12*(expGPSL+2*expGPSW) + sc02*2*expGPSW)*10)/10;
+                      }
+                    } else {
+                      expFavG = prediction.handicap?.expGames?.[fav] || (setsToWin * 6);
+                      expDogG = prediction.handicap?.expGames?.[dog] || (setsToWin * 4.5);
+                    }
+                    const hLine = Math.round((expFavG - expDogG) * 2) / 2;
+                    const hPick = hLine >= 2 ? `${fav} -${hLine} Games` : hLine >= 0.5 ? `${fav} -${hLine} Games (knapp)` : "Kein klares Handicap";
                     const hConf = hLine >= 3 ? "High" : hLine >= 1.5 ? "Medium" : "Low";
                     const hColor = hLine >= 3 ? "#4ade80" : hLine >= 1.5 ? "#facc15" : "#94a3b8";
-                    const expFavG = prediction.handicap?.expGames?.[fav] || (setsToWin * 6);
-                    const expDogG = prediction.handicap?.expGames?.[dog] || (setsToWin * 4.5);
                     const expTotal = Math.round((expFavG + expDogG) * 10) / 10;
                     const ouLine = Math.round(expTotal / 0.5) * 0.5;
                     const ouPick = expTotal > ouLine ? `Over ${ouLine}` : `Under ${ouLine}`;
@@ -1542,8 +1633,15 @@ export default function App() {
                       borderRadius: "12px", padding: "14px 16px", marginBottom: "10px"
                     });
                     return (
-                      <div style={{marginTop:"20px",padding:"20px",borderRadius:"16px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)"}}>
-                        <h4 style={{margin:"0 0 16px",color:"#e2e8f0",fontSize:"15px",fontWeight:800}}>🎯 Betting Tips</h4>
+                      <div style={{marginTop:"20px",padding:"20px",borderRadius:"16px",background:"rgba(255,255,255,0.02)",border:`1px solid ${hasNewsAdj?"rgba(139,92,246,0.25)":"rgba(255,255,255,0.07)"}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+                          <h4 style={{margin:0,color:"#e2e8f0",fontSize:"15px",fontWeight:800}}>🎯 Betting Tips</h4>
+                          {hasNewsAdj && (
+                            <span style={{fontSize:"11px",color:"#a78bfa",background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.25)",borderRadius:"6px",padding:"2px 8px",fontWeight:600}}>
+                              📰 News-adjustiert ({newsAnalysis.netMod > 0 ? "+" : ""}{newsAnalysis.netMod}%)
+                            </span>
+                          )}
+                        </div>
                         <div style={tipStyle(matchWinner.confidence)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
                             <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>1. Match Winner</span>
