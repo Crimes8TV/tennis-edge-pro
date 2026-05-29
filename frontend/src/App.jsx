@@ -1557,15 +1557,41 @@ export default function App() {
 
                   {(() => {
                     // ══════════════════════════════════════════════════════════
-                    // SINGLE SOURCE OF TRUTH — alle 5 Tips basieren auf p (setP)
+                    // SINGLE SOURCE OF TRUTH — alle 5 Tips basieren auf favProb
+                    // Priorität: 1. Buchmacher-Quoten  2. News-adjustiert  3. Modell
                     // ══════════════════════════════════════════════════════════
 
-                    // 1. Basis-Wahrscheinlichkeiten (news-adjustiert wenn vorhanden)
                     const hasNewsAdj = newsAnalysis && !newsAnalysis.error && !newsAnalysis.noNews && newsAnalysis.netMod !== 0;
                     const rawP1w = prediction.prediction?.[prediction.player1] || 50;
                     const rawP2w = prediction.prediction?.[prediction.player2] || 50;
-                    const matchP1 = hasNewsAdj ? newsAnalysis.adjustedProb1 : rawP1w;
-                    const matchP2 = hasNewsAdj ? newsAnalysis.adjustedProb2 : rawP2w;
+
+                    // Buchmacher-Quoten aus Value Bet Check
+                    const bookOdds1 = odds1 && odds1 > 1 ? odds1 : null;
+                    const bookOdds2 = odds2 && odds2 > 1 ? odds2 : null;
+                    const hasBookOdds = bookOdds1 && bookOdds2;
+
+                    // Implied probabilities aus Quoten (normalisiert auf 100%)
+                    let bookP1 = null, bookP2 = null;
+                    if (hasBookOdds) {
+                      const imp1 = 1/bookOdds1, imp2 = 1/bookOdds2;
+                      const total = imp1 + imp2; // >1 wegen Marge
+                      bookP1 = Math.round((imp1/total)*100);
+                      bookP2 = 100 - bookP1;
+                    }
+
+                    // Quellen-Hierarchie
+                    const matchP1 = hasBookOdds ? bookP1
+                                  : hasNewsAdj  ? newsAnalysis.adjustedProb1
+                                  : rawP1w;
+                    const matchP2 = hasBookOdds ? bookP2
+                                  : hasNewsAdj  ? newsAnalysis.adjustedProb2
+                                  : rawP2w;
+                    const sourceLabel = hasBookOdds ? "📊 Buchmacher-Quoten"
+                                      : hasNewsAdj  ? "📰 News-adjustiert"
+                                      : "🤖 Modell";
+                    const sourceColor = hasBookOdds ? "#facc15"
+                                      : hasNewsAdj  ? "#a78bfa"
+                                      : "#22d3ee";
 
                     const fav = matchP1 >= matchP2 ? prediction.player1 : prediction.player2;
                     const dog = matchP1 >= matchP2 ? prediction.player2 : prediction.player1;
@@ -1688,11 +1714,9 @@ export default function App() {
                       <div style={{marginTop:"20px",padding:"20px",borderRadius:"16px",background:"rgba(255,255,255,0.02)",border:`1px solid ${hasNewsAdj?"rgba(139,92,246,0.25)":"rgba(255,255,255,0.07)"}`}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
                           <h4 style={{margin:0,color:"#e2e8f0",fontSize:"15px",fontWeight:800}}>🎯 Betting Tips</h4>
-                          {hasNewsAdj && (
-                            <span style={{fontSize:"11px",color:"#a78bfa",background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.25)",borderRadius:"6px",padding:"2px 8px",fontWeight:600}}>
-                              📰 News-adjustiert ({newsAnalysis.netMod > 0 ? "+" : ""}{newsAnalysis.netMod}%)
-                            </span>
-                          )}
+                          <span style={{fontSize:"11px",color:sourceColor,background:`${sourceColor}18`,border:`1px solid ${sourceColor}33`,borderRadius:"6px",padding:"2px 8px",fontWeight:600}}>
+                            {sourceLabel}{hasNewsAdj && !hasBookOdds ? ` (${newsAnalysis.netMod > 0 ? "+" : ""}${newsAnalysis.netMod}%)` : ""}
+                          </span>
                         </div>
                         <div style={tipStyle(matchWinner.confidence)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
