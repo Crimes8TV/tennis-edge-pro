@@ -860,18 +860,119 @@ app.get("/api/tournament-predictions", async (req, res) => {
       if (activePlayers.length===0) activePlayers=allPlayers.slice(0,8);
 
       const top8=activePlayers.slice(0,8);
-      const rawScores=top8.map(p=>({...p,score:Math.exp(-p.rank*0.08)}));
+
+      // ── CLAY SPECIALIST BONUS ────────────────────────────────────────────────
+      // Tournament surface detection
+      const tournNameLower = (tourn.name||"").toLowerCase();
+      const isClay = tournNameLower.includes("roland")||tournNameLower.includes("french")||
+                     tournNameLower.includes("clay")||tournNameLower.includes("monte")||
+                     tournNameLower.includes("madrid")||tournNameLower.includes("rome")||
+                     tournNameLower.includes("barcelona")||tournNameLower.includes("hamburg")||
+                     tournNameLower.includes("buenos")||tournNameLower.includes("estoril")||
+                     tournNameLower.includes("munich")||tournNameLower.includes("lyon");
+      const isGrass = tournNameLower.includes("wimbledon")||tournNameLower.includes("halle")||
+                      tournNameLower.includes("queens")||tournNameLower.includes("grass")||
+                      tournNameLower.includes("eastbourne")||tournNameLower.includes("stuttgart");
+
+      // Surface specialist multipliers (based on career surface performance)
+      const CLAY_SPECIALISTS = {
+        "alcaraz":1.25,"ruud":1.20,"nadal":1.30,"tsitsipas":1.12,"zverev":1.08,
+        "norrie":1.05,"cerundolo":1.15,"rune":1.08,"musetti":1.12,"davidovich":1.10,
+        "coria":1.10,"schwartzman":1.10,"sonego":1.05,"gasquet":1.05,"simon":1.05
+      };
+      const GRASS_SPECIALISTS = {
+        "djokovic":1.15,"federer":1.20,"kyrgios":1.10,"norrie":1.08,"draper":1.10,
+        "fritz":1.05,"tiafoe":1.05,"hurkacz":1.10,"berrettini":1.12
+      };
+      const HARD_SPECIALISTS = {
+        "sinner":1.10,"medvedev":1.12,"djokovic":1.08,"murray":1.05
+      };
+
+      const getSurfaceMultiplier = (playerName) => {
+        const nameLow = playerName.toLowerCase();
+        const lastName = nameLow.split(" ").pop();
+        const specialists = isClay ? CLAY_SPECIALISTS : isGrass ? GRASS_SPECIALISTS : HARD_SPECIALISTS;
+        for (const [key, mult] of Object.entries(specialists)) {
+          if (lastName.includes(key) || nameLow.includes(key)) return mult;
+        }
+        return 1.0;
+      };
+
+      // ── DRAW DIFFICULTY ANALYSIS ─────────────────────────────────────────────
+      // Split draw into halves based on round structure
+      // Players in same half of draw can only meet in semis/final
+      // Assign draw half based on match position in early rounds
+      const drawHalfMap = new Map(); // playerName → 0 or 1 (draw half)
+      const earlyRounds = dedupedMatches.filter(m =>
+        ["1/64-Finals","1/32-Finals","1/16-Finals"].includes(m._roundName)
+      );
+
+      // Build half assignments from bracket position
+      // Sort early round matches, first half gets 0, second half gets 1
+      const sortedEarlyMatches = [...earlyRounds].sort((a,b)=>(a.event_date||"").localeCompare(b.event_date||""));
+      sortedEarlyMatches.forEach((m, idx) => {
+        const half = idx < sortedEarlyMatches.length / 2 ? 0 : 1;
+        if (m._p1full) drawHalfMap.set(m._p1full.toLowerCase(), half);
+        if (m._p2full) drawHalfMap.set(m._p2full.toLowerCase(), half);
+      });
+
+      // Calculate draw difficulty: avg rank of opponents in same half
+      const getDrawDifficulty = (playerName) => {
+        const half = drawHalfMap.get(playerName.toLowerCase());
+        if (half === undefined) return 1.0;
+        // Get all active players in same half
+        const sameHalf = activePlayers.filter(p =>
+          p.name !== playerName && drawHalfMap.get(p.name.toLowerCase()) === half
+        );
+        if (sameHalf.length === 0) return 1.0;
+        const avgRank = sameHalf.reduce((s,p)=>s+p.rank,0) / sameHalf.length;
+        const allAvgRank = activePlayers.filter(p=>p.name!==playerName).reduce((s,p)=>s+p.rank,0) /
+                           Math.max(1, activePlayers.length-1);
+        // Easier draw (higher avg rank of opponents) → bonus; harder draw → penalty
+        // drawFactor: 0.9 to 1.1 range
+        const drawFactor = Math.min(1.10, Math.max(0.90, 1.0 + (avgRank - allAvgRank) / allAvgRank * 0.3));
+        return drawFactor;
+      };
+
+      // ── WIN PROBABILITY WITH ALL FACTORS ────────────────────────────────────
+      const rawScores = top8.map(p => {
+        const baseScore = Math.exp(-p.rank * 0.08);
+        const surfMult = getSurfaceMultiplier(p.name);
+        const drawFactor = getDrawDifficulty(p.name);
+        // Also boost players who have been winning (round advancement bonus)
+        const roundsWon = finishedMatches.filter(m=>m.winner.toLowerCase()===p.name.toLowerCase()).length;
+        const formBonus = 1.0 + roundsWon * 0.03; // +3% per round won in this tournament
+        return {
+          ...p,
+          score: baseScore * surfMult * drawFactor * formBonus,
+          surfMult, drawFactor, formBonus
+        };
+      });
+
       const totalScore=rawScores.reduce((s,p)=>s+p.score,0)||1;
-      const winProbs=rawScores.map(p=>({...p,winProb:Math.max(1,Math.round((p.score/totalScore)*100))})).sort((a,b)=>b.winProb-a.winProb);
+      const winProbs=rawScores.map(p=>({
+        ...p,
+        winProb:Math.max(1,Math.round((p.score/totalScore)*100))
+      })).sort((a,b)=>b.winProb-a.winProb);
       const probSum=winProbs.reduce((s,p)=>s+p.winProb,0);
       if (winProbs.length>0&&probSum!==100) winProbs[0].winProb+=(100-probSum);
+
+      // ── FIX 1: Dynamic favorite = highest win probability ────────────────────
+      const dynamicFavorite = winProbs[0] || allPlayers[0];
+
+      // ── FIX 2: Also recalculate match predictions with surface ELO ───────────
+      // (used in roundsMap below)
 
       const roundsMap = {};
       dedupedMatches.forEach(m=>{
         const key=m._roundName;
         if (!roundsMap[key]) roundsMap[key]={round:key,matches:[]};
         const r1=getRank(m._p1full), r2=getRank(m._p2full);
-        const elo1=eloFromRank(r1), elo2=eloFromRank(r2);
+        // Surface-adjusted Elo for match predictions
+        const surfMult1 = getSurfaceMultiplier(m._p1full);
+        const surfMult2 = getSurfaceMultiplier(m._p2full);
+        const elo1=eloFromRank(r1) * surfMult1;
+        const elo2=eloFromRank(r2) * surfMult2;
         const prob1=Math.round(1/(1+Math.pow(10,(elo2-elo1)/400))*100);
         const predPick=prob1>=50?m._p1full:m._p2full;
         const fin=isFinished(m);
@@ -905,8 +1006,9 @@ app.get("/api/tournament-predictions", async (req, res) => {
       return {
         name:tourn.name, type:"ATP Singles", discipline:"Singles",
         dateStart:mainDrawStart||tourn._minDate||tourn.dateStart, playerCount:allPlayers.length,
-        favorite:allPlayers[0]?{name:allPlayers[0].name,rank:allPlayers[0].rank,elo:allPlayers[0].elo}:null,
-        winProbs:winProbs.slice(0,5), rounds:sortedRounds,
+        favorite:dynamicFavorite?{name:dynamicFavorite.name,rank:dynamicFavorite.rank,elo:dynamicFavorite.elo}:null,
+        surface: isClay?"clay":isGrass?"grass":"hard",
+        winProbs:winProbs.slice(0,8), rounds:sortedRounds,
         drawSet:allPlayers.length>0,
         eliminatedCount:eliminated.size,
         activePlayerCount:activePlayers.length,
