@@ -1352,7 +1352,15 @@ export default function App() {
                           </div>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                             <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>✅ {fav}</span>
-                            <span style={{fontSize:"20px",fontWeight:900,color:matchWinner.color}}>{favProb}%</span>
+                            <div style={{textAlign:"right"}}>
+                              <span style={{fontSize:"20px",fontWeight:900,color:matchWinner.color}}>{favProb}%</span>
+                              <div style={{fontSize:"11px",color:"#64748b",marginTop:"2px"}}>Faire Quote: <span style={{color:"#facc15",fontWeight:700}}>{(1/(favProb/100)).toFixed(2)}</span></div>
+                            </div>
+                          </div>
+                          {/* Underdog faire Quote */}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"8px",padding:"6px 10px",borderRadius:"8px",background:"rgba(255,255,255,0.03)"}}>
+                            <span style={{fontSize:"12px",color:"#64748b"}}>{dog} ({dogProb}%)</span>
+                            <span style={{fontSize:"12px",color:"#475569"}}>Faire Quote: <span style={{color:"#94a3b8",fontWeight:600}}>{(1/(dogProb/100)).toFixed(2)}</span></span>
                           </div>
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model gives {fav.split(" ").pop()} a {favProb}% win probability vs {dogProb}% for {dog.split(" ").pop()}.</p>
                         </div>
@@ -1365,11 +1373,12 @@ export default function App() {
                               <div key={i} style={{textAlign:"center",padding:"10px 6px",borderRadius:"10px",background:i===0?"rgba(34,211,238,0.08)":"rgba(255,255,255,0.03)",border:i===0?"1px solid rgba(34,211,238,0.3)":"1px solid rgba(255,255,255,0.06)"}}>
                                 <div style={{fontSize:"11px",color:i===0?"#22d3ee":"#64748b",fontWeight:700,marginBottom:"4px"}}>{b.label}</div>
                                 <div style={{fontSize:"16px",fontWeight:800,color:i===0?"#22d3ee":"#94a3b8"}}>{b.prob}%</div>
-                                <div style={{fontSize:"10px",color:"#475569",marginTop:"2px"}}>{b.score}</div>
+                                <div style={{fontSize:"11px",color:"#facc15",fontWeight:600,marginTop:"3px"}}>{b.prob > 0 ? (1/(b.prob/100)).toFixed(2) : "—"}</div>
+                                <div style={{fontSize:"10px",color:"#475569",marginTop:"1px"}}>{b.score}</div>
                               </div>
                             ))}
                           </div>
-                          <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Most likely outcome: <strong style={{color:"#22d3ee"}}>{setBets[0]?.score}</strong> ({setBets[0]?.prob}%)</p>
+                          <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Most likely outcome: <strong style={{color:"#22d3ee"}}>{setBets[0]?.score}</strong> ({setBets[0]?.prob}%) · Faire Quote: <span style={{color:"#facc15",fontWeight:600}}>{setBets[0]?.prob > 0 ? (1/(setBets[0].prob/100)).toFixed(2) : "—"}</span></p>
                         </div>
                         <div style={tipStyle(hConf)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
@@ -1397,6 +1406,27 @@ export default function App() {
                               <div style={{fontSize:"16px",fontWeight:800,color:ouColor}}>{expTotal} games</div>
                             </div>
                           </div>
+                          {/* Faire Quote für Over/Under — beide Seiten */}
+                          {(() => {
+                            const diff = Math.abs(expTotal - ouLine);
+                            // Rough probability estimate based on distance from line
+                            const ouProb = Math.min(80, Math.max(50, 50 + diff * 12));
+                            const ouProbOther = 100 - ouProb;
+                            return (
+                              <div style={{display:"flex",gap:"8px",marginTop:"8px"}}>
+                                <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:`${ouColor}0d`,border:`1px solid ${ouColor}33`}}>
+                                  <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>{ouPick}</div>
+                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{(1/(ouProb/100)).toFixed(2)}</div>
+                                  <div style={{fontSize:"10px",color:"#475569"}}>{Math.round(ouProb)}%</div>
+                                </div>
+                                <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)"}}>
+                                  <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>{ouPick.startsWith("Over")?"Under":"Over"} {ouLine}</div>
+                                  <div style={{fontSize:"13px",fontWeight:700,color:"#94a3b8"}}>{(1/(ouProbOther/100)).toFixed(2)}</div>
+                                  <div style={{fontSize:"10px",color:"#475569"}}>{Math.round(ouProbOther)}%</div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model expects {expFavG} games for {fav.split(" ").pop()} + {expDogG} for {dog.split(" ").pop()} = {expTotal} total.</p>
                         </div>
                         {bo === 5 && (() => {
@@ -1431,6 +1461,19 @@ export default function App() {
                                 <div style={{textAlign:"right"}}>
                                   <div style={{fontSize:"12px",color:"#64748b"}}>3-0 prob.</div>
                                   <div style={{fontSize:"15px",fontWeight:800,color:"#94a3b8"}}>{Math.round(p30adj*100)}%</div>
+                                </div>
+                              </div>
+                              {/* Faire Quoten Over/Under 3.5 */}
+                              <div style={{display:"flex",gap:"8px",marginBottom:"10px"}}>
+                                <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:over35>=50?`${o35Color}0d`:"rgba(255,255,255,0.03)",border:`1px solid ${over35>=50?o35Color+"33":"rgba(255,255,255,0.07)"}`}}>
+                                  <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Over 3.5 Sets</div>
+                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{over35 > 0 ? (1/(over35/100)).toFixed(2) : "—"}</div>
+                                  <div style={{fontSize:"10px",color:"#475569"}}>{over35}%</div>
+                                </div>
+                                <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:over35<50?`${o35Color}0d`:"rgba(255,255,255,0.03)",border:`1px solid ${over35<50?o35Color+"33":"rgba(255,255,255,0.07)"}`}}>
+                                  <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Under 3.5 Sets</div>
+                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{(100-over35) > 0 ? (1/((100-over35)/100)).toFixed(2) : "—"}</div>
+                                  <div style={{fontSize:"10px",color:"#475569"}}>{100-over35}%</div>
                                 </div>
                               </div>
                               <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"10px"}}>
