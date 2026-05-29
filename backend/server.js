@@ -61,11 +61,38 @@ async function loadPlayerHandDB() {
 
 loadPlayerHandDB();
 
+// ── Manuelle Korrekturen für Spieler die in der CSV fehlen oder falsch eingetragen sind ──
+const HAND_OVERRIDES = {
+  "de minaur": "R",
+  "draper": "R",
+  "shelton": "L",       // Ben Shelton ist Linkshänder
+  "paul": "R",
+  "perricard": "R",
+  "fils": "R",
+  "mensik": "R",
+  "struff": "R",
+  "griekspoor": "R",
+  "cerundolo": "R",     // Francisco — J.M. ist Links
+  "humbert": "R",
+  "muller": "R",
+  "eubanks": "R",
+  "norrie": "L",        // Cameron Norrie ist Linkshänder
+  "mcdonald": "R",
+  "kokkinakis": "R",
+};
+
 function getPlayerHand(name) {
   if (!name) return null;
-  const parts = name.toLowerCase().trim().split(" ");
+  const nameLower = name.toLowerCase().trim();
+  const parts = nameLower.split(" ");
   const lastName = parts[parts.length - 1];
   const firstName = parts.length > 1 ? parts[0] : "";
+
+  // Manual overrides — check full name first, then last name
+  for (const [key, hand] of Object.entries(HAND_OVERRIDES)) {
+    if (nameLower.includes(key)) return hand;
+  }
+
   const fullKey = `${lastName}_${firstName}`;
   return playerHandDB[fullKey] || playerHandDB[lastName] || null;
 }
