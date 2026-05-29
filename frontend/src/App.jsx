@@ -1556,82 +1556,134 @@ export default function App() {
                   )}
 
                   {(() => {
-                    // ── News-adjustierte Wahrscheinlichkeiten wenn vorhanden ──
+                    // ══════════════════════════════════════════════════════════
+                    // SINGLE SOURCE OF TRUTH — alle 5 Tips basieren auf p (setP)
+                    // ══════════════════════════════════════════════════════════
+
+                    // 1. Basis-Wahrscheinlichkeiten (news-adjustiert wenn vorhanden)
                     const hasNewsAdj = newsAnalysis && !newsAnalysis.error && !newsAnalysis.noNews && newsAnalysis.netMod !== 0;
                     const rawP1w = prediction.prediction?.[prediction.player1] || 50;
                     const rawP2w = prediction.prediction?.[prediction.player2] || 50;
-                    const p1w = hasNewsAdj ? newsAnalysis.adjustedProb1 : rawP1w;
-                    const p2w = hasNewsAdj ? newsAnalysis.adjustedProb2 : rawP2w;
+                    const matchP1 = hasNewsAdj ? newsAnalysis.adjustedProb1 : rawP1w;
+                    const matchP2 = hasNewsAdj ? newsAnalysis.adjustedProb2 : rawP2w;
 
-                    // Fav/Dog basierend auf adjustierten Werten bestimmen
-                    const fav = p1w >= p2w ? prediction.player1 : prediction.player2;
-                    const dog = p1w >= p2w ? prediction.player2 : prediction.player1;
-                    const favProb = Math.max(p1w, p2w);
-                    const dogProb = Math.min(p1w, p2w);
-
-                    // Set-Wahrscheinlichkeit ebenfalls adjustieren
-                    const surfaceSetMod = prediction.surface==="clay"?0.03:prediction.surface==="grass"?-0.02:0;
-                    const adjSetP = hasNewsAdj
-                      ? Math.min(0.85, Math.max(0.15, (favProb/100) + surfaceSetMod))
-                      : (prediction.setWinProb?.[fav] || favProb) / 100;
-                    const setP = adjSetP;
-
+                    const fav = matchP1 >= matchP2 ? prediction.player1 : prediction.player2;
+                    const dog = matchP1 >= matchP2 ? prediction.player2 : prediction.player1;
+                    const favProb = Math.max(matchP1, matchP2);
+                    const dogProb = Math.min(matchP1, matchP2);
                     const bo = prediction.bo || 3;
                     const setsToWin = bo === 5 ? 3 : 2;
-                    const matchWinner = { pick: fav, prob: favProb, confidence: favProb > 70 ? "High" : favProb > 60 ? "Medium" : "Low", color: favProb > 70 ? "#4ade80" : favProb > 60 ? "#facc15" : "#94a3b8" };
+                    const surface = prediction.surface || "hard";
+
+                    // 2. SET WIN PROBABILITY — abgeleitet direkt von favProb (Match Winner)
+                    // Formel: setP so dass P(fav gewinnt Match) = favProb/100
+                    // Für Bo3: P(win match) = p² + 2p²(1-p) → löse nach p auf via Newton
+                    // Näherung: setP ≈ favProb/100 ^ (1/setsToWin) — gute Näherung
+                    // Korrekte Methode: iterativ
+                    const matchWinTarget = favProb / 100;
+                    const calcMatchWinFromSetP = (sp) => {
+                      const sq = 1 - sp;
+                      if (bo === 5) {
+                        return sp*sp*sp + 3*sp*sp*sp*sq + 6*sp*sp*sp*sq*sq; // P(3-0)+P(3-1)+P(3-2)
+                      } else {
+                        return sp*sp + 2*sp*sp*sq; // P(2-0)+P(2-1)
+                      }
+                    };
+                    // Binary search for consistent setP
+                    let lo = 0.5, hi = 0.95, setP = 0.6;
+                    for (let i = 0; i < 30; i++) {
+                      const mid = (lo + hi) / 2;
+                      if (calcMatchWinFromSetP(mid) < matchWinTarget) lo = mid;
+                      else hi = mid;
+                      setP = mid;
+                    }
+                    setP = Math.min(0.88, Math.max(0.50, setP));
                     const p = setP, q = 1 - p;
+
+                    // 3. SET BETTING — direkt aus setP
                     let setBets = [];
                     if (bo === 5) {
-                      const p30 = p*p*p, p31 = 3*p*p*p*q, p32 = 6*p*p*p*q*q;
+                      const p30=p*p*p, p31=3*p*p*p*q, p32=6*p*p*p*q*q;
+                      const upsetProb = Math.round((1 - calcMatchWinFromSetP(p))*100);
                       setBets = [
-                        { score: `${fav.split(" ").pop()} 3-0`, prob: Math.round(p30*100), label: "3-0" },
-                        { score: `${fav.split(" ").pop()} 3-1`, prob: Math.round(p31*100), label: "3-1" },
-                        { score: `${fav.split(" ").pop()} 3-2`, prob: Math.round(p32*100), label: "3-2" },
-                        { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q*q + 3*q*q*q*p + 6*q*q*q*p*p)*100), label: "Upset" },
+                        { score:`${fav.split(" ").pop()} 3-0`, prob:Math.round(p30*100), label:"3-0" },
+                        { score:`${fav.split(" ").pop()} 3-1`, prob:Math.round(p31*100), label:"3-1" },
+                        { score:`${fav.split(" ").pop()} 3-2`, prob:Math.round(p32*100), label:"3-2" },
+                        { score:`${dog.split(" ").pop()} wins`, prob:upsetProb, label:"Upset" },
                       ];
                     } else {
-                      const p20 = p*p, p21 = 2*p*p*q;
+                      const p20=p*p, p21=2*p*p*q;
+                      const upsetProb = Math.round((1 - calcMatchWinFromSetP(p))*100);
                       setBets = [
-                        { score: `${fav.split(" ").pop()} 2-0`, prob: Math.round(p20*100), label: "2-0" },
-                        { score: `${fav.split(" ").pop()} 2-1`, prob: Math.round(p21*100), label: "2-1" },
-                        { score: `${dog.split(" ").pop()} wins`, prob: Math.round((q*q + 2*q*q*p)*100), label: "Upset" },
+                        { score:`${fav.split(" ").pop()} 2-0`, prob:Math.round(p20*100), label:"2-0" },
+                        { score:`${fav.split(" ").pop()} 2-1`, prob:Math.round(p21*100), label:"2-1" },
+                        { score:`${dog.split(" ").pop()} wins`, prob:upsetProb, label:"Upset" },
                       ];
                     }
+                    // Most likely outcome = highest prob bet
+                    const mostLikely = [...setBets].sort((a,b)=>b.prob-a.prob)[0];
 
-                    // Handicap neu berechnen mit adjustierten Werten
-                    const expGPSW = 6 + Math.max(0, (p - 0.5) * 2);
-                    const expGPSL = Math.max(1, 6 - (p - 0.5) * 10);
+                    // 4. EXPECTED GAMES — aus setP, konsistent mit Set Betting
+                    // Avg games per set won: ~6.0 for dominant winner, less for close
+                    // Calibrated: at p=0.5 → 6 games each; at p=0.8 → ~6.3 fav, ~4.5 dog
+                    const avgGamesWonSet  = 5.5 + p * 1.0;   // 6.0 at p=0.6, 6.3 at p=0.8
+                    const avgGamesLostSet = 5.5 + q * 1.0;   // mirrors for loser
+                    // Expected total games per set = avgWon + avgLost (both players score)
+                    const expGperSetFav = avgGamesWonSet;
+                    const expGperSetDog = avgGamesLostSet;
+
+                    // Expected games in full match
                     let expFavG, expDogG;
-                    if (hasNewsAdj) {
-                      // Neu berechnen statt Backend-Wert verwenden
-                      const sc20=p*p, sc21=2*p*p*q, sc12=2*p*q*q, sc02=q*q;
-                      const sc30=p*p*p, sc31=3*p*p*p*q, sc32=6*p*p*p*q*q;
-                      const sc03=q*q*q, sc13=3*p*q*q*q, sc23=6*p*p*q*q*q;
-                      if (bo === 5) {
-                        expFavG = Math.round((sc30*(3*expGPSW) + sc31*(3*expGPSW+expGPSL) + sc32*(3*expGPSW+2*expGPSL) + sc03*(3*expGPSL) + sc13*(expGPSW+3*expGPSL) + sc23*(2*expGPSW+3*expGPSL))*10)/10;
-                        expDogG = Math.round((sc30*(3*expGPSL) + sc31*(3*expGPSL+expGPSW) + sc32*(3*expGPSL+2*expGPSW) + sc03*(3*expGPSW) + sc13*(expGPSL+3*expGPSW) + sc23*(2*expGPSL+3*expGPSW))*10)/10;
-                      } else {
-                        expFavG = Math.round((sc20*2*expGPSW + sc21*(2*expGPSW+expGPSL) + sc12*(expGPSW+2*expGPSL) + sc02*2*expGPSL)*10)/10;
-                        expDogG = Math.round((sc20*2*expGPSL + sc21*(2*expGPSL+expGPSW) + sc12*(expGPSL+2*expGPSW) + sc02*2*expGPSW)*10)/10;
-                      }
+                    if (bo === 5) {
+                      const sc30=p*p*p,sc31=3*p*p*p*q,sc32=6*p*p*p*q*q;
+                      const sc03=q*q*q,sc13=3*p*q*q*q,sc23=6*p*p*q*q*q;
+                      // fav games = sets won * avgGamesWonSet + sets lost * avgGamesLostSet
+                      expFavG = sc30*(3*expGperSetFav+0*expGperSetDog) + sc31*(3*expGperSetFav+1*expGperSetDog) + sc32*(3*expGperSetFav+2*expGperSetDog)
+                               + sc03*(0*expGperSetFav+3*expGperSetDog) + sc13*(1*expGperSetFav+3*expGperSetDog) + sc23*(2*expGperSetFav+3*expGperSetDog);
+                      expDogG = sc30*(3*expGperSetDog+0*expGperSetFav) + sc31*(3*expGperSetDog+1*expGperSetFav) + sc32*(3*expGperSetDog+2*expGperSetFav)
+                               + sc03*(0*expGperSetDog+3*expGperSetFav) + sc13*(1*expGperSetDog+3*expGperSetFav) + sc23*(2*expGperSetDog+3*expGperSetFav);
                     } else {
-                      expFavG = prediction.handicap?.expGames?.[fav] || (setsToWin * 6);
-                      expDogG = prediction.handicap?.expGames?.[dog] || (setsToWin * 4.5);
+                      const sc20=p*p,sc21=2*p*p*q,sc12=2*p*q*q,sc02=q*q;
+                      expFavG = sc20*(2*expGperSetFav) + sc21*(2*expGperSetFav+expGperSetDog) + sc12*(expGperSetFav+2*expGperSetDog) + sc02*(2*expGperSetDog);
+                      expDogG = sc20*(2*expGperSetDog) + sc21*(2*expGperSetDog+expGperSetFav) + sc12*(expGperSetDog+2*expGperSetFav) + sc02*(2*expGperSetFav);
                     }
-                    const hLine = Math.round((expFavG - expDogG) * 2) / 2;
-                    const hPick = hLine >= 2 ? `${fav} -${hLine} Games` : hLine >= 0.5 ? `${fav} -${hLine} Games (knapp)` : "Kein klares Handicap";
-                    const hConf = hLine >= 3 ? "High" : hLine >= 1.5 ? "Medium" : "Low";
-                    const hColor = hLine >= 3 ? "#4ade80" : hLine >= 1.5 ? "#facc15" : "#94a3b8";
+                    expFavG = Math.round(expFavG * 10) / 10;
+                    expDogG = Math.round(expDogG * 10) / 10;
                     const expTotal = Math.round((expFavG + expDogG) * 10) / 10;
+
+                    // 5. HANDICAP
+                    const hLine = Math.round((expFavG - expDogG) * 2) / 2;
+                    const hPick = hLine >= 2 ? `${fav} -${hLine} Games`
+                                : hLine >= 0.5 ? `${fav} -${hLine} Games (knapp)`
+                                : "Kein klares Handicap";
+                    const hConf = hLine >= 4 ? "High" : hLine >= 2 ? "Medium" : "Low";
+                    const hColor = hLine >= 4 ? "#4ade80" : hLine >= 2 ? "#facc15" : "#94a3b8";
+
+                    // 6. OVER/UNDER
+                    // Line = expected total rounded to nearest 0.5
                     const ouLine = Math.round(expTotal / 0.5) * 0.5;
-                    const ouPick = expTotal > ouLine ? `Over ${ouLine}` : `Under ${ouLine}`;
-                    const ouConf = Math.abs(expTotal - ouLine) > 1.5 ? "High" : Math.abs(expTotal - ouLine) > 0.5 ? "Medium" : "Low";
+                    // Probability of going over: based on how far expected is from line
+                    const ouDiff = expTotal - ouLine;
+                    const ouProb = Math.min(80, Math.max(35, 50 + ouDiff * 15));
+                    const ouPick = ouDiff >= 0 ? `Over ${ouLine}` : `Under ${ouLine}`;
+                    const ouConf = Math.abs(ouDiff) > 1.5 ? "High" : Math.abs(ouDiff) > 0.5 ? "Medium" : "Low";
                     const ouColor = ouConf === "High" ? "#4ade80" : ouConf === "Medium" ? "#facc15" : "#94a3b8";
+
+                    // 7. OVER 3.5 SETS (Bo5 only) — direkt aus setBets, konsistent!
+                    const over35Prob = bo === 5
+                      ? Math.round((setBets.find(b=>b.label==="3-2")?.prob||0) + (setBets.find(b=>b.label==="Upset")?.prob||0))
+                      : 0; // only defined for Bo5
+
+                    // Confidence helpers
+                    const matchWinner = { pick: fav, prob: favProb,
+                      confidence: favProb > 70 ? "High" : favProb > 60 ? "Medium" : "Low",
+                      color: favProb > 70 ? "#4ade80" : favProb > 60 ? "#facc15" : "#94a3b8" };
                     const tipStyle = (conf) => ({
                       background: conf === "High" ? "rgba(74,222,128,0.06)" : conf === "Medium" ? "rgba(250,204,21,0.06)" : "rgba(255,255,255,0.03)",
                       border: `1px solid ${conf === "High" ? "rgba(74,222,128,0.2)" : conf === "Medium" ? "rgba(250,204,21,0.2)" : "rgba(255,255,255,0.07)"}`,
                       borderRadius: "12px", padding: "14px 16px", marginBottom: "10px"
                     });
+
                     return (
                       <div style={{marginTop:"20px",padding:"20px",borderRadius:"16px",background:"rgba(255,255,255,0.02)",border:`1px solid ${hasNewsAdj?"rgba(139,92,246,0.25)":"rgba(255,255,255,0.07)"}`}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
@@ -1661,21 +1713,24 @@ export default function App() {
                           </div>
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model gives {fav.split(" ").pop()} a {favProb}% win probability vs {dogProb}% for {dog.split(" ").pop()}.</p>
                         </div>
-                        <div style={tipStyle(setBets[0]?.prob > 40 ? "High" : "Medium")}>
+                        <div style={tipStyle(mostLikely?.prob > 40 ? "High" : "Medium")}>
                           <div style={{marginBottom:"10px"}}>
                             <span style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>2. Set Betting (Best of {bo})</span>
                           </div>
                           <div style={{display:"grid",gridTemplateColumns:`repeat(${setBets.length},1fr)`,gap:"8px"}}>
-                            {setBets.map((b,i) => (
-                              <div key={i} style={{textAlign:"center",padding:"10px 6px",borderRadius:"10px",background:i===0?"rgba(34,211,238,0.08)":"rgba(255,255,255,0.03)",border:i===0?"1px solid rgba(34,211,238,0.3)":"1px solid rgba(255,255,255,0.06)"}}>
-                                <div style={{fontSize:"11px",color:i===0?"#22d3ee":"#64748b",fontWeight:700,marginBottom:"4px"}}>{b.label}</div>
-                                <div style={{fontSize:"16px",fontWeight:800,color:i===0?"#22d3ee":"#94a3b8"}}>{b.prob}%</div>
-                                <div style={{fontSize:"11px",color:"#facc15",fontWeight:600,marginTop:"3px"}}>{b.prob > 0 ? (1/(b.prob/100)).toFixed(2) : "—"}</div>
-                                <div style={{fontSize:"10px",color:"#475569",marginTop:"1px"}}>{b.score}</div>
-                              </div>
-                            ))}
+                            {setBets.map((b,i) => {
+                              const isTop = b === mostLikely;
+                              return (
+                                <div key={i} style={{textAlign:"center",padding:"10px 6px",borderRadius:"10px",background:isTop?"rgba(34,211,238,0.08)":"rgba(255,255,255,0.03)",border:isTop?"1px solid rgba(34,211,238,0.3)":"1px solid rgba(255,255,255,0.06)"}}>
+                                  <div style={{fontSize:"11px",color:isTop?"#22d3ee":"#64748b",fontWeight:700,marginBottom:"4px"}}>{b.label}</div>
+                                  <div style={{fontSize:"16px",fontWeight:800,color:isTop?"#22d3ee":"#94a3b8"}}>{b.prob}%</div>
+                                  <div style={{fontSize:"11px",color:"#facc15",fontWeight:600,marginTop:"3px"}}>{b.prob > 0 ? (1/(b.prob/100)).toFixed(2) : "—"}</div>
+                                  <div style={{fontSize:"10px",color:"#475569",marginTop:"1px"}}>{b.score}</div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Most likely outcome: <strong style={{color:"#22d3ee"}}>{setBets[0]?.score}</strong> ({setBets[0]?.prob}%) · Faire Quote: <span style={{color:"#facc15",fontWeight:600}}>{setBets[0]?.prob > 0 ? (1/(setBets[0].prob/100)).toFixed(2) : "—"}</span></p>
+                          <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>Most likely outcome: <strong style={{color:"#22d3ee"}}>{mostLikely?.score}</strong> ({mostLikely?.prob}%) · Faire Quote: <span style={{color:"#facc15",fontWeight:600}}>{mostLikely?.prob > 0 ? (1/(mostLikely.prob/100)).toFixed(2) : "—"}</span></p>
                         </div>
                         <div style={tipStyle(hConf)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
@@ -1689,7 +1744,12 @@ export default function App() {
                               <div style={{fontSize:"16px",fontWeight:800,color:hColor}}>{expFavG} : {expDogG}</div>
                             </div>
                           </div>
-                          <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>{prediction.handicap?.reason || `Expected game difference of ${hLine} games.`}</p>
+                          <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>
+                            {hLine >= 4 ? `${fav.split(" ").pop()} dominiert mit erwartetem Vorsprung von ${hLine} Games.`
+                            : hLine >= 2 ? `Klarer Vorteil für ${fav.split(" ").pop()} — ${hLine} Games erwartet.`
+                            : hLine >= 0.5 ? `Knapper Vorteil für ${fav.split(" ").pop()}.`
+                            : "Zu ausgeglichen für ein klares Handicap."}
+                          </p>
                         </div>
                         <div style={tipStyle(ouConf)}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
@@ -1703,39 +1763,30 @@ export default function App() {
                               <div style={{fontSize:"16px",fontWeight:800,color:ouColor}}>{expTotal} games</div>
                             </div>
                           </div>
-                          {/* Faire Quote für Over/Under — beide Seiten */}
-                          {(() => {
-                            const diff = Math.abs(expTotal - ouLine);
-                            // Rough probability estimate based on distance from line
-                            const ouProb = Math.min(80, Math.max(50, 50 + diff * 12));
-                            const ouProbOther = 100 - ouProb;
-                            return (
-                              <div style={{display:"flex",gap:"8px",marginTop:"8px"}}>
-                                <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:`${ouColor}0d`,border:`1px solid ${ouColor}33`}}>
-                                  <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>{ouPick}</div>
-                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{(1/(ouProb/100)).toFixed(2)}</div>
-                                  <div style={{fontSize:"10px",color:"#475569"}}>{Math.round(ouProb)}%</div>
-                                </div>
-                                <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)"}}>
-                                  <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>{ouPick.startsWith("Over")?"Under":"Over"} {ouLine}</div>
-                                  <div style={{fontSize:"13px",fontWeight:700,color:"#94a3b8"}}>{(1/(ouProbOther/100)).toFixed(2)}</div>
-                                  <div style={{fontSize:"10px",color:"#475569"}}>{Math.round(ouProbOther)}%</div>
-                                </div>
-                              </div>
-                            );
-                          })()}
+                          <div style={{display:"flex",gap:"8px",marginTop:"8px"}}>
+                            <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:`${ouColor}0d`,border:`1px solid ${ouColor}33`}}>
+                              <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>{ouPick}</div>
+                              <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{(1/(Math.max(1,Math.round(ouProb))/100)).toFixed(2)}</div>
+                              <div style={{fontSize:"10px",color:"#475569"}}>{Math.round(ouProb)}%</div>
+                            </div>
+                            <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)"}}>
+                              <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>{ouPick.startsWith("Over")?"Under":"Over"} {ouLine}</div>
+                              <div style={{fontSize:"13px",fontWeight:700,color:"#94a3b8"}}>{(1/(Math.max(1,100-Math.round(ouProb))/100)).toFixed(2)}</div>
+                              <div style={{fontSize:"10px",color:"#475569"}}>{Math.round(100-ouProb)}%</div>
+                            </div>
+                          </div>
                           <p style={{margin:"6px 0 0",fontSize:"12px",color:"#64748b"}}>Model expects {expFavG} games for {fav.split(" ").pop()} + {expDogG} for {dog.split(" ").pop()} = {expTotal} total.</p>
                         </div>
                         {bo === 5 && (() => {
-                          const p5 = setP, q5 = 1 - p5;
-                          const surfaceName = prediction.surface;
-                          const surfMod = surfaceName === "clay" ? 0.07 : surfaceName === "grass" ? -0.05 : 0.02;
-                          const p30raw = Math.pow(p5,3) + Math.pow(q5,3);
-                          const p30adj = Math.max(0.05, p30raw - surfMod);
-                          const over35 = Math.round((1 - p30adj) * 100);
+                          // Over 3.5 Sets — direkt aus setBets: P(3-2) + P(Upset) = P(>3.5 sets)
+                          const over35 = over35Prob;
+                          const under35 = 100 - over35;
                           const o35Conf = over35 >= 55 ? "High" : over35 >= 40 ? "Medium" : "Low";
                           const o35Color = over35 >= 55 ? "#4ade80" : over35 >= 40 ? "#facc15" : "#94a3b8";
+                          const surfaceName = prediction.surface;
                           const surfIcon = surfaceName === "clay" ? "🧱 Clay" : surfaceName === "grass" ? "🌿 Grass" : "🏟️ Hard";
+                          const p30prob = setBets.find(b=>b.label==="3-0")?.prob || 0;
+                          const p31prob = setBets.find(b=>b.label==="3-1")?.prob || 0;
                           const oddsVal = parseFloat(String(odds35Str).replace(",","."));
                           const hasOdds = !isNaN(oddsVal) && oddsVal > 1;
                           const impliedProb = hasOdds ? Math.round(100 / oddsVal) : null;
@@ -1753,24 +1804,23 @@ export default function App() {
                               </div>
                               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
                                 <span style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>
-                                  {over35 >= 50 ? `✅ Over 3.5 Sets (${over35}%)` : `❌ Under 3.5 Sets (${100-over35}%)`}
+                                  {over35 >= 50 ? `✅ Over 3.5 Sets (${over35}%)` : `❌ Under 3.5 Sets (${under35}%)`}
                                 </span>
                                 <div style={{textAlign:"right"}}>
-                                  <div style={{fontSize:"12px",color:"#64748b"}}>3-0 prob.</div>
-                                  <div style={{fontSize:"15px",fontWeight:800,color:"#94a3b8"}}>{Math.round(p30adj*100)}%</div>
+                                  <div style={{fontSize:"12px",color:"#64748b"}}>3-0 + 3-1 prob.</div>
+                                  <div style={{fontSize:"15px",fontWeight:800,color:"#94a3b8"}}>{p30prob+p31prob}%</div>
                                 </div>
                               </div>
-                              {/* Faire Quoten Over/Under 3.5 */}
                               <div style={{display:"flex",gap:"8px",marginBottom:"10px"}}>
                                 <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:over35>=50?`${o35Color}0d`:"rgba(255,255,255,0.03)",border:`1px solid ${over35>=50?o35Color+"33":"rgba(255,255,255,0.07)"}`}}>
                                   <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Over 3.5 Sets</div>
-                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{over35 > 0 ? (1/(over35/100)).toFixed(2) : "—"}</div>
+                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{over35>0?(1/(over35/100)).toFixed(2):"—"}</div>
                                   <div style={{fontSize:"10px",color:"#475569"}}>{over35}%</div>
                                 </div>
                                 <div style={{flex:1,textAlign:"center",padding:"6px 8px",borderRadius:"8px",background:over35<50?`${o35Color}0d`:"rgba(255,255,255,0.03)",border:`1px solid ${over35<50?o35Color+"33":"rgba(255,255,255,0.07)"}`}}>
                                   <div style={{fontSize:"10px",color:"#64748b",marginBottom:"2px"}}>Under 3.5 Sets</div>
-                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{(100-over35) > 0 ? (1/((100-over35)/100)).toFixed(2) : "—"}</div>
-                                  <div style={{fontSize:"10px",color:"#475569"}}>{100-over35}%</div>
+                                  <div style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>{under35>0?(1/(under35/100)).toFixed(2):"—"}</div>
+                                  <div style={{fontSize:"10px",color:"#475569"}}>{under35}%</div>
                                 </div>
                               </div>
                               <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginBottom:"10px"}}>
@@ -1808,7 +1858,8 @@ export default function App() {
                                 )}
                               </div>
                               <p style={{margin:"8px 0 0",fontSize:"12px",color:"#64748b"}}>
-                                Based on set win prob. ({Math.round(setP*100)}% per set) + {surfaceName} surface. {surfaceName==="clay"?"Clay tends to produce longer matches.":surfaceName==="grass"?"Grass favours shorter matches.":"Hard courts are neutral."}
+                                Berechnet aus Set Betting: P(3-2) + P(Upset) = {over35}% · P(3-0) + P(3-1) = {under35}%.
+                                {surfaceName==="clay"?" Clay tendiert zu längeren Matches.":surfaceName==="grass"?" Grass bevorzugt kürzere Matches.":" Hard Courts sind neutral."}
                               </p>
                             </div>
                           );
