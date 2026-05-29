@@ -471,6 +471,7 @@ export default function App() {
   const analyzeNewsForPrediction = async (player1, player2, baseProb1) => {
     setNewsAnalysisLoading(true);
     try {
+      // Step 1: Fetch news
       const [news1Res, news2Res] = await Promise.all([
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player1)}`).then(r=>r.json()).catch(()=>[]),
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player2)}`).then(r=>r.json()).catch(()=>[])
@@ -485,20 +486,39 @@ export default function App() {
         return;
       }
 
-      // ── Proxy über Backend statt direkter Anthropic-Call (CORS fix) ──
-      const response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 })
-      });
+      // Step 2: Call backend proxy
+      let response;
+      try {
+        response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 })
+        });
+      } catch(fetchErr) {
+        throw new Error(`Backend nicht erreichbar: ${fetchErr.message}`);
+      }
 
-      if (!response.ok) throw new Error(`Backend error: ${response.status}`);
-      const parsed = await response.json();
+      if (!response.ok) {
+        const errText = await response.text().catch(()=>"");
+        throw new Error(`Backend Fehler ${response.status}: ${errText.slice(0,100)}`);
+      }
+
+      // Step 3: Parse response
+      let parsed;
+      try {
+        parsed = await response.json();
+      } catch(parseErr) {
+        throw new Error(`JSON Parse Fehler: ${parseErr.message}`);
+      }
 
       if (parsed.noNews) {
         setNewsAnalysis({ noNews: true });
         setNewsAnalysisLoading(false);
         return;
+      }
+
+      if (parsed.error) {
+        throw new Error(`Claude Fehler: ${parsed.error}`);
       }
 
       const rawMod1 = parsed.player1?.modifier || 0;
@@ -520,7 +540,7 @@ export default function App() {
       });
     } catch(err) {
       console.error("News analysis error:", err);
-      setNewsAnalysis({ error: true });
+      setNewsAnalysis({ error: true, errorMsg: err.message });
     }
     setNewsAnalysisLoading(false);
   };
@@ -1199,8 +1219,8 @@ export default function App() {
 
                   {newsAnalysis && !newsAnalysisLoading && (() => {
                     if (newsAnalysis.error) return (
-                      <div style={{margin:"16px 0",padding:"12px 16px",borderRadius:"12px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",fontSize:"12px",color:"#475569"}}>
-                        📰 News-Analyse konnte nicht geladen werden.
+                      <div style={{margin:"16px 0",padding:"12px 16px",borderRadius:"12px",background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.2)",fontSize:"12px",color:"#f87171"}}>
+                        📰 News-Analyse Fehler: {newsAnalysis.errorMsg || "Unbekannt"} — stelle sicher dass ANTHROPIC_API_KEY auf Render gesetzt ist und der neue server.js deployed ist.
                       </div>
                     );
                     if (newsAnalysis.noNews) return (
