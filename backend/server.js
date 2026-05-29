@@ -952,5 +952,78 @@ app.get("/api/debug-tournament", async (req, res) => {
   } catch(err) { res.status(500).json({ error:err.message }); }
 });
 
+// ─── NEWS ANALYSIS (Claude Proxy) ────────────────────────────────────────────
+app.post("/api/news-analysis", async (req, res) => {
+  try {
+    const { player1, player2, headlines1, headlines2, baseProb1 } = req.body;
+    if (!player1 || !player2) return res.status(400).json({ error: "Missing players" });
+
+    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!ANTHROPIC_KEY) return res.status(500).json({ error: "No Anthropic API key configured" });
+
+    const h1 = (headlines1||[]).slice(0,5);
+    const h2 = (headlines2||[]).slice(0,5);
+
+    if (h1.length === 0 && h2.length === 0) {
+      return res.json({ noNews: true });
+    }
+
+    const prompt = `You are a tennis prediction assistant. Analyze these recent news headlines for two players and assess how they affect the match prediction.
+
+Player 1: ${player1}
+News: ${h1.length > 0 ? h1.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+
+Player 2: ${player2}
+News: ${h2.length > 0 ? h2.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+
+Current model prediction: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
+
+Analyze the headlines for: injuries, illness, fatigue, form (winning/losing streak), motivation, withdrawals, or any other match-relevant factors.
+
+Respond ONLY with a valid JSON object, no markdown, no extra text:
+{
+  "player1": {
+    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
+    "modifier": <integer from -8 to +8, 0 if neutral or no relevant news>,
+    "reason": "<one short sentence in German>",
+    "headlines_used": [<1-based indices of relevant headlines, empty array if none>]
+  },
+  "player2": {
+    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
+    "modifier": <integer from -8 to +8, 0 if neutral or no relevant news>,
+    "reason": "<one short sentence in German>",
+    "headlines_used": [<1-based indices of relevant headlines, empty array if none>]
+  },
+  "overall_impact": "low | medium | high",
+  "summary": "<one sentence in German summarizing the news impact>"
+}`;
+
+    const response = await axios.post(
+      "https://api.anthropic.com/v1/messages",
+      {
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 800,
+        messages: [{ role: "user", content: prompt }]
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01"
+        },
+        timeout: 15000
+      }
+    );
+
+    const text = response.data.content?.map(c=>c.text||"").join("").trim();
+    const clean = text.replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(clean);
+    res.json(parsed);
+  } catch(err) {
+    console.error("NEWS ANALYSIS ERROR:", err.response?.data || err.message);
+    res.status(500).json({ error: "Analysis failed" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
