@@ -1649,14 +1649,10 @@ export default function App() {
                     // Most likely outcome = highest prob bet
                     const mostLikely = [...setBets].sort((a,b)=>b.prob-a.prob)[0];
 
-                    // 4. EXPECTED GAMES — aus setP, konsistent mit Set Betting
-                    // Avg games per set won: ~6.0 for dominant winner, less for close
-                    // Calibrated: at p=0.5 → 6 games each; at p=0.8 → ~6.3 fav, ~4.5 dog
-                    const avgGamesWonSet  = 5.5 + p * 1.0;   // 6.0 at p=0.6, 6.3 at p=0.8
-                    const avgGamesLostSet = 5.5 + q * 1.0;   // mirrors for loser
-                    // Expected total games per set = avgWon + avgLost (both players score)
-                    const expGperSetFav = avgGamesWonSet;
-                    const expGperSetDog = avgGamesLostSet;
+                    // 4. EXPECTED GAMES — aus setP, kalibriert gegen echte Tennisdaten
+                    // loser_games = 6*(q/p)*0.85  →  bei setP=0.55: ~4.6, bei 0.65: ~3.7, bei 0.75: ~2.9
+                    const expGperSetFav = 6.0;
+                    const expGperSetDog = Math.min(5.0, Math.max(1.0, 6.0 * (q/p) * 0.85));
 
                     // Expected games in full match
                     let expFavG, expDogG;
