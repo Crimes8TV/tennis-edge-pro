@@ -471,7 +471,6 @@ export default function App() {
   const analyzeNewsForPrediction = async (player1, player2, baseProb1) => {
     setNewsAnalysisLoading(true);
     try {
-      // Fetch news for both players in parallel
       const [news1Res, news2Res] = await Promise.all([
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player1)}`).then(r=>r.json()).catch(()=>[]),
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player2)}`).then(r=>r.json()).catch(()=>[])
@@ -486,55 +485,25 @@ export default function App() {
         return;
       }
 
-      const prompt = `You are a tennis prediction assistant. Analyze these recent news headlines for two players and assess how they affect the match prediction.
-
-Player 1: ${player1}
-News: ${headlines1.length > 0 ? headlines1.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
-
-Player 2: ${player2}
-News: ${headlines2.length > 0 ? headlines2.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
-
-Current model prediction: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
-
-Analyze the headlines for: injuries, illness, fatigue, form (winning/losing streak), motivation, withdrawals, weather/surface issues, or any other match-relevant factors.
-
-Respond ONLY with a JSON object, no markdown, no explanation:
-{
-  "player1": {
-    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
-    "modifier": <integer from -8 to +8, 0 if neutral>,
-    "reason": "<one short sentence in German explaining the signal>",
-    "headlines_used": [<list of relevant headline indices, 1-based, empty if none relevant>]
-  },
-  "player2": {
-    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
-    "modifier": <integer from -8 to +8, 0 if neutral>,
-    "reason": "<one short sentence in German explaining the signal>",
-    "headlines_used": [<list of relevant headline indices, 1-based, empty if none relevant>]
-  },
-  "overall_impact": "low | medium | high",
-  "summary": "<one sentence in German summarizing the news impact on this match>"
-}`;
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      // ── Proxy über Backend statt direkter Anthropic-Call (CORS fix) ──
+      const response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }]
-        })
+        body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 })
       });
 
-      const data = await response.json();
-      const text = data.content?.map(c=>c.text||"").join("").trim();
-      const clean = text.replace(/```json|```/g,"").trim();
-      const parsed = JSON.parse(clean);
+      if (!response.ok) throw new Error(`Backend error: ${response.status}`);
+      const parsed = await response.json();
 
-      // Calculate adjusted probabilities
+      if (parsed.noNews) {
+        setNewsAnalysis({ noNews: true });
+        setNewsAnalysisLoading(false);
+        return;
+      }
+
       const rawMod1 = parsed.player1?.modifier || 0;
       const rawMod2 = parsed.player2?.modifier || 0;
-      const netMod = rawMod1 - rawMod2; // net effect on player1
+      const netMod = rawMod1 - rawMod2;
       const adjustedProb1 = Math.min(95, Math.max(5, Math.round(baseProb1 + netMod)));
       const adjustedProb2 = 100 - adjustedProb1;
 
