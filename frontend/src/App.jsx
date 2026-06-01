@@ -220,6 +220,21 @@ export default function App() {
   const [standingsLoading, setStandingsLoading] = useState(false);
   const [newsAnalysis, setNewsAnalysis] = useState(null);
   const [newsAnalysisLoading, setNewsAnalysisLoading] = useState(false);
+  const [pwaInstallable, setPwaInstallable] = useState(false);
+  const [pwaInstalled, setPwaInstalled] = useState(false);
+
+  useEffect(() => {
+    const onInstallable = () => setPwaInstallable(true);
+    const onInstalled = () => { setPwaInstallable(false); setPwaInstalled(true); };
+    window.addEventListener('pwa-installable', onInstallable);
+    window.addEventListener('pwa-installed', onInstalled);
+    // Check if already running as PWA
+    if (window.matchMedia('(display-mode: standalone)').matches) setPwaInstalled(true);
+    return () => {
+      window.removeEventListener('pwa-installable', onInstallable);
+      window.removeEventListener('pwa-installed', onInstalled);
+    };
+  }, []);
 
   // ── Favorite Players ─────────────────────────────────────────────────────────
   const [favoritePlayers, setFavoritePlayers] = useState(() => {
@@ -750,6 +765,30 @@ export default function App() {
             </span>
           )}
         </div>
+
+        {/* PWA Install Banner */}
+        {pwaInstallable && !pwaInstalled && (
+          <div style={{margin:"0 0 12px",padding:"12px 16px",borderRadius:"14px",background:"linear-gradient(135deg,rgba(34,211,238,0.1),rgba(74,222,128,0.08))",border:"1px solid rgba(34,211,238,0.25)",display:"flex",alignItems:"center",gap:"12px"}}>
+            <span style={{fontSize:"24px"}}>📲</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:"13px",fontWeight:700,color:"#e2e8f0",marginBottom:"2px"}}>Als App installieren</div>
+              <div style={{fontSize:"11px",color:"#64748b"}}>Courtside IQ direkt auf den Homescreen — wie eine native App</div>
+            </div>
+            <button onClick={() => {
+              if (window.pwaInstallPrompt) {
+                window.pwaInstallPrompt.prompt();
+                window.pwaInstallPrompt.userChoice.then(choice => {
+                  if (choice.outcome === 'accepted') setPwaInstalled(true);
+                  setPwaInstallable(false);
+                  window.pwaInstallPrompt = null;
+                });
+              }
+            }} style={{padding:"8px 16px",borderRadius:"10px",border:"none",background:"linear-gradient(135deg,#22d3ee,#4ade80)",color:"#0f172a",fontSize:"12px",fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>
+              Installieren
+            </button>
+            <button onClick={() => setPwaInstallable(false)} style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:"16px",padding:"4px"}}>✕</button>
+          </div>
+        )}
 
         {tab === "dashboard" && (
           <>
