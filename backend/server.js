@@ -412,53 +412,6 @@ app.get("/api/predict", async (req, res) => {
   const form1 = form1Data ? form1Data.form : Math.max(30, Math.min(85, 85 - Number(rank1) * 0.2));
   const form2 = form2Data ? form2Data.form : Math.max(30, Math.min(85, 85 - Number(rank2) * 0.2));
 
-<<<<<<< HEAD
-  // Bessere Confidence: basiert auf Rankdifferenz + Winwahrscheinlichkeit
-  const gap = Math.abs(p1Win - 50);
-  const rankBoost = Math.min(30, rankDiff * 0.4);
-  const confidence = Math.min(99, Math.round(gap * 1.8 + rankBoost));
-
-  // Abgeleitete Spieler-Stats aus Rang und Elo
-  const deriveStats = (rank, elo) => {
-    const base = Math.max(50, 100 - rank * 0.4);
-    return {
-      serve:    Math.min(99, Math.round(base + (elo - 1800) * 0.015 + Math.random() * 6)),
-      return:   Math.min(99, Math.round(base + (elo - 1800) * 0.012 + Math.random() * 6)),
-      clutch:   Math.min(99, Math.round(base + (elo - 1800) * 0.010 + Math.random() * 8)),
-      momentum: Math.min(99, Math.round(base + (elo - 1800) * 0.011 + Math.random() * 7)),
-    };
-  };
-  const p1Stats = deriveStats(Number(rank1), elo1);
-  const p2Stats = deriveStats(Number(rank2), elo2);
-
-  res.json({
-    player1: p1,
-    player2: p2,
-    surface,
-    elo: { [p1]: Math.round(elo1), [p2]: Math.round(elo2) },
-    prediction: { [p1]: p1Win, [p2]: 100 - p1Win },
-    confidence,
-    playerStats: { [p1]: p1Stats, [p2]: p2Stats },
-    factors: {
-      ranking: Math.round(rankingFactor),
-      form: Math.round(formFactor),
-      clutch: Math.round(clutchFactor),
-      momentum: Math.round(momentumFactor),
-      surface
-    },
-    explain:
-      p1Win > 60
-        ? `${p1} hat klare Vorteile durch Ranking, Form und Matchup-Stärke.`
-        : p1Win < 40
-        ? `${p2} hat klare Vorteile durch Ranking, Form und Matchup-Stärke.`
-        : `Das Match ist sehr ausgeglichen.`,
-    edge:
-      p1Win > 65 ? `${p1} klar überlegen`
-      : p1Win > 55 ? `${p1} leichter Vorteil`
-      : p1Win < 35 ? `${p2} klar überlegen`
-      : p1Win < 45 ? `${p2} leichter Vorteil`
-      : "sehr ausgeglichen"
-=======
   if (form1Data?.handRates && hand2) {
     const rate = hand2 === "R" ? form1Data.handRates.vsRight : form1Data.handRates.vsLeft;
     if (rate && rate.total >= 3) handMod1 += (rate.pct - 50) * 0.08;
@@ -548,7 +501,6 @@ app.get("/api/predict", async (req, res) => {
     formData:{[p1]:form1Data?{form:form1Data.form,wins:form1Data.wins,losses:form1Data.losses,recentResults:form1Data.recentResults,handRates:form1Data.handRates}:null,[p2]:form2Data?{form:form2Data.form,wins:form2Data.wins,losses:form2Data.losses,recentResults:form2Data.recentResults,handRates:form2Data.handRates}:null},
     explain:p1Win>60?`${p1} has clear advantages in ranking, form and matchup strength.`:p1Win<40?`${p2} has clear advantages in ranking, form and matchup strength.`:`Very evenly matched.`,
     edge:p1Win>65?`${p1} clearly superior`:p1Win>55?`${p1} slight advantage`:p1Win<35?`${p2} clearly superior`:p1Win<45?`${p2} slight advantage`:"very even"
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
   });
 });
 
@@ -562,12 +514,47 @@ app.get("/api/valuepicks", async (req, res) => {
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
     const getFullName = (shortName) => {
-      const lastName = shortName.trim().split(" ").pop().toLowerCase();
+      if (!shortName) return shortName;
+      const parts = shortName.trim().split(" ");
+      const lastName = parts[parts.length-1].toLowerCase();
+      const firstInitial = parts.length > 1 ? parts[0].replace(".","").toLowerCase() : null;
+
+      // Try to match by last name AND first initial
+      if (firstInitial) {
+        const exact = standings.find(p => {
+          const pn = (p.player||"").toLowerCase();
+          const pParts = pn.split(" ");
+          const pLast = pParts[pParts.length-1];
+          const pFirst = pParts[0] || "";
+          return pLast === lastName && pFirst.startsWith(firstInitial);
+        });
+        if (exact) return exact.player;
+      }
+
+      // Fallback: last name only
       const found = standings.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName);
       return found ? found.player : shortName;
     };
-    const getRank = (name) => {
-      const lastName = name.trim().split(" ").pop().toLowerCase();
+
+    const getRank = (shortName) => {
+      if (!shortName) return 100;
+      const parts = shortName.trim().split(" ");
+      const lastName = parts[parts.length-1].toLowerCase();
+      const firstInitial = parts.length > 1 ? parts[0].replace(".","").toLowerCase() : null;
+
+      // Try last name + first initial
+      if (firstInitial) {
+        const exact = standings.find(p => {
+          const pn = (p.player||"").toLowerCase();
+          const pParts = pn.split(" ");
+          const pLast = pParts[pParts.length-1];
+          const pFirst = pParts[0] || "";
+          return pLast === lastName && pFirst.startsWith(firstInitial);
+        });
+        if (exact) return parseInt(exact.place)||100;
+      }
+
+      // Fallback: last name only
       const found = standings.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName);
       return found ? parseInt(found.place)||100 : 100;
     };
