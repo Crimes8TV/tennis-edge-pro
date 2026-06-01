@@ -6,6 +6,18 @@ import {
 import { Activity, Trophy, Search, Zap, TrendingUp, Calendar, Star } from "lucide-react";
 import "./App.css";
 
+// ── Bereinigt API-Namen die in falscher Reihenfolge kommen ───────────────────
+const PLAYER_NAME_FIXES = {
+  "manuel cerundolo juan": "Juan Manuel Cerundolo",
+  "cerundolo juan manuel": "Juan Manuel Cerundolo",
+};
+function formatPlayerName(name) {
+  if (!name) return name;
+  const lower = name.toLowerCase().trim();
+  if (PLAYER_NAME_FIXES[lower]) return PLAYER_NAME_FIXES[lower];
+  return name;
+}
+
 function PlayerAutocomplete({ label, playerNum, value, onChange, players, favorites = [], onToggleFavorite }) {
   const [query, setQuery] = useState(value || "");
   const [open, setOpen] = useState(false);
@@ -365,7 +377,7 @@ export default function App() {
 
   const safePlayers = Array.isArray(players) ? players : [];
   const getPlayerName = (p) => typeof p.name === "string" ? p.name : p.name?.name || "";
-  const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
+  const playerNames = safePlayers.map(p => formatPlayerName(getPlayerName(p))).filter(Boolean);
   const active = safePlayers.find(p => getPlayerName(p) === player) || {};
   const compareActive = safePlayers.find(p => getPlayerName(p) === comparePlayer) || {};
   const findPlayer = (name) => {
@@ -2676,6 +2688,7 @@ export default function App() {
                     <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>Punkte</span><span style={{textAlign:"right"}}>Aktion</span>
                   </div>
                   {standings.slice(0,100).map((p, i) => {
+                    const displayName = formatPlayerName(p.name);
                     const isTop3 = p.rank <= 3;
                     const isTop10 = p.rank <= 10;
                     const rankColor = isTop3 ? "#facc15" : isTop10 ? "#22d3ee" : "#94a3b8";
@@ -2686,7 +2699,7 @@ export default function App() {
                         onClick={() => {setPlayer(p.name);setTab("player");}}>
                         <span style={{fontSize:"14px",fontWeight:800,color:rankColor}}>#{p.rank}</span>
                         <div style={{minWidth:0}}>
-                          <div style={{fontSize:"14px",fontWeight:isTop10?700:500,color:isTop10?"#e2e8f0":"#cbd5e1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                          <div style={{fontSize:"14px",fontWeight:isTop10?700:500,color:isTop10?"#e2e8f0":"#cbd5e1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{displayName}</div>
                           {p.country && <div style={{fontSize:"11px",color:"#475569",marginTop:"1px"}}>{p.country}</div>}
                         </div>
                         <span style={{fontSize:"13px",fontWeight:600,color:rankColor,textAlign:"right"}}>{p.points?.toLocaleString()}</span>
