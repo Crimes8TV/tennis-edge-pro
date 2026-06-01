@@ -524,13 +524,56 @@ app.get("/api/valuepicks", async (req, res) => {
     const allStandings = [...standings, ...chalStandings];
 
     // ── Manual disambiguation for known name conflicts ────────────────────────
+    // API sometimes returns names reversed (e.g. "Manuel Cerundolo Juan")
+    // Map from fixture short name → exact standings player name
     const NAME_MAP = {
-      "j. m. cerundolo": "Juan Manuel Cerundolo",
-      "j.m. cerundolo":  "Juan Manuel Cerundolo",
+      "j. m. cerundolo": "Manuel Cerundolo Juan",
+      "j.m. cerundolo":  "Manuel Cerundolo Juan",
+      "j. cerundolo":    "Manuel Cerundolo Juan",
       "f. cerundolo":    "Francisco Cerundolo",
-      "j. cerundolo":    "Juan Manuel Cerundolo",
-      "b. van de zandschulp": "Botic Van De Zandschulp",
-      "a. de minaur":    "Alex De Minaur",
+    };
+
+    // Normalize reversed names for display (standings → readable)
+    const normalizeDisplayName = (standingsName) => {
+      if (!standingsName) return standingsName;
+      // Detect reversed format: last word looks like a first name
+      // e.g. "Manuel Cerundolo Juan" → last word "Juan" is a first name
+      // Simple heuristic: if standings name has 3+ words, try to detect reversal
+      return standingsName; // keep as-is for now, display handled in frontend
+    };
+
+    const matchPlayerInStandings = (shortName, standingsList) => {
+      if (!shortName) return null;
+      const key = shortName.trim().toLowerCase();
+
+      // Check manual map first
+      if (NAME_MAP[key]) {
+        const mapped = standingsList.find(p =>
+          (p.player||"").toLowerCase() === NAME_MAP[key].toLowerCase()
+        );
+        if (mapped) return mapped;
+        return { player: NAME_MAP[key], place: "200" };
+      }
+
+      const parts = shortName.trim().split(" ");
+      const lastName = parts[parts.length-1].toLowerCase();
+      const initials = parts.slice(0,-1).map(p => p.replace(/\./g,"").toLowerCase()).filter(Boolean);
+
+      if (initials.length > 0) {
+        // Try matching against ALL words in standings name (handles reversed names)
+        const exact = standingsList.find(p => {
+          const pn = (p.player||"").toLowerCase();
+          const pWords = pn.split(" ").filter(Boolean);
+          // Last name must appear somewhere in standings name
+          const hasLastName = pWords.some(w => w === lastName);
+          if (!hasLastName) return false;
+          // All initials must match first letters of some words
+          return initials.every(init => pWords.some(w => w.startsWith(init)));
+        });
+        if (exact) return exact;
+      }
+
+      return standingsList.find(p => (p.player||"").toLowerCase().split(" ").includes(lastName)) || null;
     };
 
     const matchPlayerInStandings = (shortName, standingsList) => {
