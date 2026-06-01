@@ -523,31 +523,52 @@ app.get("/api/valuepicks", async (req, res) => {
 
     const allStandings = [...standings, ...chalStandings];
 
+    // ── Manual disambiguation for known name conflicts ────────────────────────
+    const NAME_MAP = {
+      "j. m. cerundolo": "Juan Manuel Cerundolo",
+      "j.m. cerundolo":  "Juan Manuel Cerundolo",
+      "f. cerundolo":    "Francisco Cerundolo",
+      "j. cerundolo":    "Juan Manuel Cerundolo",
+      "b. van de zandschulp": "Botic Van De Zandschulp",
+      "a. de minaur":    "Alex De Minaur",
+    };
+
     const matchPlayerInStandings = (shortName, standingsList) => {
       if (!shortName) return null;
+      const key = shortName.trim().toLowerCase();
+
+      // Check manual map first
+      if (NAME_MAP[key]) {
+        const mapped = standingsList.find(p =>
+          (p.player||"").toLowerCase() === NAME_MAP[key].toLowerCase()
+        );
+        if (mapped) return mapped;
+        // Return synthetic entry if not in standings
+        return { player: NAME_MAP[key], place: "200" };
+      }
+
       const parts = shortName.trim().split(" ");
       const lastName = parts[parts.length-1].toLowerCase();
-      // Collect all initials from short name (e.g. "J. M." → ["j","m"])
       const initials = parts.slice(0,-1).map(p => p.replace(/\./g,"").toLowerCase()).filter(Boolean);
 
-      // Try exact initial match — all initials must match first letters of name parts
       if (initials.length > 0) {
         const exact = standingsList.find(p => {
           const pn = (p.player||"").toLowerCase();
           const pParts = pn.split(" ").filter(Boolean);
           const pLast = pParts[pParts.length-1];
           if (pLast !== lastName) return false;
-          // Check each initial matches corresponding name part
           return initials.every((init, i) => pParts[i] && pParts[i].startsWith(init));
         });
         if (exact) return exact;
       }
 
-      // Fallback: last name only (first match)
       return standingsList.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName) || null;
     };
 
     const getFullName = (shortName) => {
+      // Check manual map directly first
+      const key = (shortName||"").trim().toLowerCase();
+      if (NAME_MAP[key]) return NAME_MAP[key];
       const found = matchPlayerInStandings(shortName, allStandings);
       return found ? found.player : shortName;
     };
