@@ -6,70 +6,6 @@ import {
 import { Activity, Trophy, Search, Zap, TrendingUp, Calendar, Star } from "lucide-react";
 import "./App.css";
 
-<<<<<<< HEAD
-function PlayerAutocomplete({ label, playerNum, value, onChange, players }) {
-  const [query, setQuery] = useState(value || "");
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => { setQuery(value || ""); }, [value]);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const filtered = query
-    ? players.filter(p => p.toLowerCase().includes(query.toLowerCase()))
-    : players;
-
-  const handleSelect = (name) => {
-    setQuery(name);
-    onChange(name);
-    setOpen(false);
-  };
-
-  const handleChange = (e) => {
-    setQuery(e.target.value);
-    setOpen(true);
-    const exact = players.find(p => p.toLowerCase() === e.target.value.toLowerCase());
-    if (exact) onChange(exact);
-  };
-
-  return (
-    <div ref={ref} className="playerSearchWrapper">
-      <span className="playerSearchLabel">Spieler {playerNum}</span>
-      <div style={{ position: "relative" }}>
-        <Search
-          size={15}
-          style={{
-            position: "absolute", left: "13px", top: "50%",
-            transform: "translateY(-50%)", color: "#22d3ee", pointerEvents: "none"
-          }}
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={handleChange}
-          onFocus={() => setOpen(true)}
-          placeholder={label}
-          className="playerSearchInput"
-        />
-      </div>
-
-      {open && filtered.length > 0 && (
-        <ul className="playerDropdown">
-          {filtered.map(name => (
-            <li
-              key={name}
-              className={name === value ? "active" : ""}
-              onMouseDown={() => handleSelect(name)}
-            >
-              {name}
-=======
 function PlayerAutocomplete({ label, playerNum, value, onChange, players, favorites = [], onToggleFavorite }) {
   const [query, setQuery] = useState(value || "");
   const [open, setOpen] = useState(false);
@@ -110,7 +46,6 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
                   {favorites.includes(name) ? "★" : "☆"}
                 </span>
               )}
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
             </li>
           ))}
         </ul>
@@ -277,38 +212,6 @@ export default function App() {
   const toggleTournament = (key) => setCollapsedTournaments(prev => ({ ...prev, [key]: !prev[key] }));
   const toggleCategory = (cat) => setCollapsedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
   const [surface, setSurface] = useState("hard");
-<<<<<<< HEAD
-
-  const safePlayers = Array.isArray(players) ? players : [];
-
-  const getPlayerName = (p) =>
-    typeof p.name === "string" ? p.name : p.name?.name || "";
-
-  const playerNames = safePlayers.map(getPlayerName).filter(Boolean);
-  const active = safePlayers.find(p => getPlayerName(p) === player) || {};
-  const p1Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p1.toLowerCase());
-  const p2Data = safePlayers.find(p => getPlayerName(p).toLowerCase() === p2.toLowerCase());
-
-  const winner =
-    prediction?.prediction?.[prediction?.player1] >
-    prediction?.prediction?.[prediction?.player2]
-      ? prediction?.player1
-      : prediction?.player2;
-
-  useEffect(() => {
-    fetch("https://tennis-edge-backend.onrender.com/api/players")
-      .then(res => { if (!res.ok) throw new Error("API Fehler"); return res.json(); })
-      .then(data => {
-        const formatted = Array.isArray(data) ? data : [];
-        setPlayers(formatted);
-        if (formatted.length > 0) setPlayer(getPlayerName(formatted[0]));
-        if (formatted.length > 1) {
-          setP1(getPlayerName(formatted[0]));
-          setP2(getPlayerName(formatted[1]));
-        }
-      })
-      .catch(err => console.error("FEHLER PLAYERS:", err));
-=======
   const [bestOf, setBestOf] = useState(3);
   const [tournamentSection, setTournamentSection] = useState("active");
   const [matchSearch, setMatchSearch] = useState("");
@@ -501,7 +404,6 @@ export default function App() {
         });
     };
     loadPlayers();
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
   }, []);
 
   useEffect(() => {
@@ -673,22 +575,6 @@ export default function App() {
       .catch(err => { console.error(err); setValuePicksLoading(false); });
   }, []);
 
-<<<<<<< HEAD
-  const autoValuePicks = topMatches
-    .map(([a, b]) => {
-      const pA = safePlayers.find(p => getPlayerName(p) === a);
-      const pB = safePlayers.find(p => getPlayerName(p) === b);
-      if (!pA || !pB) return null;
-      const probA = Math.round(((pB.rank || 100) / ((pA.rank || 100) + (pB.rank || 100))) * 100);
-      const probB = 100 - probA;
-      const valueA = probA - 50;
-      const valueB = probB - 50;
-      return { match: `${a} vs ${b}`, pick: valueA > valueB ? a : b, value: Math.max(valueA, valueB) };
-    })
-    .filter(Boolean)
-    .filter(pick => pick.value > 0)
-    .sort((a, b) => b.value - a.value);
-=======
   useEffect(() => {
     const loadFixtures = () => {
       fetch("https://tennis-edge-backend.onrender.com/api/fixtures/today")
@@ -700,7 +586,6 @@ export default function App() {
     const interval = setInterval(loadFixtures, 30000);
     return () => clearInterval(interval);
   }, []);
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
 
   const formData = (active.form || []).map((v, i) => ({ match: `M-${6 - i}`, form: v }));
 
@@ -783,10 +668,6 @@ export default function App() {
   return (
     <div className="app">
       <aside className="sidebar">
-<<<<<<< HEAD
-        <h1>TennisEdge Pro</h1>
-        <p>Advanced Tennis Analytics</p>
-=======
         <div style={{marginBottom:"4px"}}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" style={{width:"160px",height:"64px"}}>
             <rect x="0" y="0" width="200" height="80" rx="6" fill="#1a5c38"/>
@@ -808,7 +689,6 @@ export default function App() {
           </svg>
         </div>
         <p>Smart Tennis Analytics</p>
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
         <button onClick={() => setTab("dashboard")}><Activity /> Dashboard</button>
         <button onClick={() => setTab("matches")}><Calendar /> Matches</button>
         <button onClick={() => setTab("valuepicks")}><TrendingUp /> Value Picks</button>
@@ -913,47 +793,6 @@ export default function App() {
         {tab === "dashboard" && (
           <>
             <Header title="Live Dashboard" />
-<<<<<<< HEAD
-            <div className="topMatches">
-              <h4>🔥 Live Matches</h4>
-              {liveMatches.length === 0 ? (
-                <p>Keine Live Matches</p>
-              ) : (
-                liveMatches.map((m, i) => (
-                  <p key={i} className="matchItem" onClick={() => { setP1(m.player1); setP2(m.player2); setTab("predictor"); }}>
-                    {m.player1} vs {m.player2}
-                  </p>
-                ))
-              )}
-            </div>
-            <div className="valuePicks">
-              <h4>💰 Auto Value Picks</h4>
-              {autoValuePicks.map((pick, i) => (
-                <p key={i}>#{i + 1} {pick.pick} — {pick.match} ({pick.value.toFixed(1)}%)</p>
-              ))}
-            </div>
-            <Kpis data={active} />
-            <div className="grid two">
-              <Panel title="Formkurve">
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={formData}>
-                    <XAxis dataKey="match" />
-                    <YAxis domain={[60, 100]} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="form" stroke="#22d3ee" strokeWidth={4} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Panel>
-              <Panel title="Performance Radar">
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="stat" />
-                    <Radar dataKey="value" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.35} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </Panel>
-=======
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"12px",marginBottom:"28px"}}>
               {[
                 {label:"Matches Today", value:`${fixtures.length} (${fixtures.filter(m=>m.live).length} Live)`, icon:"🎾", color:"#22d3ee", tab:"matches"},
@@ -1284,7 +1123,6 @@ export default function App() {
                     </>
                   );
                 })()}
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
             </div>
           </>
         )}
@@ -1292,21 +1130,6 @@ export default function App() {
         {tab === "player" && (
           <>
             <Header title="Player Analyzer" />
-<<<<<<< HEAD
-            <select value={player} onChange={e => setPlayer(e.target.value)}>
-              {playerNames.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <Kpis data={active} />
-            {playerStats && (
-              <Panel title="Player Stats">
-                <p>Win Rate: {playerStats.stats?.winRate}%</p>
-                <p>Titles: {playerStats.stats?.titles}</p>
-                <p>Rank: #{playerStats.stats?.rank}</p>
-                <p>Points: {playerStats.stats?.points}</p>
-                <p>Hard: {playerStats.surfaces?.hard}%</p>
-                <p>Clay: {playerStats.surfaces?.clay}%</p>
-                <p>Grass: {playerStats.surfaces?.grass}%</p>
-=======
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
               <PlayerAutocomplete label="Search player 1..." playerNum={1} value={player} onChange={setPlayer} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
               <PlayerAutocomplete label="Compare player 2..." playerNum={2} value={comparePlayer} onChange={setComparePlayer} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
@@ -1361,7 +1184,6 @@ export default function App() {
                   const v1=s.v1!=="-"?s.v1:0; const v2=s.v2!=="-"?s.v2:0; const total=v1+v2||1;
                   return (<div key={s.label} style={{marginBottom:"16px"}}><div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"6px"}}><strong style={{color:v1>=v2?"#4ade80":"#94a3b8"}}>{player}: {v1}%</strong><span style={{color:"#94a3b8"}}>{s.label}</span><strong style={{color:v2>v1?"#4ade80":"#94a3b8"}}>{comparePlayer}: {v2}%</strong></div><div style={{display:"flex",height:"10px",borderRadius:"999px",overflow:"hidden"}}><div style={{width:`${Math.round(v1/total*100)}%`,background:"linear-gradient(90deg,#22d3ee,#4ade80)"}} /><div style={{flex:1,background:"#f472b6"}} /></div></div>);
                 })}
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
               </Panel>
             )}
           </>
@@ -1370,110 +1192,6 @@ export default function App() {
         {tab === "predictor" && (
           <>
             <Header title="Match Predictor" />
-<<<<<<< HEAD
-
-            <div className="grid two" style={{ marginBottom: "20px", alignItems: "flex-start" }}>
-              <PlayerAutocomplete
-                label="Name eingeben..."
-                playerNum={1}
-                value={p1}
-                onChange={setP1}
-                players={playerNames}
-              />
-              <PlayerAutocomplete
-                label="Name eingeben..."
-                playerNum={2}
-                value={p2}
-                onChange={setP2}
-                players={playerNames}
-              />
-            </div>
-
-            <div className="surfaceSelector">
-              {[
-                { value: "hard", icon: "🏟️", label: "Hard" },
-                { value: "clay", icon: "🧱", label: "Clay" },
-                { value: "grass", icon: "🌿", label: "Grass" }
-              ].map(s => (
-                <button
-                  key={s.value}
-                  className={`surfaceBtn ${surface === s.value ? "active" : ""}`}
-                  onClick={() => setSurface(s.value)}
-                >
-                  <span className="surfaceIcon">{s.icon}</span>
-                  <span className="surfaceLabel">{s.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <button
-              className="predictBtn"
-              onClick={predictMatch}
-              disabled={!p1Data || !p2Data}
-            >
-              ⚡ Prediction berechnen
-            </button>
-
-            <Panel title="Prediction Engine">
-              {prediction && (
-                <>
-                  <p className="bestPick">
-                    🔥 Best Pick: {winner} ({Math.max(
-                      prediction.prediction?.[prediction.player1] || 0,
-                      prediction.prediction?.[prediction.player2] || 0
-                    )}%)
-                  </p>
-                  <div className={`prediction ${winner === prediction.player1 ? "win" : ""}`}>
-                    <span className={winner === prediction.player1 ? "winnerName" : ""}>{prediction.player1}</span>
-                    <strong>{prediction.prediction?.[prediction.player1]}%</strong>
-                  </div>
-                  <div className="bar">
-                    <div
-                      className={winner === prediction.player1 ? "barFill winBar" : "barFill"}
-                      style={{ width: (prediction.prediction?.[prediction.player1] || 0) + "%" }}
-                    />
-                  </div>
-                  <div className={`prediction muted ${winner === prediction.player2 ? "win" : ""}`}>
-                    <span className={winner === prediction.player2 ? "winnerName" : ""}>{prediction.player2}</span>
-                    <strong>{prediction.prediction?.[prediction.player2]}%</strong>
-                  </div>
-                  <p className="confidence">Confidence: {prediction.confidence}%</p>
-                  <p className="edge">{prediction.edge}</p>
-                  {prediction.explain && <p className="proExplain">🧠 {prediction.explain}</p>}
-                  <div className="valueBox">
-                    <h4>💰 Value Bet Check</h4>
-                    <input type="number" step="0.01" value={odds1} onChange={(e) => setOdds1(Number(e.target.value))} />
-                    <input type="number" step="0.01" value={odds2} onChange={(e) => setOdds2(Number(e.target.value))} />
-                    <p>{prediction.player1}: {(prediction.prediction[prediction.player1] - 100 / odds1).toFixed(1)}%</p>
-                    <p>{prediction.player2}: {(prediction.prediction[prediction.player2] - 100 / odds2).toFixed(1)}%</p>
-                  </div>
-                  {prediction.playerStats && (
-                    <div className="compareBox">
-                      <h4>Player Compare</h4>
-                      {[
-                        { label: "Serve",    k: "serve" },
-                        { label: "Return",   k: "return" },
-                        { label: "Clutch",   k: "clutch" },
-                        { label: "Momentum", k: "momentum" },
-                      ].map(({ label, k }) => {
-                        const v1 = prediction.playerStats[prediction.player1]?.[k] || 0;
-                        const v2 = prediction.playerStats[prediction.player2]?.[k] || 0;
-                        const better1 = v1 > v2;
-                        return (
-                          <div key={k} style={{ marginBottom: "10px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
-                              <span style={{ color: better1 ? "#4ade80" : "#94a3b8", fontWeight: better1 ? 700 : 400 }}>{v1}</span>
-                              <span style={{ color: "#94a3b8" }}>{label}</span>
-                              <span style={{ color: !better1 ? "#4ade80" : "#94a3b8", fontWeight: !better1 ? 700 : 400 }}>{v2}</span>
-                            </div>
-                            <div style={{ display: "flex", height: "6px", borderRadius: "999px", overflow: "hidden", background: "#1e293b" }}>
-                              <div style={{ width: `${Math.round(v1 / (v1 + v2) * 100)}%`, background: "linear-gradient(90deg,#22d3ee,#4ade80)" }} />
-                              <div style={{ flex: 1, background: "#f472b6" }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-=======
             <div className="grid two" style={{marginBottom:"20px",alignItems:"flex-start"}}>
               <PlayerAutocomplete label="Enter name..." playerNum={1} value={p1} onChange={setP1} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
               <PlayerAutocomplete label="Enter name..." playerNum={2} value={p2} onChange={setP2} players={playerNames} favorites={favoritePlayers} onToggleFavorite={toggleFavoritePlayer} />
@@ -1518,7 +1236,6 @@ export default function App() {
                   {prediction.format && (
                     <div style={{display:"inline-block",marginBottom:"12px",padding:"4px 12px",borderRadius:"6px",background:prediction.bo===5?"rgba(245,158,11,0.15)":"rgba(34,211,238,0.1)",border:prediction.bo===5?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(34,211,238,0.2)",fontSize:"12px",color:prediction.bo===5?"#f59e0b":"#22d3ee",fontWeight:600}}>
                       {prediction.bo===5?"🏆":"⚡"} {prediction.format}
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
                     </div>
                   )}
                   <div className={`prediction ${winner===prediction.player1?"win":""}`}><span className={winner===prediction.player1?"winnerName":""}>{prediction.player1}</span><strong>{prediction.prediction?.[prediction.player1]}%</strong></div>
@@ -2999,34 +2716,5 @@ export default function App() {
 }
 
 function Header({ title }) { return <h2>{title}</h2>; }
-<<<<<<< HEAD
-
-function Panel({ title, children }) {
-  return (
-    <div className="panel">
-      <h3>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Kpis({ data }) {
-  return (
-    <div className="grid kpis">
-      <Card label="Elo Rating" value={data.elo || "-"} />
-      <Card label="Serve" value={data.serve || "-"} />
-      <Card label="Return" value={data.return || "-"} />
-      <Card label="Clutch" value={data.clutch || "-"} />
-      <Card label="Momentum" value={data.momentum || "-"} />
-      <Card label="Rank" value={data.rank ? `#${data.rank}` : "-"} />
-    </div>
-  );
-}
-
-function Card({ label, value }) {
-  return <div className="card"><span>{label}</span><strong>{value}</strong></div>;
-}
-=======
 function Panel({ title, children }) { return <div className="panel"><h3>{title}</h3>{children}</div>; }
 function Card({ label, value }) { return <div className="card"><span>{label}</span><strong>{value}</strong></div>; }
->>>>>>> 7ce22687e182825368b2c1aeb993b8ac27d1157e
