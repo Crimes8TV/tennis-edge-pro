@@ -513,49 +513,47 @@ app.get("/api/valuepicks", async (req, res) => {
     if (matches.length === 0) return res.json([]);
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
-    const getFullName = (shortName) => {
-      if (!shortName) return shortName;
+
+    // Also load Challenger standings for players not in ATP top
+    let chalStandings = [];
+    try {
+      const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
+      chalStandings = chalRes.data?.result || [];
+    } catch(e) {}
+
+    const allStandings = [...standings, ...chalStandings];
+
+    const matchPlayerInStandings = (shortName, standingsList) => {
+      if (!shortName) return null;
       const parts = shortName.trim().split(" ");
       const lastName = parts[parts.length-1].toLowerCase();
-      const firstInitial = parts.length > 1 ? parts[0].replace(".","").toLowerCase() : null;
+      // Collect all initials from short name (e.g. "J. M." → ["j","m"])
+      const initials = parts.slice(0,-1).map(p => p.replace(/\./g,"").toLowerCase()).filter(Boolean);
 
-      // Try to match by last name AND first initial
-      if (firstInitial) {
-        const exact = standings.find(p => {
+      // Try exact initial match — all initials must match first letters of name parts
+      if (initials.length > 0) {
+        const exact = standingsList.find(p => {
           const pn = (p.player||"").toLowerCase();
-          const pParts = pn.split(" ");
+          const pParts = pn.split(" ").filter(Boolean);
           const pLast = pParts[pParts.length-1];
-          const pFirst = pParts[0] || "";
-          return pLast === lastName && pFirst.startsWith(firstInitial);
+          if (pLast !== lastName) return false;
+          // Check each initial matches corresponding name part
+          return initials.every((init, i) => pParts[i] && pParts[i].startsWith(init));
         });
-        if (exact) return exact.player;
+        if (exact) return exact;
       }
 
-      // Fallback: last name only
-      const found = standings.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName);
+      // Fallback: last name only (first match)
+      return standingsList.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName) || null;
+    };
+
+    const getFullName = (shortName) => {
+      const found = matchPlayerInStandings(shortName, allStandings);
       return found ? found.player : shortName;
     };
 
     const getRank = (shortName) => {
-      if (!shortName) return 100;
-      const parts = shortName.trim().split(" ");
-      const lastName = parts[parts.length-1].toLowerCase();
-      const firstInitial = parts.length > 1 ? parts[0].replace(".","").toLowerCase() : null;
-
-      // Try last name + first initial
-      if (firstInitial) {
-        const exact = standings.find(p => {
-          const pn = (p.player||"").toLowerCase();
-          const pParts = pn.split(" ");
-          const pLast = pParts[pParts.length-1];
-          const pFirst = pParts[0] || "";
-          return pLast === lastName && pFirst.startsWith(firstInitial);
-        });
-        if (exact) return parseInt(exact.place)||100;
-      }
-
-      // Fallback: last name only
-      const found = standings.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName);
+      const found = matchPlayerInStandings(shortName, allStandings);
       return found ? parseInt(found.place)||100 : 100;
     };
     const eloFromRank = (rank) => Math.max(1500, 2400-rank*6);
