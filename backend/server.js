@@ -1314,10 +1314,41 @@ app.get("/api/surface-rankings", async (req, res) => {
       if (i + 8 < top50.length) await new Promise(r => setTimeout(r, 300));
     }
 
-    // Build surface-specific rankings — sorted by total WINS (more meaningful than %)
-    const hardRanking  = results.filter(p=>p.hardMatches  >= 10).sort((a,b)=>b.hardWins -a.hardWins ).slice(0,20);
-    const clayRanking  = results.filter(p=>p.clayMatches  >= 10).sort((a,b)=>b.clayWins -a.clayWins ).slice(0,20);
-    const grassRanking = results.filter(p=>p.grassMatches >= 8 ).sort((a,b)=>b.grassWins-a.grassWins).slice(0,20);
+    // ── Weighted Surface Score ────────────────────────────────────────────────
+    // Score = wins × (winPct/100)^1.5
+    // This rewards players who have MANY wins AND a high win rate
+    // Alcaraz: ~120 clay wins × (0.88)^1.5 ≈ 99 → beats Djokovic ~180 × (0.82)^1.5 ≈ 133
+    // But recent form matters too — add recency bonus from ATP rank
+    // Top 10 current player gets ×1.15, top 20 ×1.08, rest ×1.0
+    const recencyBonus = (rank) => {
+      if (rank <= 5)   return 2.0;
+      if (rank <= 10)  return 1.7;
+      if (rank <= 20)  return 1.4;
+      if (rank <= 50)  return 1.1;
+      if (rank <= 100) return 0.7;
+      return 0.4; // inaktiv/retired
+    };
+
+    const surfaceScore = (wins, matches, rank) => {
+      if (matches < 1) return 0;
+      const pct = wins / matches;
+      return wins * Math.pow(pct, 1.5) * recencyBonus(rank);
+    };
+
+    const hardRanking  = results
+      .filter(p => p.hardMatches  >= 10)
+      .map(p => ({...p, score: surfaceScore(p.hardWins,  p.hardMatches,  p.rank)}))
+      .sort((a,b) => b.score - a.score).slice(0,20);
+
+    const clayRanking  = results
+      .filter(p => p.clayMatches  >= 10)
+      .map(p => ({...p, score: surfaceScore(p.clayWins,  p.clayMatches,  p.rank)}))
+      .sort((a,b) => b.score - a.score).slice(0,20);
+
+    const grassRanking = results
+      .filter(p => p.grassMatches >= 8)
+      .map(p => ({...p, score: surfaceScore(p.grassWins, p.grassMatches, p.rank)}))
+      .sort((a,b) => b.score - a.score).slice(0,20);
 
     res.json({ hard: hardRanking, clay: clayRanking, grass: grassRanking });
   } catch(err) {
