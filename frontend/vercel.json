@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "build" }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/api/fixtures/today", "dest": "/api/fixtures/today.js" },
+    { "src": "/api/tournament-predictions", "dest": "/api/tournament-predictions.js" },
+    { "src": "/api/valuepicks", "dest": "/api/valuepicks.js" },
+    { "src": "/api/players", "dest": "/api/players.js" },
+    { "src": "/api/live", "dest": "/api/live.js" },
+    { "src": "/api/h2h", "dest": "/api/h2h.js" },
+    { "src": "/api/predict", "dest": "/api/predict.js" },
+    { "src": "/api/odds(.*)", "dest": "/api/odds.js" },
+    { "src": "/api/news/(.*)", "dest": "/api/news.js" },
+    { "src": "/api/match/(.*)", "dest": "/api/match.js" },
+    { "src": "/api/debug-tournament", "dest": "/api/debug-tournament.js" },
+    { "src": "/(.*)", "dest": "/frontend/build/index.html" }
+  ],
+  "env": {
+    "API_TENNIS_KEY": "@api_tennis_key"
+  }
+}
