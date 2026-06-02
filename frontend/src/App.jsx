@@ -72,7 +72,138 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
 }
 
 // ── CHANGE 1 & 2: MatchCard — Cancelled Banner + Badge ──────────────────────
-function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare, streaks = {}, quickOdds = {}, onQuickOddsChange, favoritePlayers = [] }) {
+// ── BET MODAL ─────────────────────────────────────────────────────────────────
+function BetModal({ match, onLog, onClose }) {
+  const [betType, setBetType] = useState("match_winner");
+  const [pick, setPick] = useState("");
+  const [odds, setOdds] = useState("");
+  const [stake, setStake] = useState("10");
+  const [note, setNote] = useState("");
+
+  const p1 = match?.player1 || "";
+  const p2 = match?.player2 || "";
+  const p1Last = p1.split(" ").pop();
+  const p2Last = p2.split(" ").pop();
+  const matchStr = `${p1} vs ${p2}`;
+
+  const BET_TYPES = [
+    { id:"match_winner", label:"🏆 Match Winner",    picks:[ p1, p2 ] },
+    { id:"set_2_0",      label:"🎾 Sieg 2-0",         picks:[ `${p1Last} 2-0`, `${p2Last} 2-0` ] },
+    { id:"set_2_1",      label:"🎾 Sieg 2-1",         picks:[ `${p1Last} 2-1`, `${p2Last} 2-1` ] },
+    { id:"set_3_0",      label:"🎾 Sieg 3-0 (Bo5)",   picks:[ `${p1Last} 3-0`, `${p2Last} 3-0` ] },
+    { id:"set_3_1",      label:"🎾 Sieg 3-1 (Bo5)",   picks:[ `${p1Last} 3-1`, `${p2Last} 3-1` ] },
+    { id:"set_3_2",      label:"🎾 Sieg 3-2 (Bo5)",   picks:[ `${p1Last} 3-2`, `${p2Last} 3-2` ] },
+    { id:"over_3_5",     label:"📊 Over 3.5 Sätze",   picks:[ "Over 3.5 Sets", "Under 3.5 Sets" ] },
+    { id:"handicap",     label:"📉 Handicap (Games)", picks:[ `${p1Last} -1.5`, `${p1Last} +1.5`, `${p2Last} -1.5`, `${p2Last} +1.5` ] },
+    { id:"total_games",  label:"🔢 Total Games O/U",  picks:[ "Over 22.5", "Under 22.5", "Over 24.5", "Under 24.5", "Over 26.5", "Under 26.5" ] },
+    { id:"first_set",    label:"1️⃣ 1. Satz Winner",   picks:[ `${p1Last} 1. Satz`, `${p2Last} 1. Satz` ] },
+    { id:"custom",       label:"✏️ Eigene Wette",     picks:[] },
+  ];
+
+  const currentType = BET_TYPES.find(t=>t.id===betType) || BET_TYPES[0];
+  const oddsVal = parseFloat(odds.replace(",","."));
+  const stakeVal = parseFloat(stake) || 10;
+  const potentialWin = !isNaN(oddsVal) && oddsVal > 1 ? Math.round(stakeVal * (oddsVal-1) * 100)/100 : null;
+
+  const handleSubmit = () => {
+    if (!pick || !odds || isNaN(oddsVal) || oddsVal <= 1) return;
+    onLog(matchStr, pick, oddsVal, stakeVal, betType, { note });
+    onClose();
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)"}} onClick={onClose} />
+      <div style={{position:"relative",background:"#0f172a",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.1)",padding:"24px",width:"100%",maxWidth:"480px",maxHeight:"90vh",overflowY:"auto",zIndex:1}}>
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"20px"}}>
+          <div>
+            <div style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0",marginBottom:"4px"}}>📋 Wette loggen</div>
+            <div style={{fontSize:"12px",color:"#64748b"}}>{p1Last} vs {p2Last}</div>
+          </div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"8px",color:"#64748b",width:"32px",height:"32px",cursor:"pointer",fontSize:"16px",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+
+        {/* Bet Type */}
+        <div style={{marginBottom:"16px"}}>
+          <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"8px",letterSpacing:"0.5px"}}>Wett-Typ</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px"}}>
+            {BET_TYPES.map(t => (
+              <button key={t.id} onClick={()=>{setBetType(t.id);setPick("");}}
+                style={{padding:"8px 10px",borderRadius:"10px",border:"none",textAlign:"left",fontSize:"12px",fontWeight:600,cursor:"pointer",
+                  background:betType===t.id?"rgba(34,211,238,0.15)":"rgba(255,255,255,0.04)",
+                  color:betType===t.id?"#22d3ee":"#64748b",
+                  outline:betType===t.id?"1px solid rgba(34,211,238,0.3)":"1px solid transparent"}}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pick */}
+        <div style={{marginBottom:"16px"}}>
+          <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"8px",letterSpacing:"0.5px"}}>Pick</div>
+          {currentType.picks.length > 0 ? (
+            <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+              {currentType.picks.map(p => (
+                <button key={p} onClick={()=>setPick(p)}
+                  style={{padding:"8px 14px",borderRadius:"10px",border:"none",fontSize:"13px",fontWeight:700,cursor:"pointer",
+                    background:pick===p?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.05)",
+                    color:pick===p?"#4ade80":"#94a3b8",
+                    outline:pick===p?"1px solid rgba(74,222,128,0.3)":"1px solid transparent"}}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <input value={pick} onChange={e=>setPick(e.target.value)} placeholder="Eigener Pick..."
+              style={{width:"100%",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"14px",outline:"none",boxSizing:"border-box"}} />
+          )}
+        </div>
+
+        {/* Odds + Stake */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"16px"}}>
+          <div>
+            <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"6px",letterSpacing:"0.5px"}}>Quote</div>
+            <input value={odds} onChange={e=>setOdds(e.target.value)} placeholder="z.B. 1.85" inputMode="decimal"
+              style={{width:"100%",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"15px",fontWeight:700,outline:"none",boxSizing:"border-box"}} />
+          </div>
+          <div>
+            <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"6px",letterSpacing:"0.5px"}}>Einsatz (€)</div>
+            <input value={stake} onChange={e=>setStake(e.target.value)} placeholder="10" inputMode="decimal"
+              style={{width:"100%",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"15px",fontWeight:700,outline:"none",boxSizing:"border-box"}} />
+          </div>
+        </div>
+
+        {/* Potential win */}
+        {potentialWin !== null && (
+          <div style={{marginBottom:"16px",padding:"10px 14px",borderRadius:"10px",background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:"12px",color:"#64748b"}}>Möglicher Gewinn</span>
+            <span style={{fontSize:"16px",fontWeight:800,color:"#4ade80"}}>+{potentialWin}€</span>
+          </div>
+        )}
+
+        {/* Note */}
+        <div style={{marginBottom:"20px"}}>
+          <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"6px",letterSpacing:"0.5px"}}>Notiz (optional)</div>
+          <input value={note} onChange={e=>setNote(e.target.value)} placeholder="z.B. Value wegen News..."
+            style={{width:"100%",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"13px",outline:"none",boxSizing:"border-box"}} />
+        </div>
+
+        {/* Submit */}
+        <button onClick={handleSubmit} disabled={!pick || !odds || isNaN(oddsVal) || oddsVal<=1}
+          style={{width:"100%",padding:"14px",borderRadius:"12px",border:"none",fontWeight:800,fontSize:"15px",cursor:pick&&odds&&!isNaN(oddsVal)&&oddsVal>1?"pointer":"not-allowed",
+            background:pick&&odds&&!isNaN(oddsVal)&&oddsVal>1?"linear-gradient(135deg,#22d3ee,#4ade80)":"rgba(255,255,255,0.05)",
+            color:pick&&odds&&!isNaN(oddsVal)&&oddsVal>1?"#0f172a":"#334155",transition:"all 0.2s"}}>
+          ✅ Wette loggen
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare, streaks = {}, quickOdds = {}, onQuickOddsChange, favoritePlayers = [], onLogBet }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const isCancelled = m.cancelled;
@@ -246,6 +377,13 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
             style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(139,92,246,0.25)",background:"rgba(139,92,246,0.06)",color:"#a78bfa",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
             📊 Compare
           </button>
+          {!isCancelled && !isFinished && onLogBet && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onLogBet(m); }}
+              style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(74,222,128,0.25)",background:"rgba(74,222,128,0.06)",color:"#4ade80",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
+              📋 Wette
+            </button>
+          )}
           {onWatchlist && (
             <button
               onClick={(e) => { e.stopPropagation(); onWatchlist(m); }}
@@ -388,8 +526,11 @@ export default function App() {
   const [valuePerformance, setValuePerformance] = useState(() => {
     try { return JSON.parse(localStorage.getItem("valuePerformance") || "[]"); } catch { return []; }
   });
-  const logValueBet = (match, pick, odds, stake = 10) => {
-    const entry = { id: Date.now(), match, pick, odds, stake, result: null, profit: null, date: new Date().toISOString() };
+  const [betModal, setBetModal] = useState(null); // { match, player1, player2, sets }
+
+  const logValueBet = (match, pick, odds, stake=10, type="match_winner", extra={}) => {
+    const entry = { id:Date.now(), match, pick, odds, stake, result:null, profit:null,
+                    date:new Date().toISOString(), type, ...extra };
     const updated = [entry, ...valuePerformance].slice(0, 200);
     setValuePerformance(updated);
     localStorage.setItem("valuePerformance", JSON.stringify(updated));
@@ -399,7 +540,7 @@ export default function App() {
     const updated = valuePerformance.map(b => {
       if (b.id !== betId) return b;
       const profit = won ? b.stake * (b.odds - 1) : -b.stake;
-      return {...b, result: won ? "won" : "lost", profit, resolvedAt: new Date().toISOString()};
+      return {...b, result: won?"won":"lost", profit, resolvedAt: new Date().toISOString()};
     });
     setValuePerformance(updated);
     localStorage.setItem("valuePerformance", JSON.stringify(updated));
@@ -886,6 +1027,15 @@ export default function App() {
       </nav>
 
       <main>
+        {/* ── BET MODAL ──────────────────────────────────────────────────── */}
+        {betModal && (
+          <BetModal
+            match={betModal}
+            onLog={logValueBet}
+            onClose={() => setBetModal(null)}
+          />
+        )}
+
         {/* Mobile Header */}
         <div className="mobile-header">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 44" style={{width:"120px",height:"38px"}}>
@@ -1028,7 +1178,7 @@ export default function App() {
                   </div>
                   <div style={{padding:"10px 12px"}}>
                     <div className="matchCardGrid">
-                      {favMatches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2)=>{setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} />)}
+                      {favMatches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2)=>{setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} onLogBet={(match)=>setBetModal(match)} />)}
                     </div>
                   </div>
                 </div>
@@ -1062,7 +1212,7 @@ export default function App() {
                       const shown = sorted.slice(0, limit);
                       return (
                         <div className="matchCardGrid">
-                          {shown.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} />)}
+                          {shown.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} onLogBet={(match)=>setBetModal(match)} />)}
                           {!dashShowAll && fixtures.length > 6 && (
                             <div style={{gridColumn:"1/-1",display:"flex",gap:"10px",alignItems:"center",justifyContent:"space-between",padding:"10px 0"}}>
                               <button onClick={() => setDashShowAll(true)} style={{background:"rgba(34,211,238,0.08)",border:"1px solid rgba(34,211,238,0.25)",color:"#22d3ee",borderRadius:"10px",padding:"8px 18px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
@@ -1220,7 +1370,7 @@ export default function App() {
                                 {!isColl && <div style={{padding:"0 12px 12px"}}>
                                   <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
                                     {/* CHANGE 5: Cancelled innerhalb Turnier ans Ende */}
-                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} />)}
+                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} onLogBet={(match)=>setBetModal(match)} />)}
                                   </div>
                                 </div>}
                               </div>
@@ -2773,8 +2923,16 @@ export default function App() {
                         {valuePerformance.slice(0,20).map(b => (
                           <div key={b.id} style={{background:"#0f172a",borderRadius:"12px",padding:"12px 14px",border:`1px solid ${b.result==="won"?"rgba(74,222,128,0.2)":b.result==="lost"?"rgba(248,113,113,0.2)":"rgba(255,255,255,0.07)"}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:"12px"}}>
                             <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.match}</div>
-                              <div style={{fontSize:"11px",color:"#64748b",marginTop:"2px"}}>Pick: <span style={{color:"#22d3ee"}}>{b.pick}</span> · Odds: <span style={{color:"#facc15"}}>{b.odds}</span> · Stake: {b.stake}€</div>
+                              <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"2px",flexWrap:"wrap"}}>
+                                <div style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.match}</div>
+                                {b.type && b.type!=="match_winner" && (
+                                  <span style={{fontSize:"10px",color:"#a78bfa",background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:"4px",padding:"1px 5px",flexShrink:0}}>
+                                    {b.type==="set_2_0"?"🎾 2-0":b.type==="set_2_1"?"🎾 2-1":b.type==="set_3_0"?"🎾 3-0":b.type==="set_3_1"?"🎾 3-1":b.type==="set_3_2"?"🎾 3-2":b.type==="over_3_5"?"📊 Over 3.5":b.type==="handicap"?"📉 HC":b.type==="total_games"?"🔢 O/U":b.type==="first_set"?"1️⃣ Set 1":"✏️"}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{fontSize:"11px",color:"#64748b"}}>Pick: <span style={{color:"#22d3ee"}}>{b.pick}</span> · Odds: <span style={{color:"#facc15"}}>{b.odds}</span> · Stake: {b.stake}€</div>
+                              {b.note && <div style={{fontSize:"10px",color:"#475569",marginTop:"2px",fontStyle:"italic"}}>"{b.note}"</div>}
                             </div>
                             {b.result === null ? (
                               <div style={{display:"flex",gap:"6px",flexShrink:0}}>
