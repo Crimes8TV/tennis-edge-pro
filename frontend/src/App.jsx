@@ -307,6 +307,9 @@ export default function App() {
   const [dashShowAll, setDashShowAll] = useState(false);
   const [standings, setStandings] = useState([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
+  const [surfaceRankings, setSurfaceRankings] = useState(null);
+  const [surfaceRankingsLoading, setSurfaceRankingsLoading] = useState(false);
+  const [rankingsTab, setRankingsTab] = useState("overall"); // overall | hard | clay | grass
   const [newsAnalysis, setNewsAnalysis] = useState(null);
   const [newsAnalysisLoading, setNewsAnalysisLoading] = useState(false);
   const [streaks, setStreaks] = useState({});
@@ -2798,11 +2801,93 @@ export default function App() {
         {tab === "standings" && (
           <>
             <Header title="ATP Rankings" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              🏅 ATP World Tour Rankings — Top 200
+            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"20px"}}>
+              🏅 ATP World Tour Rankings — Top 100
             </p>
 
-            {standingsLoading ? (
+            {/* Surface Tab Selector */}
+            <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
+              {[
+                {id:"overall", label:"🌍 Gesamt", color:"#22d3ee"},
+                {id:"clay",    label:"🧱 Clay",   color:"#ef4444"},
+                {id:"hard",    label:"🏟️ Hard",   color:"#22d3ee"},
+                {id:"grass",   label:"🌿 Grass",  color:"#4ade80"},
+              ].map(t => (
+                <button key={t.id} onClick={() => {
+                  setRankingsTab(t.id);
+                  if (t.id !== "overall" && !surfaceRankings && !surfaceRankingsLoading) {
+                    setSurfaceRankingsLoading(true);
+                    fetch("https://tennis-edge-backend.onrender.com/api/surface-rankings")
+                      .then(r=>r.json()).then(d=>{setSurfaceRankings(d);setSurfaceRankingsLoading(false);})
+                      .catch(()=>setSurfaceRankingsLoading(false));
+                  }
+                }} style={{
+                  padding:"7px 16px",borderRadius:"10px",fontWeight:700,fontSize:"13px",
+                  cursor:"pointer",border:"none",
+                  background: rankingsTab===t.id ? `linear-gradient(135deg,${t.color}33,${t.color}18)` : "rgba(255,255,255,0.05)",
+                  color: rankingsTab===t.id ? t.color : "#475569",
+                  borderLeft: rankingsTab===t.id ? `3px solid ${t.color}` : "3px solid transparent",
+                  transition:"all 0.2s"
+                }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Surface Rankings */}
+            {rankingsTab !== "overall" && (
+              <>
+                {surfaceRankingsLoading ? (
+                  <div style={{display:"flex",alignItems:"center",gap:"12px",padding:"20px 0",color:"#64748b"}}>
+                    <div style={{width:"16px",height:"16px",borderRadius:"50%",border:"2px solid rgba(34,211,238,0.3)",borderTopColor:"#22d3ee",animation:"spin 0.8s linear infinite"}} />
+                    Lade Surface-Rankings (Top 50 Spieler)...
+                  </div>
+                ) : surfaceRankings ? (() => {
+                  const list = surfaceRankings[rankingsTab] || [];
+                  const surfLabel = rankingsTab==="clay"?"🧱 Clay":rankingsTab==="grass"?"🌿 Grass":"🏟️ Hard";
+                  const surfColor = rankingsTab==="clay"?"#ef4444":rankingsTab==="grass"?"#4ade80":"#22d3ee";
+                  if (list.length === 0) return <p style={{color:"#64748b"}}>Keine Daten verfügbar.</p>;
+                  return (
+                    <div style={{background:"#0f172a",borderRadius:"16px",overflow:"hidden",border:`1px solid ${surfColor}22`}}>
+                      <div style={{display:"grid",gridTemplateColumns:"40px 1fr 80px 70px 80px",gap:"8px",padding:"10px 16px",background:`${surfColor}0a`,borderBottom:`1px solid ${surfColor}22`,fontSize:"11px",color:"#475569",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>
+                        <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>ATP Rank</span><span style={{textAlign:"right"}}>{surfLabel}</span><span style={{textAlign:"right"}}>Matches</span>
+                      </div>
+                      {list.map((p,i) => {
+                        const pct = p[rankingsTab];
+                        const color = pct>=70?"#4ade80":pct>=55?"#facc15":"#94a3b8";
+                        return (
+                          <div key={p.name} style={{display:"grid",gridTemplateColumns:"40px 1fr 80px 70px 80px",gap:"8px",padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.04)",alignItems:"center",cursor:"pointer",transition:"background 0.15s"}}
+                            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
+                            onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                            onClick={()=>{setPlayer(p.name);setTab("player");}}>
+                            <span style={{fontSize:"14px",fontWeight:800,color:i<3?surfColor:"#475569"}}>
+                              {i===0?"🥇":i===1?"🥈":i===2?"🥉":`#${i+1}`}
+                            </span>
+                            <div>
+                              <div style={{fontSize:"14px",fontWeight:i<3?700:500,color:i<3?"#e2e8f0":"#cbd5e1",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{formatPlayerName(p.name)}</div>
+                              <div style={{height:"3px",background:"#1e293b",borderRadius:"999px",overflow:"hidden",marginTop:"3px",width:"80%"}}>
+                                <div style={{width:`${pct}%`,height:"100%",background:surfColor,borderRadius:"999px"}} />
+                              </div>
+                            </div>
+                            <span style={{fontSize:"12px",color:"#475569",textAlign:"right"}}>#{p.rank}</span>
+                            <span style={{fontSize:"15px",fontWeight:800,color,textAlign:"right"}}>{pct}%</span>
+                            <span style={{fontSize:"11px",color:"#475569",textAlign:"right"}}>{p[rankingsTab+"Matches"]}M</span>
+                          </div>
+                        );
+                      })}
+                      <div style={{padding:"10px 16px",fontSize:"11px",color:"#334155",textAlign:"center"}}>
+                        Basiert auf karriere Win-% auf {surfLabel} · Min. {rankingsTab==="grass"?8:10} Matches · Klick → Spieler-Analyzer
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <p style={{color:"#64748b",fontSize:"13px"}}>Surface-Rankings noch nicht geladen.</p>
+                )}
+              </>
+            )}
+
+            {/* Overall Rankings */}
+            {rankingsTab === "overall" && (standingsLoading ? (
               <p style={{color:"#94a3b8"}}>⏳ Loading rankings...</p>
             ) : standings.length === 0 ? (
               <div style={{textAlign:"center",padding:"40px",color:"#475569"}}>
@@ -2878,7 +2963,7 @@ export default function App() {
                 </div>
                 <p style={{textAlign:"center",fontSize:"12px",color:"#334155",marginTop:"16px"}}>Nur Spieler mit Ranking-Punkten · Klick auf Spieler → Analyzer</p>
               </>
-            )}
+            ))}
           </>
         )}
 
