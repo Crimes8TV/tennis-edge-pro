@@ -95,7 +95,9 @@ function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
     { id:"set_3_0",      label:"🎾 Sieg 3-0 (Bo5)",   picks:[ `${p1Last} 3-0`, `${p2Last} 3-0` ] },
     { id:"set_3_1",      label:"🎾 Sieg 3-1 (Bo5)",   picks:[ `${p1Last} 3-1`, `${p2Last} 3-1` ] },
     { id:"set_3_2",      label:"🎾 Sieg 3-2 (Bo5)",   picks:[ `${p1Last} 3-2`, `${p2Last} 3-2` ] },
-    { id:"over_3_5",     label:"📊 Over 3.5 Sätze",   picks:[ "Over 3.5 Sets", "Under 3.5 Sets" ] },
+    { id:"set_hc_15",    label:"📊 +1.5 Sätze Hcap",  picks:[ `${p1Last} +1.5 Sätze`, `${p2Last} +1.5 Sätze` ] },
+    { id:"set_hc_25",    label:"📊 +2.5 Sätze Hcap",  picks:[ `${p1Last} +2.5 Sätze`, `${p2Last} +2.5 Sätze` ] },
+    { id:"over_3_5",     label:"📈 Over 3.5 Sätze",   picks:[ "Over 3.5 Sets", "Under 3.5 Sets" ] },
     { id:"handicap",     label:"📉 Handicap (Games)", picks:[ `${p1Last} -1.5`, `${p1Last} +1.5`, `${p2Last} -1.5`, `${p2Last} +1.5` ] },
     { id:"total_games",  label:"🔢 Total Games O/U",  picks:[ "Over 22.5", "Under 22.5", "Over 24.5", "Under 24.5", "Over 26.5", "Under 26.5" ] },
     { id:"first_set",    label:"1️⃣ 1. Satz Winner",   picks:[ `${p1Last} 1. Satz`, `${p2Last} 1. Satz` ] },
@@ -2443,25 +2445,53 @@ export default function App() {
                             <span style={{fontSize:"10px",color:"#475569",fontWeight:500}}>Quoten aus Value Check werden übernommen</span>
                           </div>
                           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
-                            {/* Match Winner */}
                             {[{
                               label:`🏆 ${fav.split(" ").pop()} siegt`,
                               type:"match_winner",
-                              pick:fav,
-                              odds: hasBookOdds ? (matchP1>=matchP2 ? bookOdds1 : bookOdds2) : (1/(favProb/100)).toFixed(2),
+                              pick: fav,
+                              odds: hasBookOdds
+                                ? (matchP1>=matchP2 ? bookOdds1 : bookOdds2)
+                                : (1/(favProb/100)).toFixed(2),
                               prob: favProb
                             },
-                            /* Most likely set result */
                             mostLikely && {
                               label:`🎾 ${mostLikely.score}`,
-                              type: mostLikely.label==="Upset"?"match_winner":mostLikely.label.includes("2-")?"set_2_"+mostLikely.label.split("-")[1]:"set_3_"+mostLikely.label.split("-")[1],
+                              type: mostLikely.label==="Upset"?"match_winner"
+                                  : mostLikely.label.includes("2-")?"set_2_"+mostLikely.label.split("-")[1]
+                                  : "set_3_"+mostLikely.label.split("-")[1],
                               pick: mostLikely.score,
                               odds: mostLikely.prob > 0 ? (1/(mostLikely.prob/100)).toFixed(2) : null,
                               prob: mostLikely.prob
                             },
-                            /* Over/Under 3.5 sets (Bo5 only) */
+                            /* +1.5 Sätze Underdog — immer vorhanden */
+                            {
+                              label:`📊 ${dog.split(" ").pop()} +1.5 Sätze`,
+                              type:"set_hc_15",
+                              pick:`${dog.split(" ").pop()} +1.5 Sätze`,
+                              odds: (() => {
+                                // P(underdog wins at least 1 set) = 1 - P(fav wins 2-0 or 3-0)
+                                const pDogWins1Set = bo===5
+                                  ? 1 - (setBets.find(b=>b.label==="3-0")?.prob||0)/100
+                                  : 1 - (setBets.find(b=>b.label==="2-0")?.prob||0)/100;
+                                return pDogWins1Set > 0 ? (1/pDogWins1Set).toFixed(2) : null;
+                              })(),
+                              prob: bo===5
+                                ? 100 - (setBets.find(b=>b.label==="3-0")?.prob||0)
+                                : 100 - (setBets.find(b=>b.label==="2-0")?.prob||0)
+                            },
                             bo===5 && {
-                              label: over35Prob>=50 ? `📊 Over 3.5 Sets` : `📊 Under 3.5 Sets`,
+                              label:`📊 ${dog.split(" ").pop()} +2.5 Sätze`,
+                              type:"set_hc_25",
+                              pick:`${dog.split(" ").pop()} +2.5 Sätze`,
+                              odds: (() => {
+                                // P(underdog wins at least 2 sets) = P(3-2) + P(Upset)
+                                const p = ((setBets.find(b=>b.label==="3-2")?.prob||0) + (setBets.find(b=>b.label==="Upset")?.prob||0)) / 100;
+                                return p > 0 ? (1/p).toFixed(2) : null;
+                              })(),
+                              prob: (setBets.find(b=>b.label==="3-2")?.prob||0) + (setBets.find(b=>b.label==="Upset")?.prob||0)
+                            },
+                            bo===5 && {
+                              label: over35Prob>=50 ? `📈 Over 3.5 Sets` : `📉 Under 3.5 Sets`,
                               type:"over_3_5",
                               pick: over35Prob>=50 ? "Over 3.5 Sets" : "Under 3.5 Sets",
                               odds: over35Prob>=50
@@ -2469,16 +2499,15 @@ export default function App() {
                                 : (1/((100-over35Prob)/100)).toFixed(2),
                               prob: over35Prob>=50 ? over35Prob : 100-over35Prob
                             },
-                            /* Handicap */
                             hLine >= 1 && {
-                              label:`📉 ${fav.split(" ").pop()} -${hLine}`,
+                              label:`📉 ${fav.split(" ").pop()} -${hLine} Games`,
                               type:"handicap",
                               pick:`${fav.split(" ").pop()} -${hLine} Games`,
                               odds: null,
                               prob: null
                             }].filter(Boolean).map((bet, i) => bet && (
                               <button key={i} onClick={() => {
-                                const matchObj = {
+                                setBetModal({
                                   player1: prediction.player1,
                                   player2: prediction.player2,
                                   tournament: prediction.tournament || "",
@@ -2487,17 +2516,18 @@ export default function App() {
                                     pick: bet.pick,
                                     odds: bet.odds ? String(bet.odds) : ""
                                   }
-                                };
-                                setBetModal(matchObj);
+                                });
                               }} style={{
-                                padding:"10px 12px",borderRadius:"10px",border:"1px solid rgba(74,222,128,0.2)",
-                                background:"rgba(74,222,128,0.06)",cursor:"pointer",textAlign:"left",transition:"all 0.2s"
+                                padding:"10px 12px",borderRadius:"10px",
+                                border:"1px solid rgba(74,222,128,0.2)",
+                                background:"rgba(74,222,128,0.06)",
+                                cursor:"pointer",textAlign:"left",transition:"all 0.2s"
                               }}
                               onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(74,222,128,0.4)"}
                               onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(74,222,128,0.2)"}>
                                 <div style={{fontSize:"12px",fontWeight:700,color:"#4ade80",marginBottom:"3px"}}>{bet.label}</div>
                                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                                  {bet.prob && <span style={{fontSize:"11px",color:"#64748b"}}>Modell: {bet.prob}%</span>}
+                                  {bet.prob!=null && <span style={{fontSize:"11px",color:"#64748b"}}>Modell: {Math.round(bet.prob)}%</span>}
                                   {bet.odds && <span style={{fontSize:"13px",fontWeight:800,color:"#facc15"}}>{bet.odds}</span>}
                                 </div>
                               </button>
