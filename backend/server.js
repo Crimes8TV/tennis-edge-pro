@@ -1318,7 +1318,14 @@ app.get("/api/calendar", async (req, res) => {
     // ── Filter out qualifying rounds from progress calculation ─────────────────
     const isMainDraw = (m) => {
       const round = (m.tournament_round||m.event_round||"").toLowerCase();
-      return !round.includes("qual") && !round.includes("pre-") && !round.includes("qualifying");
+      // Filter out anything that looks like qualifying
+      if (round.includes("qual")) return false;
+      if (round.includes("pre-")) return false;
+      if (round.includes("qualifying")) return false;
+      if (round.includes("q1") || round.includes("q2") || round.includes("q3")) return false;
+      // Keep only recognised main draw rounds
+      const mainDrawTerms = ["final","semi","quarter","1/2","1/4","1/8","1/16","1/32","1/64","round of","r16","r32","r64","r128","first round","second round","third round"];
+      return mainDrawTerms.some(t => round.includes(t));
     };
 
     const tournMap = {};
