@@ -1281,7 +1281,6 @@ app.get("/api/calendar", async (req, res) => {
     const in4weeks = getBerlinDate(28);
     const past2weeks = getBerlinDate(-14);
 
-    // Fetch fixtures for broader range to detect all tournaments
     const [singlesRes, chalRes] = await Promise.allSettled([
       apiGet({ method:"get_fixtures", date_start:past2weeks, date_stop:in4weeks, event_type_key:265 }),
       apiGet({ method:"get_fixtures", date_start:past2weeks, date_stop:in4weeks, event_type_key:281 })
@@ -1294,7 +1293,34 @@ app.get("/api/calendar", async (req, res) => {
       ...challengers.map(m=>({...m,_type:"Challenger Singles"}))
     ];
 
-    // Group by tournament
+    // ── Surface detection — comprehensive city/tournament name list ────────────
+    const detectSurface = (name) => {
+      const n = (name||"").toLowerCase();
+      // Clay tournaments
+      const clayKeywords = [
+        "roland","french open","clay","monte carlo","monte-carlo","madrid","rome","roma",
+        "hamburg","geneva","genf","barcelona","buenos aires","munich","münchen","lyon",
+        "estoril","marrakech","houston","bucharest","istanbul","bastad","båstad",
+        "gstaad","kitzbühel","kitzbuehel","umag","winston","perugia","prostejov",
+        "heilbronn","salinas","marbella","cordoba","santiago","lima","bogota"
+      ];
+      // Grass tournaments
+      const grassKeywords = [
+        "wimbledon","halle","queen","queens","eastbourne","stuttgart","grass",
+        "mallorca","nottingham","rosmalen","s-hertogenbosch","hertogenbosch",
+        "birmingham","ilkley","surbiton","boodles","hurlingham","cambridge"
+      ];
+      for (const k of clayKeywords) { if (n.includes(k)) return "clay"; }
+      for (const k of grassKeywords) { if (n.includes(k)) return "grass"; }
+      return "hard";
+    };
+
+    // ── Filter out qualifying rounds from progress calculation ─────────────────
+    const isMainDraw = (m) => {
+      const round = (m.tournament_round||m.event_round||"").toLowerCase();
+      return !round.includes("qual") && !round.includes("pre-") && !round.includes("qualifying");
+    };
+
     const tournMap = {};
     all.forEach(m => {
       const key = `${m.tournament_name}|||${m._type}`;
@@ -1303,27 +1329,16 @@ app.get("/api/calendar", async (req, res) => {
           name: m.tournament_name,
           type: m._type,
           dates: [],
-          statuses: [],
-          surface: "",
+          mainDrawDates: [],
+          mainDrawStatuses: [],
         };
       }
       if (m.event_date) tournMap[key].dates.push(m.event_date);
-      if (m.event_status) tournMap[key].statuses.push(m.event_status);
-      if (m.event_ground && !tournMap[key].surface) tournMap[key].surface = m.event_ground;
+      if (isMainDraw(m)) {
+        if (m.event_date) tournMap[key].mainDrawDates.push(m.event_date);
+        if (m.event_status) tournMap[key].mainDrawStatuses.push(m.event_status);
+      }
     });
-
-    // Surface detection by name
-    const detectSurface = (name, apiSurface) => {
-      if (apiSurface) return apiSurface.toLowerCase();
-      const n = (name||"").toLowerCase();
-      if (n.includes("roland")||n.includes("french")||n.includes("clay")||n.includes("monte")||
-          n.includes("madrid")||n.includes("rome")||n.includes("hamburg")||n.includes("geneva")||
-          n.includes("barcelona")||n.includes("buenos")||n.includes("munich")||n.includes("lyon")||
-          n.includes("estoril")) return "clay";
-      if (n.includes("wimbledon")||n.includes("halle")||n.includes("queens")||n.includes("grass")||
-          n.includes("eastbourne")||n.includes("stuttgart")||n.includes("mallorca")) return "grass";
-      return "hard";
-    };
 
     const calendar = Object.values(tournMap).map(t => {
       const sortedDates = t.dates.sort();
@@ -1332,14 +1347,21 @@ app.get("/api/calendar", async (req, res) => {
       const isFinished = endDate < today;
       const isActive = startDate <= today && endDate >= today;
       const isUpcoming = startDate > today;
-      const surface = detectSurface(t.name, t.surface);
-      const finishedCount = t.statuses.filter(s=>s==="Finished").length;
-      const totalMatches = t.statuses.length;
+      const surface = detectSurface(t.name);
+
+      // Progress based on main draw only
+      const mainDrawStatuses = t.mainDrawStatuses;
+      const finishedCount = mainDrawStatuses.filter(s=>s==="Finished").length;
+      const totalMatches = mainDrawStatuses.length;
+
+      // Main draw start date
+      const mainDrawStart = t.mainDrawDates.sort()[0] || startDate;
+
       return {
         name: t.name,
         type: t.type,
         surface,
-        startDate,
+        startDate: mainDrawStart,
         endDate,
         isFinished,
         isActive,
@@ -1349,7 +1371,7 @@ app.get("/api/calendar", async (req, res) => {
         progress: totalMatches > 0 ? Math.round((finishedCount/totalMatches)*100) : 0
       };
     })
-    .filter(t => !t.isFinished) // Vergangene ausblenden
+    .filter(t => !t.isFinished)
     .sort((a,b) => a.startDate.localeCompare(b.startDate));
 
     res.json(calendar);
