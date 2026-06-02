@@ -836,7 +836,7 @@ export default function App() {
         <button onClick={() => { setTab("standings"); if(standings.length===0){setStandingsLoading(true);fetch("https://tennis-edge-backend.onrender.com/api/players").then(r=>r.json()).then(d=>{setStandings(Array.isArray(d)?d.filter(p=>p.rank<200&&p.points>0):[]);setStandingsLoading(false);}).catch(()=>setStandingsLoading(false));} }} style={tab==="standings"?{borderColor:"rgba(74,222,128,0.4)",color:"#4ade80"}:{}}>
           🏅 ATP Rankings
         </button>
-        <button onClick={() => { setTab("calendar"); if(calendarData.length===0){setCalendarLoading(true);fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions").then(r=>r.json()).then(d=>{setCalendarData(Array.isArray(d)?d:[]);setCalendarLoading(false);}).catch(()=>setCalendarLoading(false));} }} style={tab==="calendar"?{borderColor:"rgba(34,211,238,0.4)",color:"#22d3ee"}:{}}>
+        <button onClick={() => { setTab("calendar"); if(calendarData.length===0){setCalendarLoading(true);fetch("https://tennis-edge-backend.onrender.com/api/calendar").then(r=>r.json()).then(d=>{setCalendarData(Array.isArray(d)?d:[]);setCalendarLoading(false);}).catch(()=>setCalendarLoading(false));} }} style={tab==="calendar"?{borderColor:"rgba(34,211,238,0.4)",color:"#22d3ee"}:{}}>
           📅 Turnier-Kalender
         </button>
         <button onClick={() => setTab("compare")} style={tab==="compare"?{borderColor:"rgba(249,115,22,0.4)",color:"#fb923c"}:{}}>
@@ -2886,72 +2886,90 @@ export default function App() {
         {tab === "calendar" && (
           <>
             <Header title="Turnier-Kalender" />
-            <p style={{color:"#94a3b8",marginTop:"-16px",marginBottom:"24px"}}>
-              📅 Aktuelle & kommende ATP Turniere — nächste 4 Wochen
-            </p>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"-16px",marginBottom:"24px"}}>
+              <p style={{color:"#94a3b8",margin:0}}>📅 Aktuelle & kommende ATP/Challenger Turniere</p>
+              <button onClick={()=>{setCalendarLoading(true);fetch("https://tennis-edge-backend.onrender.com/api/calendar").then(r=>r.json()).then(d=>{setCalendarData(Array.isArray(d)?d:[]);setCalendarLoading(false);}).catch(()=>setCalendarLoading(false));}}
+                style={{background:"rgba(34,211,238,0.1)",border:"1px solid rgba(34,211,238,0.3)",color:"#22d3ee",padding:"6px 14px",borderRadius:"8px",cursor:"pointer",fontSize:"12px",fontWeight:600}}>
+                🔄 Aktualisieren
+              </button>
+            </div>
+
             {calendarLoading ? <p style={{color:"#94a3b8"}}>⏳ Lade Turniere...</p>
               : calendarData.length === 0 ? (
                 <div style={{textAlign:"center",padding:"40px",color:"#475569"}}>
                   <div style={{fontSize:"32px",marginBottom:"12px"}}>📅</div>
-                  <button className="predictBtn" style={{width:"auto",padding:"10px 24px"}} onClick={() => {
-                    setCalendarLoading(true);
-                    fetch("https://tennis-edge-backend.onrender.com/api/tournament-predictions")
-                      .then(r=>r.json()).then(d=>{setCalendarData(Array.isArray(d)?d:[]);setCalendarLoading(false);}).catch(()=>setCalendarLoading(false));
-                  }}>🔄 Laden</button>
+                  <p>Keine Turniere gefunden.</p>
+                  <button className="predictBtn" style={{width:"auto",padding:"10px 24px"}} onClick={()=>{setCalendarLoading(true);fetch("https://tennis-edge-backend.onrender.com/api/calendar").then(r=>r.json()).then(d=>{setCalendarData(Array.isArray(d)?d:[]);setCalendarLoading(false);}).catch(()=>setCalendarLoading(false));}}>🔄 Laden</button>
                 </div>
-              ) : (
-                <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-                  {calendarData.sort((a,b)=>a.dateStart?.localeCompare(b.dateStart)).map((t,i) => {
-                    const isATP = t.type?.includes("ATP");
-                    const isClay = t.surface==="clay", isGrass = t.surface==="grass";
-                    const surfIcon = isClay?"🧱":isGrass?"🌿":"🏟️";
-                    const surfColor = isClay?"#ef4444":isGrass?"#4ade80":"#22d3ee";
-                    const statusColor = t.isLive?"#f87171":t.hasStarted?"#4ade80":"#64748b";
-                    const statusLabel = t.isLive?"🔴 Live":t.hasStarted?`🎾 ${t.activePlayerCount} verbleibend`:"⏳ Upcoming";
-                    return (
-                      <div key={i} style={{background:"#0f172a",borderRadius:"14px",border:`1px solid ${isATP?"rgba(34,211,238,0.15)":"rgba(250,204,21,0.15)"}`,padding:"14px 18px",cursor:"pointer",transition:"all 0.2s"}}
-                        onMouseEnter={e=>e.currentTarget.style.borderColor=isATP?"rgba(34,211,238,0.35)":"rgba(250,204,21,0.35)"}
-                        onMouseLeave={e=>e.currentTarget.style.borderColor=isATP?"rgba(34,211,238,0.15)":"rgba(250,204,21,0.15)"}
-                        onClick={()=>setTab("tournamentpred")}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px"}}>
-                          <div style={{flex:1}}>
-                            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px",flexWrap:"wrap"}}>
-                              <span style={{fontSize:"14px",fontWeight:800,color:isATP?"#22d3ee":"#facc15"}}>🏆 {t.name}</span>
-                              <span className={`matchCardBadge ${isATP?"atp":"challenger"}`}>{t.type}</span>
-                              <span style={{fontSize:"11px",color:surfColor,background:`${surfColor}18`,border:`1px solid ${surfColor}33`,borderRadius:"5px",padding:"1px 6px"}}>{surfIcon} {isClay?"Clay":isGrass?"Grass":"Hard"}</span>
-                            </div>
-                            <div style={{display:"flex",gap:"12px",fontSize:"12px",color:"#475569",flexWrap:"wrap"}}>
-                              <span>📆 {t.dateStart}</span>
-                              <span style={{color:statusColor,fontWeight:600}}>{statusLabel}</span>
-                              {t.favorite && <span style={{color:"#4ade80"}}>⭐ Favorit: {t.favorite.name}</span>}
-                            </div>
+              ) : (() => {
+                const active = calendarData.filter(t=>t.isActive);
+                const upcoming = calendarData.filter(t=>t.isUpcoming);
+                const surfIcon = (s) => s==="clay"?"🧱":s==="grass"?"🌿":"🏟️";
+                const surfColor = (s) => s==="clay"?"#ef4444":s==="grass"?"#4ade80":"#22d3ee";
+                const TournCard = ({t}) => {
+                  const isATP = t.type?.includes("ATP");
+                  const sc = surfColor(t.surface);
+                  return (
+                    <div style={{background:"#0f172a",borderRadius:"14px",border:`1px solid ${isATP?"rgba(34,211,238,0.15)":"rgba(250,204,21,0.12)"}`,padding:"14px 18px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px"}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px",flexWrap:"wrap"}}>
+                            <span style={{fontSize:"15px",fontWeight:800,color:isATP?"#22d3ee":"#facc15",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🏆 {t.name}</span>
+                            <span className={`matchCardBadge ${isATP?"atp":"challenger"}`}>{t.type}</span>
+                            <span style={{fontSize:"11px",color:sc,background:`${sc}18`,border:`1px solid ${sc}33`,borderRadius:"5px",padding:"1px 6px",flexShrink:0}}>{surfIcon(t.surface)} {t.surface==="clay"?"Clay":t.surface==="grass"?"Grass":"Hard"}</span>
                           </div>
-                          {t.hasStarted && t.activePlayerCount > 0 && (
-                            <div style={{textAlign:"right",flexShrink:0}}>
-                              <div style={{fontSize:"22px",fontWeight:900,color:"#4ade80"}}>{t.activePlayerCount}</div>
-                              <div style={{fontSize:"10px",color:"#475569"}}>verbleibend</div>
-                            </div>
-                          )}
+                          <div style={{display:"flex",gap:"12px",fontSize:"12px",color:"#475569",flexWrap:"wrap"}}>
+                            <span>📆 {t.startDate} → {t.endDate}</span>
+                            {t.isActive && <span style={{color:"#4ade80",fontWeight:600}}>🎾 Läuft</span>}
+                            {t.isUpcoming && <span style={{color:"#22d3ee",fontWeight:600}}>⏳ Upcoming</span>}
+                          </div>
                         </div>
-                        {/* Win probability mini-bar */}
-                        {t.winProbs?.length > 0 && (
-                          <div style={{marginTop:"10px",display:"flex",gap:"6px",alignItems:"center"}}>
-                            {t.winProbs.slice(0,4).map((p,pi) => (
-                              <div key={pi} style={{flex:1,minWidth:0}}>
-                                <div style={{fontSize:"10px",color:"#64748b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:"2px"}}>{p.name.split(" ").pop()}</div>
-                                <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
-                                  <div style={{width:`${p.winProb}%`,height:"100%",background:pi===0?"linear-gradient(90deg,#22d3ee,#4ade80)":"#334155",borderRadius:"999px"}} />
-                                </div>
-                                <div style={{fontSize:"10px",color:pi===0?"#4ade80":"#475569",marginTop:"1px"}}>{p.winProb}%</div>
-                              </div>
-                            ))}
+                        {t.isActive && t.totalMatches > 0 && (
+                          <div style={{textAlign:"right",flexShrink:0}}>
+                            <div style={{fontSize:"11px",color:"#64748b",marginBottom:"3px"}}>Fortschritt</div>
+                            <div style={{fontSize:"18px",fontWeight:900,color:"#22d3ee"}}>{t.progress}%</div>
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      {t.isActive && t.totalMatches > 0 && (
+                        <div style={{marginTop:"8px"}}>
+                          <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
+                            <div style={{width:`${t.progress}%`,height:"100%",background:"linear-gradient(90deg,#22d3ee,#4ade80)",borderRadius:"999px",transition:"width 0.4s"}} />
+                          </div>
+                          <div style={{fontSize:"10px",color:"#475569",marginTop:"3px"}}>{t.finishedCount} / {t.totalMatches} Matches gespielt</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+                return (
+                  <>
+                    {active.length > 0 && (
+                      <div style={{marginBottom:"28px"}}>
+                        <div style={{fontSize:"14px",fontWeight:800,color:"#4ade80",marginBottom:"12px",display:"flex",alignItems:"center",gap:"8px"}}>
+                          <span style={{width:"8px",height:"8px",borderRadius:"50%",background:"#4ade80",display:"inline-block",boxShadow:"0 0 6px #4ade80"}} />
+                          Laufende Turniere ({active.length})
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                          {active.map((t,i) => <TournCard key={i} t={t} />)}
+                        </div>
+                      </div>
+                    )}
+                    {upcoming.length > 0 && (
+                      <div>
+                        <div style={{fontSize:"14px",fontWeight:800,color:"#22d3ee",marginBottom:"12px",display:"flex",alignItems:"center",gap:"8px"}}>
+                          <span style={{width:"8px",height:"8px",borderRadius:"50%",background:"#22d3ee",display:"inline-block"}} />
+                          Kommende Turniere ({upcoming.length})
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                          {upcoming.map((t,i) => <TournCard key={i} t={t} />)}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()
+            }
           </>
         )}
 
