@@ -665,11 +665,24 @@ app.get("/api/fixtures/today", async (req, res) => {
           if (s.score_first!==undefined&&s.score_first!==null) setScores.push({p1:parseScore(s.score_first),p2:parseScore(s.score_second)});
         });
       }
+      // ── Streak berechnen aus recentResults ───────────────────────────────────
+      const getStreak = (recentResults) => {
+        if (!Array.isArray(recentResults) || recentResults.length === 0) return null;
+        let streak = 0;
+        const dir = recentResults[0].won ? 1 : -1;
+        for (const r of recentResults) {
+          if ((r.won ? 1 : -1) === dir) streak++;
+          else break;
+        }
+        return { count: streak, won: dir === 1 };
+      };
+
       return {
         player1:m.event_first_player, player2:m.event_second_player,
         score:src.event_final_result||"-", gameScore:src.event_game_result||"-",
         sets:setScores, status:isLive?(src.event_status||"Live"):isFinished?"Finished":isCancelled?"Cancelled":m.event_status||"Scheduled",
         tournament:m.tournament_name||"", category:m._category||"",
+        court: m.event_ground||m.court_name||"",
         time:m.event_time||"", live:isLive, finished:isFinished, cancelled:isCancelled, matchKey:m.event_key
       };
     }).sort((a,b)=>{
@@ -1259,6 +1272,40 @@ Respond ONLY with a valid JSON object, no markdown, no extra text:
     console.error("NEWS ANALYSIS ERROR:", err.response?.data || err.message);
     res.status(500).json({ error: "Analysis failed" });
   }
+});
+
+// ─── STREAKS (Tagesform für heutige Spieler) ──────────────────────────────────
+app.get("/api/streaks", async (req, res) => {
+  try {
+    const today = getBerlinDate();
+    const [fixturesRes, standingsRes] = await Promise.all([
+      apiGet({ method:"get_fixtures", date_start:today, date_stop:today, event_type_key:265 }),
+      apiGet({ method:"get_standings", event_type:"ATP" })
+    ]);
+    const fixtures = fixturesRes.data?.result || [];
+    const standings = standingsRes.data?.result || [];
+    const playerNames = new Set();
+    fixtures.forEach(m => {
+      if (m.event_first_player) playerNames.add(m.event_first_player);
+      if (m.event_second_player) playerNames.add(m.event_second_player);
+    });
+    const streakMap = {};
+    await Promise.allSettled([...playerNames].slice(0,20).map(async shortName => {
+      try {
+        const formData = await getPlayerForm(shortName, standings);
+        if (!formData?.recentResults?.length) return;
+        const results = formData.recentResults;
+        let streak = 0;
+        const dir = results[0].won ? 1 : -1;
+        for (const r of results) {
+          if ((r.won?1:-1) === dir) streak++;
+          else break;
+        }
+        streakMap[shortName] = { count: streak, won: dir === 1 };
+      } catch(e) {}
+    }));
+    res.json(streakMap);
+  } catch(err) { console.error("STREAKS ERROR:", err.message); res.json({}); }
 });
 
 // ─── DEBUG: Player tournament matches ────────────────────────────────────────
