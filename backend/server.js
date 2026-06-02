@@ -1281,5 +1281,30 @@ Respond ONLY with a valid JSON object, no markdown, no extra text:
   }
 });
 
+// ─── DEBUG: Player tournament matches ────────────────────────────────────────
+app.get("/api/debug-player-tournament", async (req, res) => {
+  try {
+    const playerName = (req.query.name||"fils").toLowerCase();
+    const dateStart = getBerlinDate(-16);
+    const dateEnd = getBerlinDate(14);
+    const singlesRes = await apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265 });
+    const all = singlesRes.data?.result || [];
+    const matches = all.filter(m =>
+      (m.event_first_player||"").toLowerCase().includes(playerName) ||
+      (m.event_second_player||"").toLowerCase().includes(playerName)
+    );
+    res.json(matches.map(m => ({
+      round: m.tournament_round,
+      p1: m.event_first_player,
+      p2: m.event_second_player,
+      status: m.event_status,
+      winner: m.event_winner,
+      live: m.event_live,
+      date: m.event_date,
+      result: m.event_final_result
+    })));
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
