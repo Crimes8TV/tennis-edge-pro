@@ -919,12 +919,13 @@ app.get("/api/tournament-predictions", async (req, res) => {
           if (!playerName) return;
           const playerLow = playerName.toLowerCase();
           const otherMatches = dedupedMatches.filter(om => {
-            if (om === m) return false; // skip this match itself
+            if (om === m) return false;
             return om._p1full?.toLowerCase()===playerLow || om._p2full?.toLowerCase()===playerLow;
           });
+          console.log(`[Cancelled check] ${playerName}: ${otherMatches.length} other matches`);
           if (otherMatches.length === 0) {
-            // No other matches at all → withdrew before playing
             eliminated.add(playerLow);
+            console.log(`[Cancelled] Eliminated: ${playerName}`);
           }
         });
       });
