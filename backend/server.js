@@ -1281,7 +1281,7 @@ app.get("/api/surface-rankings", async (req, res) => {
     const standings = standingsRes.data?.result || [];
 
     // Load player stats for top 50 in parallel (batches of 10)
-    const top50 = standings.slice(0, 50);
+    const top50 = standings.slice(0, 100); // Load top 100 for better coverage
     const results = [];
 
     // Process in batches of 8 to avoid rate limits
@@ -1336,17 +1336,17 @@ app.get("/api/surface-rankings", async (req, res) => {
     };
 
     const hardRanking  = results
-      .filter(p => p.hardMatches  >= 10)
+      .filter(p => p.hardMatches  >= 8)
       .map(p => ({...p, score: surfaceScore(p.hardWins,  p.hardMatches,  p.rank)}))
       .sort((a,b) => b.score - a.score).slice(0,20);
 
     const clayRanking  = results
-      .filter(p => p.clayMatches  >= 10)
+      .filter(p => p.clayMatches  >= 8)
       .map(p => ({...p, score: surfaceScore(p.clayWins,  p.clayMatches,  p.rank)}))
       .sort((a,b) => b.score - a.score).slice(0,20);
 
     const grassRanking = results
-      .filter(p => p.grassMatches >= 8)
+      .filter(p => p.grassMatches >= 5)
       .map(p => ({...p, score: surfaceScore(p.grassWins, p.grassMatches, p.rank)}))
       .sort((a,b) => b.score - a.score).slice(0,20);
 
