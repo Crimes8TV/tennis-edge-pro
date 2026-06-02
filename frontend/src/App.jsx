@@ -74,9 +74,10 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
 // ── CHANGE 1 & 2: MatchCard — Cancelled Banner + Badge ──────────────────────
 // ── BET MODAL ─────────────────────────────────────────────────────────────────
 function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
-  const [betType, setBetType] = useState("match_winner");
-  const [pick, setPick] = useState("");
-  const [odds, setOdds] = useState("");
+  const prefill = match?.prefill || {};
+  const [betType, setBetType] = useState(prefill.betType || "match_winner");
+  const [pick, setPick] = useState(prefill.pick || "");
+  const [odds, setOdds] = useState(prefill.odds || "");
   const [stake, setStake] = useState("10");
   const [note, setNote] = useState("");
   const [mode, setMode] = useState("single"); // single | combi
@@ -544,7 +545,7 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
           </button>
           {!isCancelled && !isFinished && onLogBet && (
             <button
-              onClick={(e) => { e.stopPropagation(); onLogBet(m); }}
+              onClick={(e) => { e.stopPropagation(); onLogBet({...m, prefill: qo.o1 ? { odds: qo.o1 } : {}}); }}
               style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(74,222,128,0.25)",background:"rgba(74,222,128,0.06)",color:"#4ade80",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
               📋 Wette
             </button>
@@ -2434,6 +2435,82 @@ export default function App() {
                           );
                         })()}
                         <p style={{margin:"8px 0 0",fontSize:"11px",color:"#334155",textAlign:"center"}}>⚠️ These are model-based estimates only. Always bet responsibly.</p>
+
+                        {/* ── SCHNELL-WETTE DIREKT LOGGEN ──────────────────── */}
+                        <div style={{marginTop:"16px",padding:"16px",borderRadius:"14px",background:"rgba(74,222,128,0.04)",border:"1px solid rgba(74,222,128,0.15)"}}>
+                          <div style={{fontSize:"13px",fontWeight:700,color:"#4ade80",marginBottom:"12px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            📋 Wette direkt loggen
+                            <span style={{fontSize:"10px",color:"#475569",fontWeight:500}}>Quoten aus Value Check werden übernommen</span>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
+                            {/* Match Winner */}
+                            {[{
+                              label:`🏆 ${fav.split(" ").pop()} siegt`,
+                              type:"match_winner",
+                              pick:fav,
+                              odds: hasBookOdds ? (matchP1>=matchP2 ? bookOdds1 : bookOdds2) : (1/(favProb/100)).toFixed(2),
+                              prob: favProb
+                            },
+                            /* Most likely set result */
+                            mostLikely && {
+                              label:`🎾 ${mostLikely.score}`,
+                              type: mostLikely.label==="Upset"?"match_winner":mostLikely.label.includes("2-")?"set_2_"+mostLikely.label.split("-")[1]:"set_3_"+mostLikely.label.split("-")[1],
+                              pick: mostLikely.score,
+                              odds: mostLikely.prob > 0 ? (1/(mostLikely.prob/100)).toFixed(2) : null,
+                              prob: mostLikely.prob
+                            },
+                            /* Over/Under 3.5 sets (Bo5 only) */
+                            bo===5 && {
+                              label: over35Prob>=50 ? `📊 Over 3.5 Sets` : `📊 Under 3.5 Sets`,
+                              type:"over_3_5",
+                              pick: over35Prob>=50 ? "Over 3.5 Sets" : "Under 3.5 Sets",
+                              odds: over35Prob>=50
+                                ? (odds35 && odds35 > 1 ? odds35 : (1/(over35Prob/100)).toFixed(2))
+                                : (1/((100-over35Prob)/100)).toFixed(2),
+                              prob: over35Prob>=50 ? over35Prob : 100-over35Prob
+                            },
+                            /* Handicap */
+                            hLine >= 1 && {
+                              label:`📉 ${fav.split(" ").pop()} -${hLine}`,
+                              type:"handicap",
+                              pick:`${fav.split(" ").pop()} -${hLine} Games`,
+                              odds: null,
+                              prob: null
+                            }].filter(Boolean).map((bet, i) => bet && (
+                              <button key={i} onClick={() => {
+                                const matchObj = {
+                                  player1: prediction.player1,
+                                  player2: prediction.player2,
+                                  tournament: prediction.tournament || "",
+                                  prefill: {
+                                    betType: bet.type,
+                                    pick: bet.pick,
+                                    odds: bet.odds ? String(bet.odds) : ""
+                                  }
+                                };
+                                setBetModal(matchObj);
+                              }} style={{
+                                padding:"10px 12px",borderRadius:"10px",border:"1px solid rgba(74,222,128,0.2)",
+                                background:"rgba(74,222,128,0.06)",cursor:"pointer",textAlign:"left",transition:"all 0.2s"
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(74,222,128,0.4)"}
+                              onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(74,222,128,0.2)"}>
+                                <div style={{fontSize:"12px",fontWeight:700,color:"#4ade80",marginBottom:"3px"}}>{bet.label}</div>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  {bet.prob && <span style={{fontSize:"11px",color:"#64748b"}}>Modell: {bet.prob}%</span>}
+                                  {bet.odds && <span style={{fontSize:"13px",fontWeight:800,color:"#facc15"}}>{bet.odds}</span>}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={() => setBetModal({
+                            player1: prediction.player1,
+                            player2: prediction.player2,
+                            tournament: prediction.tournament || ""
+                          })} style={{width:"100%",padding:"9px",borderRadius:"10px",border:"1px solid rgba(255,255,255,0.08)",background:"rgba(255,255,255,0.03)",color:"#64748b",fontSize:"12px",cursor:"pointer",fontWeight:600}}>
+                            ✏️ Eigene Wette eingeben
+                          </button>
+                        </div>
                       </div>
                     );
                   })()}
