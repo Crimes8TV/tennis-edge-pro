@@ -367,6 +367,8 @@ function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValue
     </div>
   );
 }
+
+function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare, streaks = {}, quickOdds = {}, onQuickOddsChange, favoritePlayers = [], onLogBet }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const isCancelled = m.cancelled;
