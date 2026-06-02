@@ -2849,14 +2849,17 @@ export default function App() {
                   if (list.length === 0) return <p style={{color:"#64748b"}}>Keine Daten verfügbar.</p>;
                   return (
                     <div style={{background:"#0f172a",borderRadius:"16px",overflow:"hidden",border:`1px solid ${surfColor}22`}}>
-                      <div style={{display:"grid",gridTemplateColumns:"40px 1fr 80px 70px 80px",gap:"8px",padding:"10px 16px",background:`${surfColor}0a`,borderBottom:`1px solid ${surfColor}22`,fontSize:"11px",color:"#475569",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>
-                        <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>ATP Rank</span><span style={{textAlign:"right"}}>{surfLabel}</span><span style={{textAlign:"right"}}>Matches</span>
+                      <div style={{display:"grid",gridTemplateColumns:"40px 1fr 70px 80px 100px",gap:"8px",padding:"10px 16px",background:`${surfColor}0a`,borderBottom:`1px solid ${surfColor}22`,fontSize:"11px",color:"#475569",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>
+                        <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>ATP</span><span style={{textAlign:"right"}}>Siege</span><span style={{textAlign:"right"}}>W / L</span>
                       </div>
                       {list.map((p,i) => {
+                        const wins = p[rankingsTab+"Wins"];
+                        const matches = p[rankingsTab+"Matches"];
+                        const losses = matches - wins;
                         const pct = p[rankingsTab];
                         const color = pct>=70?"#4ade80":pct>=55?"#facc15":"#94a3b8";
                         return (
-                          <div key={p.name} style={{display:"grid",gridTemplateColumns:"40px 1fr 80px 70px 80px",gap:"8px",padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.04)",alignItems:"center",cursor:"pointer",transition:"background 0.15s"}}
+                          <div key={p.name} style={{display:"grid",gridTemplateColumns:"40px 1fr 70px 80px 100px",gap:"8px",padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.04)",alignItems:"center",cursor:"pointer",transition:"background 0.15s"}}
                             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
                             onMouseLeave={e=>e.currentTarget.style.background="transparent"}
                             onClick={()=>{setPlayer(p.name);setTab("player");}}>
@@ -2870,13 +2873,18 @@ export default function App() {
                               </div>
                             </div>
                             <span style={{fontSize:"12px",color:"#475569",textAlign:"right"}}>#{p.rank}</span>
-                            <span style={{fontSize:"15px",fontWeight:800,color,textAlign:"right"}}>{pct}%</span>
-                            <span style={{fontSize:"11px",color:"#475569",textAlign:"right"}}>{p[rankingsTab+"Matches"]}M</span>
+                            <span style={{fontSize:"18px",fontWeight:900,color:surfColor,textAlign:"right"}}>{wins}</span>
+                            <span style={{fontSize:"12px",textAlign:"right"}}>
+                              <span style={{color:"#4ade80",fontWeight:700}}>{wins}W</span>
+                              <span style={{color:"#475569",margin:"0 3px"}}>/</span>
+                              <span style={{color:"#f87171",fontWeight:700}}>{losses}L</span>
+                              <span style={{color:"#334155",marginLeft:"5px",fontSize:"11px"}}>({pct}%)</span>
+                            </span>
                           </div>
                         );
                       })}
                       <div style={{padding:"10px 16px",fontSize:"11px",color:"#334155",textAlign:"center"}}>
-                        Basiert auf karriere Win-% auf {surfLabel} · Min. {rankingsTab==="grass"?8:10} Matches · Klick → Spieler-Analyzer
+                        Sortiert nach Gesamtsiegen auf {surfLabel} · Min. {rankingsTab==="grass"?8:10} Matches · Klick → Spieler-Analyzer
                       </div>
                     </div>
                   );
