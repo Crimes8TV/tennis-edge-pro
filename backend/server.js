@@ -564,10 +564,8 @@ app.get("/api/valuepicks", async (req, res) => {
         const exact = standingsList.find(p => {
           const pn = (p.player||"").toLowerCase();
           const pWords = pn.split(" ").filter(Boolean);
-          // Last name must appear somewhere in standings name
           const hasLastName = pWords.some(w => w === lastName);
           if (!hasLastName) return false;
-          // All initials must match first letters of some words
           return initials.every(init => pWords.some(w => w.startsWith(init)));
         });
         if (exact) return exact;
@@ -576,40 +574,7 @@ app.get("/api/valuepicks", async (req, res) => {
       return standingsList.find(p => (p.player||"").toLowerCase().split(" ").includes(lastName)) || null;
     };
 
-    const matchPlayerInStandings = (shortName, standingsList) => {
-      if (!shortName) return null;
-      const key = shortName.trim().toLowerCase();
-
-      // Check manual map first
-      if (NAME_MAP[key]) {
-        const mapped = standingsList.find(p =>
-          (p.player||"").toLowerCase() === NAME_MAP[key].toLowerCase()
-        );
-        if (mapped) return mapped;
-        // Return synthetic entry if not in standings
-        return { player: NAME_MAP[key], place: "200" };
-      }
-
-      const parts = shortName.trim().split(" ");
-      const lastName = parts[parts.length-1].toLowerCase();
-      const initials = parts.slice(0,-1).map(p => p.replace(/\./g,"").toLowerCase()).filter(Boolean);
-
-      if (initials.length > 0) {
-        const exact = standingsList.find(p => {
-          const pn = (p.player||"").toLowerCase();
-          const pParts = pn.split(" ").filter(Boolean);
-          const pLast = pParts[pParts.length-1];
-          if (pLast !== lastName) return false;
-          return initials.every((init, i) => pParts[i] && pParts[i].startsWith(init));
-        });
-        if (exact) return exact;
-      }
-
-      return standingsList.find(p => (p.player||"").toLowerCase().split(" ").pop() === lastName) || null;
-    };
-
     const getFullName = (shortName) => {
-      // Check manual map directly first
       const key = (shortName||"").trim().toLowerCase();
       if (NAME_MAP[key]) return NAME_MAP[key];
       const found = matchPlayerInStandings(shortName, allStandings);
