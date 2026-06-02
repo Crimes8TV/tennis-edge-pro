@@ -1274,6 +1274,58 @@ Respond ONLY with a valid JSON object, no markdown, no extra text:
   }
 });
 
+// ─── SURFACE RANKINGS ─────────────────────────────────────────────────────────
+app.get("/api/surface-rankings", async (req, res) => {
+  try {
+    const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
+    const standings = standingsRes.data?.result || [];
+
+    // Load player stats for top 50 in parallel (batches of 10)
+    const top50 = standings.slice(0, 50);
+    const results = [];
+
+    // Process in batches of 8 to avoid rate limits
+    for (let i = 0; i < top50.length; i += 8) {
+      const batch = top50.slice(i, i + 8);
+      const batchResults = await Promise.allSettled(
+        batch.map(async p => {
+          if (!p.player_key) return null;
+          const r = await apiGet({ method: "get_players", player_key: p.player_key });
+          const pd = r.data?.result?.[0];
+          if (!pd) return null;
+          const stats = pd.stats?.find(s => s.type === "singles") || {};
+          const hardWon = parseInt(stats.hard_won)||0, hardLost = parseInt(stats.hard_lost)||0;
+          const clayWon = parseInt(stats.clay_won)||0, clayLost = parseInt(stats.clay_lost)||0;
+          const grassWon = parseInt(stats.grass_won)||0, grassLost = parseInt(stats.grass_lost)||0;
+          return {
+            name: p.player,
+            rank: parseInt(p.place)||999,
+            hard:  hardWon+hardLost  >= 10 ? Math.round(hardWon/(hardWon+hardLost)*100)   : null,
+            clay:  clayWon+clayLost  >= 10 ? Math.round(clayWon/(clayWon+clayLost)*100)   : null,
+            grass: grassWon+grassLost >= 8  ? Math.round(grassWon/(grassWon+grassLost)*100): null,
+            hardMatches:  hardWon+hardLost,
+            clayMatches:  clayWon+clayLost,
+            grassMatches: grassWon+grassLost,
+          };
+        })
+      );
+      batchResults.forEach(r => { if (r.status==="fulfilled" && r.value) results.push(r.value); });
+      // Small delay between batches
+      if (i + 8 < top50.length) await new Promise(r => setTimeout(r, 300));
+    }
+
+    // Build surface-specific rankings (min matches threshold)
+    const hardRanking  = results.filter(p=>p.hard!==null).sort((a,b)=>b.hard-a.hard).slice(0,20);
+    const clayRanking  = results.filter(p=>p.clay!==null).sort((a,b)=>b.clay-a.clay).slice(0,20);
+    const grassRanking = results.filter(p=>p.grass!==null).sort((a,b)=>b.grass-a.grass).slice(0,20);
+
+    res.json({ hard: hardRanking, clay: clayRanking, grass: grassRanking });
+  } catch(err) {
+    console.error("SURFACE RANKINGS ERROR:", err.message);
+    res.status(500).json({ error: "Error" });
+  }
+});
+
 // ─── TURNIER-KALENDER ─────────────────────────────────────────────────────────
 app.get("/api/calendar", async (req, res) => {
   try {
