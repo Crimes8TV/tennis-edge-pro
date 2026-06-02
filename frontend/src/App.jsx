@@ -118,7 +118,7 @@ function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
 
   const handleAddCombi = () => {
     if (!isValid || alreadyInCombi) return;
-    onAddToCombi({ matchStr, pick, odds: oddsVal, type: betType, note });
+    onAddToCombi({ matchStr, pick, odds: parseFloat(oddsVal), type: betType, note });
     onClose();
   };
 
@@ -252,26 +252,27 @@ function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
 }
 
 // ── COMBI SLIP COMPONENT ──────────────────────────────────────────────────────
-function CombiSlip({ combiBet, setCombiBet, onLog, valuePerformance, setValuePerformance, onClose }) {
+function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValuePerformance, onClose }) {
   const [combiStake, setCombiStake] = React.useState("10");
   const stakeNum = parseFloat(combiStake) || 10;
-  const totalOdds = combiBet.reduce((a,c) => a * c.odds, 1);
+  const safeBets = combiBet.filter(c => c && typeof c.odds === "number" && c.odds > 1);
+  const totalOdds = safeBets.length > 0 ? safeBets.reduce((a,c) => a * c.odds, 1) : 1;
   const potWin = Math.round(stakeNum * (totalOdds - 1) * 100) / 100;
 
   const handleLog = () => {
     const entry = {
       id: Date.now(),
       type: "combi",
-      match: combiBet.map(c=>c.pick).join(" + "),
-      pick: combiBet.map(c=>c.pick).join(" + "),
+      match: safeBets.map(c=>c.pick).join(" + "),
+      pick: safeBets.map(c=>c.pick).join(" + "),
       odds: Math.round(totalOdds * 100) / 100,
       stake: stakeNum,
       result: null, profit: null,
       date: new Date().toISOString(),
-      combiBets: combiBet,
-      note: `${combiBet.length}er Kombi`
+      combiBets: safeBets,
+      note: `${safeBets.length}er Kombi`
     };
-    const updated = [entry, ...valuePerformance].slice(0, 200);
+    const updated = [entry, ...(valuePerformance||[])].slice(0, 200);
     setValuePerformance(updated);
     localStorage.setItem("valuePerformance", JSON.stringify(updated));
     setCombiBet([]);
@@ -1204,7 +1205,7 @@ export default function App() {
         {combiBet.length > 0 && !showCombiSlip && (
           <button onClick={() => setShowCombiSlip(true)}
             style={{position:"fixed",bottom:"80px",right:"20px",zIndex:900,background:"linear-gradient(135deg,#a78bfa,#22d3ee)",border:"none",borderRadius:"999px",padding:"12px 20px",color:"#0f172a",fontWeight:800,fontSize:"14px",cursor:"pointer",boxShadow:"0 4px 20px rgba(167,139,250,0.4)",display:"flex",alignItems:"center",gap:"8px"}}>
-            🔗 Kombi ({combiBet.length}) · {combiBet.reduce((a,c)=>a*c.odds,1).toFixed(2)}x
+            🔗 Kombi ({combiBet.length}) · {combiBet.reduce((a,c)=>a*(parseFloat(c.odds)||1),1).toFixed(2)}x
           </button>
         )}
 
