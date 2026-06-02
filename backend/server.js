@@ -1274,6 +1274,91 @@ Respond ONLY with a valid JSON object, no markdown, no extra text:
   }
 });
 
+// ─── TURNIER-KALENDER ─────────────────────────────────────────────────────────
+app.get("/api/calendar", async (req, res) => {
+  try {
+    const today = getBerlinDate();
+    const in4weeks = getBerlinDate(28);
+    const past2weeks = getBerlinDate(-14);
+
+    // Fetch fixtures for broader range to detect all tournaments
+    const [singlesRes, chalRes] = await Promise.allSettled([
+      apiGet({ method:"get_fixtures", date_start:past2weeks, date_stop:in4weeks, event_type_key:265 }),
+      apiGet({ method:"get_fixtures", date_start:past2weeks, date_stop:in4weeks, event_type_key:281 })
+    ]);
+
+    const singles = singlesRes.status==="fulfilled" ? singlesRes.value.data?.result||[] : [];
+    const challengers = chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [];
+    const all = [
+      ...singles.map(m=>({...m,_type:"ATP Singles"})),
+      ...challengers.map(m=>({...m,_type:"Challenger Singles"}))
+    ];
+
+    // Group by tournament
+    const tournMap = {};
+    all.forEach(m => {
+      const key = `${m.tournament_name}|||${m._type}`;
+      if (!tournMap[key]) {
+        tournMap[key] = {
+          name: m.tournament_name,
+          type: m._type,
+          dates: [],
+          statuses: [],
+          surface: "",
+        };
+      }
+      if (m.event_date) tournMap[key].dates.push(m.event_date);
+      if (m.event_status) tournMap[key].statuses.push(m.event_status);
+      if (m.event_ground && !tournMap[key].surface) tournMap[key].surface = m.event_ground;
+    });
+
+    // Surface detection by name
+    const detectSurface = (name, apiSurface) => {
+      if (apiSurface) return apiSurface.toLowerCase();
+      const n = (name||"").toLowerCase();
+      if (n.includes("roland")||n.includes("french")||n.includes("clay")||n.includes("monte")||
+          n.includes("madrid")||n.includes("rome")||n.includes("hamburg")||n.includes("geneva")||
+          n.includes("barcelona")||n.includes("buenos")||n.includes("munich")||n.includes("lyon")||
+          n.includes("estoril")) return "clay";
+      if (n.includes("wimbledon")||n.includes("halle")||n.includes("queens")||n.includes("grass")||
+          n.includes("eastbourne")||n.includes("stuttgart")||n.includes("mallorca")) return "grass";
+      return "hard";
+    };
+
+    const calendar = Object.values(tournMap).map(t => {
+      const sortedDates = t.dates.sort();
+      const startDate = sortedDates[0];
+      const endDate = sortedDates[sortedDates.length-1];
+      const isFinished = endDate < today;
+      const isActive = startDate <= today && endDate >= today;
+      const isUpcoming = startDate > today;
+      const surface = detectSurface(t.name, t.surface);
+      const finishedCount = t.statuses.filter(s=>s==="Finished").length;
+      const totalMatches = t.statuses.length;
+      return {
+        name: t.name,
+        type: t.type,
+        surface,
+        startDate,
+        endDate,
+        isFinished,
+        isActive,
+        isUpcoming,
+        finishedCount,
+        totalMatches,
+        progress: totalMatches > 0 ? Math.round((finishedCount/totalMatches)*100) : 0
+      };
+    })
+    .filter(t => !t.isFinished) // Vergangene ausblenden
+    .sort((a,b) => a.startDate.localeCompare(b.startDate));
+
+    res.json(calendar);
+  } catch(err) {
+    console.error("CALENDAR ERROR:", err.message);
+    res.status(500).json({ error: "Error" });
+  }
+});
+
 // ─── STREAKS (Tagesform für heutige Spieler) ──────────────────────────────────
 app.get("/api/streaks", async (req, res) => {
   try {
