@@ -72,7 +72,7 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
 }
 
 // ── CHANGE 1 & 2: MatchCard — Cancelled Banner + Badge ──────────────────────
-function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare }) {
+function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare, streaks = {}, quickOdds = {}, onQuickOddsChange, favoritePlayers = [] }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const isCancelled = m.cancelled;
@@ -82,9 +82,44 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
     ? (() => { const parts = m.score.replace(/ /g, "").split("-"); return { p1: parts[0], p2: parts[1] }; })() : null;
   const gameParts = m.gameScore && m.gameScore !== "-" ? m.gameScore.split("-").map(s => s.trim()) : null;
 
+  // Streak helpers
+  const getStreak = (playerName) => {
+    if (!playerName) return null;
+    const lastName = playerName.trim().split(" ").pop();
+    for (const [key, val] of Object.entries(streaks)) {
+      if (key.toLowerCase().includes(lastName.toLowerCase())) return val;
+    }
+    return null;
+  };
+  const streak1 = getStreak(m.player1);
+  const streak2 = getStreak(m.player2);
+  const isFav1 = favoritePlayers.some(f => m.player1?.toLowerCase().includes(f.toLowerCase().split(" ").pop()));
+  const isFav2 = favoritePlayers.some(f => m.player2?.toLowerCase().includes(f.toLowerCase().split(" ").pop()));
+  const hasFav = isFav1 || isFav2;
+  const matchKey = m.matchKey || `${m.player1}|${m.player2}`;
+  const qo = quickOdds[matchKey] || {};
+
+  const StreakBadge = ({ streak }) => {
+    if (!streak || streak.count < 2) return null;
+    const color = streak.won ? "#4ade80" : "#f87171";
+    const icon = streak.won ? "🔥" : "❄️";
+    return (
+      <span style={{fontSize:"10px",fontWeight:700,color,background:`${color}18`,border:`1px solid ${color}33`,borderRadius:"5px",padding:"1px 5px",marginLeft:"4px"}}>
+        {icon} {streak.count}
+      </span>
+    );
+  };
+
   return (
     // CHANGE 2: rötlicher Border + Graustich für cancelled
-    <div className="matchCard" style={isCancelled ? {borderColor:"rgba(239,68,68,0.35)",opacity:0.72,filter:"grayscale(0.25)"} : {}}>
+    <div className="matchCard" style={isCancelled ? {borderColor:"rgba(239,68,68,0.35)",opacity:0.72,filter:"grayscale(0.25)"} : hasFav ? {borderColor:"rgba(250,204,21,0.35)",boxShadow:"0 0 12px rgba(250,204,21,0.08)"} : {}}>
+
+      {/* Favorite player highlight banner */}
+      {hasFav && !isCancelled && (
+        <div style={{background:"rgba(250,204,21,0.08)",borderBottom:"1px solid rgba(250,204,21,0.2)",padding:"4px 14px",fontSize:"10px",fontWeight:700,color:"#facc15",display:"flex",alignItems:"center",gap:"6px"}}>
+          ⭐ Favoriten-Match
+        </div>
+      )}
 
       {/* CHANGE 2: Roter Banner-Strip oben bei cancelled */}
       {isCancelled && (
@@ -148,13 +183,55 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
           </div>
         ) : (
           <div style={{ marginBottom: "8px" }}>
-            {/* CHANGE: bei cancelled leicht durchgestrichen */}
-            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", textDecoration: isCancelled ? "line-through" : "none", textDecorationColor: "#ef4444" }}>{m.player1}</div>
-            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, textDecoration: isCancelled ? "line-through" : "none", textDecorationColor: "#ef4444" }}>{m.player2}</div>
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, marginBottom: "4px", textDecoration: isCancelled ? "line-through" : "none", textDecorationColor: "#ef4444", display:"flex", alignItems:"center" }}>
+              {isFav1 && <span style={{marginRight:"4px"}}>⭐</span>}{m.player1}<StreakBadge streak={streak1} />
+            </div>
+            <div style={{ fontSize: "14px", color: "#e2e8f0", fontWeight: 600, textDecoration: isCancelled ? "line-through" : "none", textDecorationColor: "#ef4444", display:"flex", alignItems:"center" }}>
+              {isFav2 && <span style={{marginRight:"4px"}}>⭐</span>}{m.player2}<StreakBadge streak={streak2} />
+            </div>
           </div>
         )}
-        <div className="matchCardMeta">{m.tournament}</div>
+        <div className="matchCardMeta" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>{m.tournament}</span>
+          {m.court && <span style={{fontSize:"10px",color:"#475569",background:"rgba(255,255,255,0.04)",borderRadius:"4px",padding:"1px 6px"}}>🎾 {m.court}</span>}
+        </div>
       </div>
+
+      {/* Quick Value Check — odds input directly on card */}
+      {!isFinished && !isCancelled && (
+        <div style={{padding:"6px 0 0",display:"flex",gap:"6px",alignItems:"center"}}>
+          <input
+            type="text" inputMode="decimal"
+            placeholder={`${(m.player1||"").split(" ").pop()} Quote`}
+            value={qo.o1||""}
+            onChange={e => onQuickOddsChange && onQuickOddsChange(matchKey, "o1", e.target.value)}
+            onClick={e => e.stopPropagation()}
+            style={{flex:1,padding:"5px 8px",borderRadius:"7px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"12px",outline:"none"}}
+          />
+          <input
+            type="text" inputMode="decimal"
+            placeholder={`${(m.player2||"").split(" ").pop()} Quote`}
+            value={qo.o2||""}
+            onChange={e => onQuickOddsChange && onQuickOddsChange(matchKey, "o2", e.target.value)}
+            onClick={e => e.stopPropagation()}
+            style={{flex:1,padding:"5px 8px",borderRadius:"7px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"12px",outline:"none"}}
+          />
+          {qo.o1 && qo.o2 && (() => {
+            const o1 = parseFloat(qo.o1.replace(",",".")), o2 = parseFloat(qo.o2.replace(",","."));
+            if (isNaN(o1)||isNaN(o2)||o1<=1||o2<=1) return null;
+            const imp1=1/o1, imp2=1/o2, total=imp1+imp2;
+            const fair1=Math.round((imp1/total)*100), fair2=100-fair1;
+            const better = fair1 > fair2 ? m.player1?.split(" ").pop() : m.player2?.split(" ").pop();
+            const edge = Math.abs(fair1-fair2);
+            return (
+              <span style={{fontSize:"10px",fontWeight:700,color:edge>10?"#4ade80":"#facc15",whiteSpace:"nowrap",cursor:"pointer"}}
+                onClick={e=>{e.stopPropagation();setP1(m.player1);setP2(m.player2);setOdds1Str(qo.o1);setOdds2Str(qo.o2);setOdds1(o1);setOdds2(o2);setTab("predictor");}}>
+                {better} {fair1>fair2?fair1:fair2}% →
+              </span>
+            );
+          })()}
+        </div>
+      )}
 
       {/* CHANGE 3: Action buttons — bei cancelled komplett ausgeblendet (macht keinen Sinn) */}
       {!isFinished && !isCancelled && (
@@ -232,6 +309,8 @@ export default function App() {
   const [standingsLoading, setStandingsLoading] = useState(false);
   const [newsAnalysis, setNewsAnalysis] = useState(null);
   const [newsAnalysisLoading, setNewsAnalysisLoading] = useState(false);
+  const [streaks, setStreaks] = useState({});
+  const [quickOdds, setQuickOdds] = useState({}); // matchKey → {o1, o2}
   const [pwaInstallable, setPwaInstallable] = useState(false);
   const [pwaInstalled, setPwaInstalled] = useState(false);
 
@@ -595,6 +674,9 @@ export default function App() {
         .catch(err => { console.error(err); setFixtures([]); setFixturesLoading(false); });
     };
     setFixturesLoading(true); loadFixtures();
+    // Load streaks once
+    fetch("https://tennis-edge-backend.onrender.com/api/streaks")
+      .then(r=>r.json()).then(d=>setStreaks(d||{})).catch(()=>{});
     const interval = setInterval(loadFixtures, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -873,6 +955,32 @@ export default function App() {
               );
             })()}
 
+            {/* ── Feature 4: Favoriten-Spieler Widget ── */}
+            {favoritePlayers.length > 0 && (() => {
+              const favMatches = fixtures.filter(m =>
+                favoritePlayers.some(fav => {
+                  const favLast = fav.toLowerCase().split(" ").pop();
+                  return (m.player1||"").toLowerCase().includes(favLast) ||
+                         (m.player2||"").toLowerCase().includes(favLast);
+                })
+              );
+              if (favMatches.length === 0) return null;
+              return (
+                <div style={{marginBottom:"24px",background:"rgba(250,204,21,0.04)",border:"1px solid rgba(250,204,21,0.2)",borderRadius:"14px",overflow:"hidden"}}>
+                  <div style={{padding:"10px 16px",borderBottom:"1px solid rgba(250,204,21,0.15)",display:"flex",alignItems:"center",gap:"8px"}}>
+                    <span style={{fontSize:"14px"}}>⭐</span>
+                    <span style={{fontSize:"13px",fontWeight:700,color:"#facc15"}}>Deine Favoriten heute</span>
+                    <span style={{fontSize:"11px",color:"#475569"}}>{favMatches.length} Match{favMatches.length>1?"es":""}</span>
+                  </div>
+                  <div style={{padding:"10px 12px"}}>
+                    <div className="matchCardGrid">
+                      {favMatches.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2)=>{setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} />)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="dashGrid">
               <div>
                 <div className="dashSectionHeader">
@@ -900,7 +1008,7 @@ export default function App() {
                       const shown = sorted.slice(0, limit);
                       return (
                         <div className="matchCardGrid">
-                          {shown.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
+                          {shown.map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} />)}
                           {!dashShowAll && fixtures.length > 6 && (
                             <div style={{gridColumn:"1/-1",display:"flex",gap:"10px",alignItems:"center",justifyContent:"space-between",padding:"10px 0"}}>
                               <button onClick={() => setDashShowAll(true)} style={{background:"rgba(34,211,238,0.08)",border:"1px solid rgba(34,211,238,0.25)",color:"#22d3ee",borderRadius:"10px",padding:"8px 18px",fontSize:"12px",fontWeight:700,cursor:"pointer"}}>
@@ -1058,7 +1166,7 @@ export default function App() {
                                 {!isColl && <div style={{padding:"0 12px 12px"}}>
                                   <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
                                     {/* CHANGE 5: Cancelled innerhalb Turnier ans Ende */}
-                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} />)}
+                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} />)}
                                   </div>
                                 </div>}
                               </div>
