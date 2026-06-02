@@ -953,14 +953,15 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
       let activePlayers;
       if (maxFinishedRound===0) {
-        activePlayers=allPlayers;
+        activePlayers=allPlayers.filter(p=>!eliminated.has(p.name.toLowerCase()));
+        if (activePlayers.length===0) activePlayers=allPlayers;
       } else if (maxFinishedRound===7) {
         activePlayers=allPlayers.filter(p=>winnersOfHighestRound.has(p.name.toLowerCase()));
       } else {
         activePlayers=allPlayers.filter(p=>{
           const nameLow=p.name.toLowerCase();
           const lastLow=nameLow.split(" ").pop();
-          return !allLosers.has(nameLow)&&!allLosers.has(lastLow);
+          return !allLosers.has(nameLow)&&!allLosers.has(lastLow)&&!eliminated.has(nameLow);
         });
       }
       if (activePlayers.length===0) activePlayers=allPlayers.slice(0,8);
