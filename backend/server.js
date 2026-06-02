@@ -1303,9 +1303,9 @@ app.get("/api/surface-rankings", async (req, res) => {
             hard:  hardWon+hardLost  >= 10 ? Math.round(hardWon/(hardWon+hardLost)*100)   : null,
             clay:  clayWon+clayLost  >= 10 ? Math.round(clayWon/(clayWon+clayLost)*100)   : null,
             grass: grassWon+grassLost >= 8  ? Math.round(grassWon/(grassWon+grassLost)*100): null,
-            hardMatches:  hardWon+hardLost,
-            clayMatches:  clayWon+clayLost,
-            grassMatches: grassWon+grassLost,
+            hardWins: hardWon, hardMatches: hardWon+hardLost,
+            clayWins: clayWon, clayMatches: clayWon+clayLost,
+            grassWins: grassWon, grassMatches: grassWon+grassLost,
           };
         })
       );
@@ -1314,10 +1314,10 @@ app.get("/api/surface-rankings", async (req, res) => {
       if (i + 8 < top50.length) await new Promise(r => setTimeout(r, 300));
     }
 
-    // Build surface-specific rankings (min matches threshold)
-    const hardRanking  = results.filter(p=>p.hard!==null).sort((a,b)=>b.hard-a.hard).slice(0,20);
-    const clayRanking  = results.filter(p=>p.clay!==null).sort((a,b)=>b.clay-a.clay).slice(0,20);
-    const grassRanking = results.filter(p=>p.grass!==null).sort((a,b)=>b.grass-a.grass).slice(0,20);
+    // Build surface-specific rankings — sorted by total WINS (more meaningful than %)
+    const hardRanking  = results.filter(p=>p.hardMatches  >= 10).sort((a,b)=>b.hardWins -a.hardWins ).slice(0,20);
+    const clayRanking  = results.filter(p=>p.clayMatches  >= 10).sort((a,b)=>b.clayWins -a.clayWins ).slice(0,20);
+    const grassRanking = results.filter(p=>p.grassMatches >= 8 ).sort((a,b)=>b.grassWins-a.grassWins).slice(0,20);
 
     res.json({ hard: hardRanking, clay: clayRanking, grass: grassRanking });
   } catch(err) {
