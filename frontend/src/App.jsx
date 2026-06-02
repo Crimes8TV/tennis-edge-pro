@@ -252,12 +252,14 @@ function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
 }
 
 // ── COMBI SLIP COMPONENT ──────────────────────────────────────────────────────
-function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValuePerformance, onClose }) {
+function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValuePerformance, visible = false, onClose }) {
   const [combiStake, setCombiStake] = React.useState("10");
   const stakeNum = parseFloat(combiStake) || 10;
-  const safeBets = combiBet.filter(c => c && typeof c.odds === "number" && c.odds > 1);
-  const totalOdds = safeBets.length > 0 ? safeBets.reduce((a,c) => a * c.odds, 1) : 1;
+  const safeBets = combiBet.filter(c => c && typeof c.odds !== "undefined");
+  const totalOdds = safeBets.length > 0 ? safeBets.reduce((a,c) => a * (parseFloat(c.odds)||1), 1) : 1;
   const potWin = Math.round(stakeNum * (totalOdds - 1) * 100) / 100;
+
+  if (!visible) return null;
 
   const handleLog = () => {
     const entry = {
@@ -1209,15 +1211,14 @@ export default function App() {
           </button>
         )}
 
-        {showCombiSlip && (
-          <CombiSlip
-            combiBet={combiBet}
-            setCombiBet={setCombiBet}
-            valuePerformance={valuePerformance}
-            setValuePerformance={setValuePerformance}
-            onClose={() => setShowCombiSlip(false)}
-          />
-        )}
+        <CombiSlip
+          combiBet={combiBet}
+          setCombiBet={setCombiBet}
+          valuePerformance={valuePerformance}
+          setValuePerformance={setValuePerformance}
+          visible={showCombiSlip}
+          onClose={() => setShowCombiSlip(false)}
+        />
 
         {/* Mobile Header */}
         <div className="mobile-header">
