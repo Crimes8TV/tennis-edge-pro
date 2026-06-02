@@ -251,7 +251,119 @@ function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
   );
 }
 
-function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare, streaks = {}, quickOdds = {}, onQuickOddsChange, favoritePlayers = [], onLogBet }) {
+// ── COMBI SLIP COMPONENT ──────────────────────────────────────────────────────
+function CombiSlip({ combiBet, setCombiBet, onLog, valuePerformance, setValuePerformance, onClose }) {
+  const [combiStake, setCombiStake] = React.useState("10");
+  const stakeNum = parseFloat(combiStake) || 10;
+  const totalOdds = combiBet.reduce((a,c) => a * c.odds, 1);
+  const potWin = Math.round(stakeNum * (totalOdds - 1) * 100) / 100;
+
+  const handleLog = () => {
+    const entry = {
+      id: Date.now(),
+      type: "combi",
+      match: combiBet.map(c=>c.pick).join(" + "),
+      pick: combiBet.map(c=>c.pick).join(" + "),
+      odds: Math.round(totalOdds * 100) / 100,
+      stake: stakeNum,
+      result: null, profit: null,
+      date: new Date().toISOString(),
+      combiBets: combiBet,
+      note: `${combiBet.length}er Kombi`
+    };
+    const updated = [entry, ...valuePerformance].slice(0, 200);
+    setValuePerformance(updated);
+    localStorage.setItem("valuePerformance", JSON.stringify(updated));
+    setCombiBet([]);
+    onClose();
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"16px"}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)"}} onClick={onClose} />
+      <div style={{position:"relative",background:"#0f172a",borderRadius:"20px 20px 16px 16px",border:"1px solid rgba(167,139,250,0.3)",padding:"24px",width:"100%",maxWidth:"480px",zIndex:1,maxHeight:"85vh",overflowY:"auto"}}>
+
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+          <div>
+            <div style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>🔗 Kombiwette</div>
+            <div style={{fontSize:"12px",color:"#64748b"}}>{combiBet.length} Picks · Gesamtquote {totalOdds.toFixed(2)}</div>
+          </div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.05)",border:"none",borderRadius:"8px",color:"#64748b",width:"32px",height:"32px",cursor:"pointer",fontSize:"16px",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+
+        {/* Picks list */}
+        <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"16px"}}>
+          {combiBet.map((c,i) => (
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderRadius:"10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0",marginBottom:"2px"}}>{c.pick}</div>
+                <div style={{fontSize:"11px",color:"#64748b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.matchStr}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:"10px",flexShrink:0}}>
+                <span style={{fontSize:"15px",fontWeight:800,color:"#facc15"}}>{c.odds}</span>
+                <button onClick={() => setCombiBet(prev => prev.filter((_,j) => j !== i))}
+                  style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.2)",borderRadius:"6px",color:"#f87171",width:"26px",height:"26px",cursor:"pointer",fontSize:"13px",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Total odds display */}
+        <div style={{padding:"12px 14px",borderRadius:"12px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:"13px",color:"#94a3b8"}}>Gesamtquote</span>
+          <span style={{fontSize:"24px",fontWeight:900,color:"#a78bfa"}}>{totalOdds.toFixed(2)}</span>
+        </div>
+
+        {/* Stake input */}
+        <div style={{marginBottom:"12px"}}>
+          <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"6px",letterSpacing:"0.5px"}}>Einsatz (€)</div>
+          <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+            {[5,10,20,50].map(v => (
+              <button key={v} onClick={() => setCombiStake(String(v))}
+                style={{flex:1,padding:"8px",borderRadius:"8px",border:"none",fontWeight:700,fontSize:"13px",cursor:"pointer",
+                  background:combiStake===String(v)?"rgba(34,211,238,0.15)":"rgba(255,255,255,0.05)",
+                  color:combiStake===String(v)?"#22d3ee":"#475569"}}>
+                {v}€
+              </button>
+            ))}
+          </div>
+          <input value={combiStake} onChange={e => setCombiStake(e.target.value)} inputMode="decimal"
+            style={{width:"100%",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"15px",fontWeight:700,outline:"none",boxSizing:"border-box"}} />
+        </div>
+
+        {/* Potential win */}
+        <div style={{padding:"10px 14px",borderRadius:"10px",background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+          <div>
+            <div style={{fontSize:"11px",color:"#64748b"}}>Einsatz</div>
+            <div style={{fontSize:"14px",fontWeight:700,color:"#94a3b8"}}>{stakeNum}€</div>
+          </div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:"11px",color:"#64748b"}}>Quote</div>
+            <div style={{fontSize:"14px",fontWeight:700,color:"#a78bfa"}}>{totalOdds.toFixed(2)}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:"11px",color:"#64748b"}}>Möglicher Gewinn</div>
+            <div style={{fontSize:"20px",fontWeight:900,color:"#4ade80"}}>+{potWin}€</div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div style={{display:"flex",gap:"10px"}}>
+          <button onClick={handleLog}
+            style={{flex:1,padding:"14px",borderRadius:"12px",border:"none",fontWeight:800,fontSize:"15px",cursor:"pointer",background:"linear-gradient(135deg,#a78bfa,#22d3ee)",color:"#0f172a"}}>
+            ✅ Kombi loggen
+          </button>
+          <button onClick={() => { setCombiBet([]); onClose(); }}
+            style={{padding:"14px 18px",borderRadius:"12px",border:"1px solid rgba(248,113,113,0.3)",background:"rgba(248,113,113,0.06)",color:"#f87171",cursor:"pointer",fontWeight:700,fontSize:"13px"}}>
+            🗑️
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
   const isLive = m.live;
   const isFinished = m.finished;
   const isCancelled = m.cancelled;
@@ -1097,89 +1209,13 @@ export default function App() {
         )}
 
         {showCombiSlip && (
-          <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"16px"}}
-            onClick={e=>{if(e.target===e.currentTarget)setShowCombiSlip(false);}}>
-            <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)"}} onClick={()=>setShowCombiSlip(false)} />
-            <div style={{position:"relative",background:"#0f172a",borderRadius:"20px 20px 16px 16px",border:"1px solid rgba(167,139,250,0.3)",padding:"24px",width:"100%",maxWidth:"480px",zIndex:1}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
-                <div style={{fontSize:"16px",fontWeight:800,color:"#e2e8f0"}}>🔗 Kombiwette</div>
-                <button onClick={()=>setShowCombiSlip(false)} style={{background:"rgba(255,255,255,0.05)",border:"none",borderRadius:"8px",color:"#64748b",width:"32px",height:"32px",cursor:"pointer",fontSize:"16px"}}>✕</button>
-              </div>
-
-              {/* Picks */}
-              <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"16px"}}>
-                {combiBet.map((c,i) => (
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderRadius:"10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
-                    <div>
-                      <div style={{fontSize:"13px",fontWeight:600,color:"#e2e8f0"}}>{c.pick}</div>
-                      <div style={{fontSize:"11px",color:"#64748b"}}>{c.matchStr}</div>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-                      <span style={{fontSize:"14px",fontWeight:800,color:"#facc15"}}>{c.odds}</span>
-                      <button onClick={()=>setCombiBet(prev=>prev.filter((_,j)=>j!==i))}
-                        style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.2)",borderRadius:"6px",color:"#f87171",width:"24px",height:"24px",cursor:"pointer",fontSize:"12px",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Total odds */}
-              <div style={{padding:"12px 14px",borderRadius:"12px",background:"rgba(167,139,250,0.08)",border:"1px solid rgba(167,139,250,0.2)",marginBottom:"16px"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:"13px",color:"#94a3b8"}}>Gesamtquote ({combiBet.length} Picks)</span>
-                  <span style={{fontSize:"22px",fontWeight:900,color:"#a78bfa"}}>{combiBet.reduce((a,c)=>a*c.odds,1).toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Stake input */}
-              {(() => {
-                const [combiStake, setCombiStake] = React.useState("10");
-                const stakeNum = parseFloat(combiStake)||10;
-                const totalOdds = combiBet.reduce((a,c)=>a*c.odds,1);
-                const potWin = Math.round(stakeNum*(totalOdds-1)*100)/100;
-                return (
-                  <>
-                    <div style={{marginBottom:"16px"}}>
-                      <div style={{fontSize:"11px",color:"#64748b",fontWeight:700,textTransform:"uppercase",marginBottom:"6px",letterSpacing:"0.5px"}}>Einsatz (€)</div>
-                      <input value={combiStake} onChange={e=>setCombiStake(e.target.value)} inputMode="decimal"
-                        style={{width:"100%",padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e2e8f0",fontSize:"15px",fontWeight:700,outline:"none",boxSizing:"border-box"}} />
-                    </div>
-                    <div style={{padding:"10px 14px",borderRadius:"10px",background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.2)",display:"flex",justifyContent:"space-between",marginBottom:"16px"}}>
-                      <span style={{fontSize:"12px",color:"#64748b"}}>Möglicher Gewinn</span>
-                      <span style={{fontSize:"16px",fontWeight:800,color:"#4ade80"}}>+{potWin}€</span>
-                    </div>
-                    <div style={{display:"flex",gap:"10px"}}>
-                      <button onClick={()=>{
-                        const id = Date.now();
-                        const entry = {
-                          id, type:"combi",
-                          match: combiBet.map(c=>c.pick).join(" + "),
-                          pick: combiBet.map(c=>c.pick).join(" + "),
-                          odds: totalOdds,
-                          stake: stakeNum,
-                          result: null, profit: null,
-                          date: new Date().toISOString(),
-                          combiBets: combiBet,
-                          note: `${combiBet.length}er Kombi`
-                        };
-                        const updated = [entry, ...valuePerformance].slice(0,200);
-                        setValuePerformance(updated);
-                        localStorage.setItem("valuePerformance", JSON.stringify(updated));
-                        setCombiBet([]);
-                        setShowCombiSlip(false);
-                      }} style={{flex:1,padding:"14px",borderRadius:"12px",border:"none",fontWeight:800,fontSize:"15px",cursor:"pointer",background:"linear-gradient(135deg,#a78bfa,#22d3ee)",color:"#0f172a"}}>
-                        ✅ Kombi loggen
-                      </button>
-                      <button onClick={()=>{setCombiBet([]);setShowCombiSlip(false);}}
-                        style={{padding:"14px 16px",borderRadius:"12px",border:"1px solid rgba(248,113,113,0.3)",background:"rgba(248,113,113,0.06)",color:"#f87171",cursor:"pointer",fontWeight:700,fontSize:"13px"}}>
-                        🗑️
-                      </button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
+          <CombiSlip
+            combiBet={combiBet}
+            setCombiBet={setCombiBet}
+            valuePerformance={valuePerformance}
+            setValuePerformance={setValuePerformance}
+            onClose={() => setShowCombiSlip(false)}
+          />
         )}
 
         {/* Mobile Header */}
