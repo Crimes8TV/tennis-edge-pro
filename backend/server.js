@@ -903,34 +903,47 @@ app.get("/api/tournament-predictions", async (req, res) => {
         if (loserLastRound<=roundOrder) eliminated.add(loser.toLowerCase());
       });
 
-      // ── FIX: Detect players who withdrew/retired (won W/O but then withdrew) ──
-      // A player who won via W/O but whose NEXT match is also a W/O (cancelled)
-      // OR who has no further actual match scheduled → treat as withdrawn
+      // ── FIX: Cancelled matches with no winner ─────────────────────────────────
+      // Only eliminate the player who has NO other matches in the tournament
+      // (the one who withdrew, not the one replaced by a lucky loser)
+      dedupedMatches.forEach(m => {
+        const statusNorm = (m.event_status||"").toLowerCase().replace(/ /g,"");
+        const isCancelled = statusNorm.includes("cancelled")||statusNorm.includes("canceled")||
+                            statusNorm.includes("abandoned");
+        const hasNoWinner = !m.event_winner || m.event_winner==="" || m.event_winner==="0" || m.event_winner===null;
+        if (!isCancelled || !hasNoWinner) return;
+
+        // For each player in this cancelled match:
+        // if they appear in NO other match → they withdrew → eliminate them
+        [m._p1full, m._p2full].forEach(playerName => {
+          if (!playerName) return;
+          const playerLow = playerName.toLowerCase();
+          const otherMatches = dedupedMatches.filter(om => {
+            if (om === m) return false; // skip this match itself
+            return om._p1full?.toLowerCase()===playerLow || om._p2full?.toLowerCase()===playerLow;
+          });
+          if (otherMatches.length === 0) {
+            // No other matches at all → withdrew before playing
+            eliminated.add(playerLow);
+          }
+        });
+      });
+
+      // ── FIX: W/O winner who then withdrew (next match also cancelled/WO) ─────
       dedupedMatches.forEach(m => {
         if (!isWalkoverOrRetired(m)) return;
         const winner = getWinner(m, m._p1full, m._p2full);
-        const loser  = winner === m._p1full ? m._p2full : m._p1full;
         if (!winner) return;
-
         const winnerLow = winner.toLowerCase();
         const roundOrder = getRoundOrder(m._roundName);
-
-        // Find all matches for this winner in LATER rounds
         const laterMatches = dedupedMatches.filter(lm => {
           const p1 = lm._p1full?.toLowerCase();
           const p2 = lm._p2full?.toLowerCase();
-          const isLaterRound = getRoundOrder(lm._roundName) > roundOrder;
-          return isLaterRound && (p1 === winnerLow || p2 === winnerLow);
+          return getRoundOrder(lm._roundName) > roundOrder && (p1===winnerLow||p2===winnerLow);
         });
-
-        // If all later matches are also cancelled/W/O or there are none → withdrew
-        const allLaterCancelledOrNone = laterMatches.length === 0 ||
-          laterMatches.every(lm => isWalkoverOrRetired(lm));
-
-        if (allLaterCancelledOrNone) {
-          eliminated.add(winnerLow);
-          console.log(`[Tournament] Withdrew: ${winner} (won W/O in ${m._roundName} but no valid later match)`);
-        }
+        const allLaterCancelledOrNone = laterMatches.length===0 ||
+          laterMatches.every(lm=>isWalkoverOrRetired(lm));
+        if (allLaterCancelledOrNone) eliminated.add(winnerLow);
       });
 
       const maxFinishedRound = finishedMatches.reduce((max,m)=>Math.max(max,m.roundOrder),0);
