@@ -1356,12 +1356,9 @@ app.get("/api/calendar", async (req, res) => {
       const isUpcoming = startDate > today;
       const surface = detectSurface(t.name);
 
-      // Progress based on main draw only
       const mainDrawStatuses = t.mainDrawStatuses;
       const finishedCount = mainDrawStatuses.filter(s=>s==="Finished").length;
       const totalMatches = mainDrawStatuses.length;
-
-      // Main draw start date
       const mainDrawStart = t.mainDrawDates.sort()[0] || startDate;
 
       return {
@@ -1379,6 +1376,11 @@ app.get("/api/calendar", async (req, res) => {
       };
     })
     .filter(t => !t.isFinished)
+    // Hide pure qualification tournaments
+    .filter(t => !t.name.toLowerCase().includes("qualification"))
+    .filter(t => !t.name.toLowerCase().includes("qualifying"))
+    // Hide tournaments with no main draw matches detected
+    .filter(t => t.totalMatches > 0 || t.isUpcoming)
     .sort((a,b) => a.startDate.localeCompare(b.startDate));
 
     res.json(calendar);
