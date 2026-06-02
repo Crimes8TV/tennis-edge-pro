@@ -938,6 +938,26 @@ app.get("/api/tournament-predictions", async (req, res) => {
         if (loserLastRound<=roundOrder) eliminated.add(loser.toLowerCase());
       });
 
+      // ── FIX: Players who won via W/O but withdrew afterwards ─────────────────
+      // Detect: won a W/O match but have NO unfinished matches in later rounds
+      const walkoverWinners = new Set(
+        dedupedMatches
+          .filter(m => isWalkoverOrRetired(m) && getWinner(m, m._p1full, m._p2full))
+          .map(m => getWinner(m, m._p1full, m._p2full).toLowerCase())
+      );
+      // Check each W/O winner — if they have no pending (unfinished) matches → withdrew
+      walkoverWinners.forEach(winnerLow => {
+        const hasPendingMatch = dedupedMatches.some(m => {
+          const p1 = m._p1full?.toLowerCase();
+          const p2 = m._p2full?.toLowerCase();
+          return (p1 === winnerLow || p2 === winnerLow) && !isFinished(m);
+        });
+        if (!hasPendingMatch) {
+          eliminated.add(winnerLow);
+          console.log(`[Tournament] ${winnerLow} marked eliminated — W/O win but no pending matches`);
+        }
+      });
+
       const maxFinishedRound = finishedMatches.reduce((max,m)=>Math.max(max,m.roundOrder),0);
       const winnersOfHighestRound = new Set(finishedMatches.filter(m=>m.roundOrder===maxFinishedRound).map(m=>m.winner.toLowerCase()));
       const allLosers = new Set(finishedMatches.map(m=>m.loser.toLowerCase()));
