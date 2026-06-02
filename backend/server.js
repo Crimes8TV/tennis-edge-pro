@@ -1279,78 +1279,87 @@ app.get("/api/surface-rankings", async (req, res) => {
   try {
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
+    const top100 = standings.slice(0, 100);
 
-    // Load player stats for top 50 in parallel (batches of 10)
-    const top50 = standings.slice(0, 100); // Load top 100 for better coverage
+    const dateEnd = getBerlinDate();
+    const dateStart3Y = getBerlinDate(-1095); // 3 years back
+
+    // Surface detection helper
+    const getSurf = (m) => {
+      const tn = (m.tournament_name||"").toLowerCase();
+      if (tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("madrid")||
+          tn.includes("rome")||tn.includes("monte")||tn.includes("hamburg")||tn.includes("barcelona")||
+          tn.includes("geneva")||tn.includes("buenos")||tn.includes("munich")||tn.includes("perugia")||
+          tn.includes("prostejov")||tn.includes("heilbronn")) return "clay";
+      if (tn.includes("grass")||tn.includes("wimbledon")||tn.includes("halle")||tn.includes("queens")||
+          tn.includes("eastbourne")||tn.includes("stuttgart")||tn.includes("birmingham")||
+          tn.includes("mallorca")||tn.includes("nottingham")) return "grass";
+      return "hard";
+    };
+
     const results = [];
 
-    // Process in batches of 8 to avoid rate limits
-    for (let i = 0; i < top50.length; i += 8) {
-      const batch = top50.slice(i, i + 8);
+    // Process in batches of 8
+    for (let i = 0; i < top100.length; i += 8) {
+      const batch = top100.slice(i, i + 8);
       const batchResults = await Promise.allSettled(
         batch.map(async p => {
           if (!p.player_key) return null;
-          const r = await apiGet({ method: "get_players", player_key: p.player_key });
-          const pd = r.data?.result?.[0];
-          if (!pd) return null;
-          const stats = pd.stats?.find(s => s.type === "singles") || {};
-          const hardWon = parseInt(stats.hard_won)||0, hardLost = parseInt(stats.hard_lost)||0;
-          const clayWon = parseInt(stats.clay_won)||0, clayLost = parseInt(stats.clay_lost)||0;
-          const grassWon = parseInt(stats.grass_won)||0, grassLost = parseInt(stats.grass_lost)||0;
-          return {
-            name: p.player,
-            rank: parseInt(p.place)||999,
-            hard:  hardWon+hardLost  >= 10 ? Math.round(hardWon/(hardWon+hardLost)*100)   : null,
-            clay:  clayWon+clayLost  >= 10 ? Math.round(clayWon/(clayWon+clayLost)*100)   : null,
-            grass: grassWon+grassLost >= 8  ? Math.round(grassWon/(grassWon+grassLost)*100): null,
-            hardWins: hardWon, hardMatches: hardWon+hardLost,
-            clayWins: clayWon, clayMatches: clayWon+clayLost,
-            grassWins: grassWon, grassMatches: grassWon+grassLost,
-          };
+          try {
+            const r = await apiGet({
+              method: "get_fixtures",
+              date_start: dateStart3Y,
+              date_stop: dateEnd,
+              event_type_key: 265,
+              player_key: String(p.player_key)
+            });
+            const matches = (r.data?.result||[]).filter(m =>
+              (m.event_status==="Finished"||m.event_winner) &&
+              m.event_winner !== null && m.event_winner !== ""
+            );
+            if (matches.length === 0) return null;
+
+            const lastName = (p.player||"").toLowerCase().split(" ").pop();
+            let hw=0,hl=0,cw=0,cl=0,gw=0,gl=0;
+            matches.forEach(m => {
+              const isFirst = (m.event_first_player||"").toLowerCase().includes(lastName);
+              const won = (isFirst && m.event_winner==="First Player") ||
+                          (!isFirst && m.event_winner==="Second Player");
+              const surf = getSurf(m);
+              if (surf==="hard")  { won?hw++:hl++; }
+              if (surf==="clay")  { won?cw++:cl++; }
+              if (surf==="grass") { won?gw++:gl++; }
+            });
+
+            return {
+              name: p.player,
+              rank: parseInt(p.place)||999,
+              hardWins: hw,  hardMatches:  hw+hl,
+              clayWins: cw,  clayMatches:  cw+cl,
+              grassWins: gw, grassMatches: gw+gl,
+              hard:  hw+hl>=5  ? Math.round(hw/(hw+hl)*100) : null,
+              clay:  cw+cl>=5  ? Math.round(cw/(cw+cl)*100) : null,
+              grass: gw+gl>=3  ? Math.round(gw/(gw+gl)*100) : null,
+            };
+          } catch(e) { return null; }
         })
       );
-      batchResults.forEach(r => { if (r.status==="fulfilled" && r.value) results.push(r.value); });
-      // Small delay between batches
-      if (i + 8 < top50.length) await new Promise(r => setTimeout(r, 300));
+      batchResults.forEach(r => { if (r.status==="fulfilled"&&r.value) results.push(r.value); });
+      if (i + 8 < top100.length) await new Promise(r => setTimeout(r, 300));
     }
 
-    // ── Weighted Surface Score ────────────────────────────────────────────────
-    // Score = wins × (winPct/100)^1.5
-    // This rewards players who have MANY wins AND a high win rate
-    // Alcaraz: ~120 clay wins × (0.88)^1.5 ≈ 99 → beats Djokovic ~180 × (0.82)^1.5 ≈ 133
-    // But recent form matters too — add recency bonus from ATP rank
-    // Top 10 current player gets ×1.15, top 20 ×1.08, rest ×1.0
-    const recencyBonus = (rank) => {
-      if (rank <= 5)   return 2.0;
-      if (rank <= 10)  return 1.7;
-      if (rank <= 20)  return 1.4;
-      if (rank <= 50)  return 1.1;
-      if (rank <= 100) return 0.7;
-      return 0.4; // inaktiv/retired
-    };
-
-    const surfaceScore = (wins, matches, rank) => {
+    // Weighted score: wins × (win%)^1.5 × recency bonus (already baked in via 3Y window)
+    const score = (wins, matches) => {
       if (matches < 1) return 0;
-      const pct = wins / matches;
-      return wins * Math.pow(pct, 1.5) * recencyBonus(rank);
+      const pct = wins/matches;
+      return wins * Math.pow(pct, 1.5);
     };
 
-    const hardRanking  = results
-      .filter(p => p.hardMatches  >= 8)
-      .map(p => ({...p, score: surfaceScore(p.hardWins,  p.hardMatches,  p.rank)}))
-      .sort((a,b) => b.score - a.score).slice(0,20);
+    const hardRanking  = results.filter(p=>p.hardMatches >=5).map(p=>({...p,score:score(p.hardWins,p.hardMatches)})).sort((a,b)=>b.score-a.score).slice(0,20);
+    const clayRanking  = results.filter(p=>p.clayMatches >=5).map(p=>({...p,score:score(p.clayWins,p.clayMatches)})).sort((a,b)=>b.score-a.score).slice(0,20);
+    const grassRanking = results.filter(p=>p.grassMatches>=3).map(p=>({...p,score:score(p.grassWins,p.grassMatches)})).sort((a,b)=>b.score-a.score).slice(0,20);
 
-    const clayRanking  = results
-      .filter(p => p.clayMatches  >= 8)
-      .map(p => ({...p, score: surfaceScore(p.clayWins,  p.clayMatches,  p.rank)}))
-      .sort((a,b) => b.score - a.score).slice(0,20);
-
-    const grassRanking = results
-      .filter(p => p.grassMatches >= 5)
-      .map(p => ({...p, score: surfaceScore(p.grassWins, p.grassMatches, p.rank)}))
-      .sort((a,b) => b.score - a.score).slice(0,20);
-
-    res.json({ hard: hardRanking, clay: clayRanking, grass: grassRanking });
+    res.json({ hard: hardRanking, clay: clayRanking, grass: grassRanking, dataWindow: "3 Jahre (2023–2026)" });
   } catch(err) {
     console.error("SURFACE RANKINGS ERROR:", err.message);
     res.status(500).json({ error: "Error" });
