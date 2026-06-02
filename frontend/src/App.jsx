@@ -2844,13 +2844,19 @@ export default function App() {
                   </div>
                 ) : surfaceRankings ? (() => {
                   const list = surfaceRankings[rankingsTab] || [];
+                  const dataWindow = surfaceRankings.dataWindow || "3 Jahre";
                   const surfLabel = rankingsTab==="clay"?"🧱 Clay":rankingsTab==="grass"?"🌿 Grass":"🏟️ Hard";
                   const surfColor = rankingsTab==="clay"?"#ef4444":rankingsTab==="grass"?"#4ade80":"#22d3ee";
                   if (list.length === 0) return <p style={{color:"#64748b"}}>Keine Daten verfügbar.</p>;
                   return (
                     <div style={{background:"#0f172a",borderRadius:"16px",overflow:"hidden",border:`1px solid ${surfColor}22`}}>
-                      <div style={{display:"grid",gridTemplateColumns:"40px 1fr 70px 80px 110px",gap:"8px",padding:"10px 16px",background:`${surfColor}0a`,borderBottom:`1px solid ${surfColor}22`,fontSize:"11px",color:"#475569",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>
-                        <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>ATP</span><span style={{textAlign:"right"}}>Siege</span><span style={{textAlign:"right"}}>W / L (%)</span>
+                      <div style={{padding:"10px 16px",background:`${surfColor}0a`,borderBottom:`1px solid ${surfColor}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{display:"grid",gridTemplateColumns:"40px 1fr 70px 80px 110px",gap:"8px",flex:1,fontSize:"11px",color:"#475569",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px"}}>
+                          <span>#</span><span>Spieler</span><span style={{textAlign:"right"}}>ATP</span><span style={{textAlign:"right"}}>Siege</span><span style={{textAlign:"right"}}>W / L (%)</span>
+                        </div>
+                        <span style={{fontSize:"10px",color:surfColor,background:`${surfColor}18`,border:`1px solid ${surfColor}33`,borderRadius:"6px",padding:"2px 8px",marginLeft:"12px",whiteSpace:"nowrap",fontWeight:600}}>
+                          📅 {dataWindow}
+                        </span>
                       </div>
                       {list.map((p,i) => {
                         const wins = p[rankingsTab+"Wins"];
@@ -2883,7 +2889,7 @@ export default function App() {
                         );
                       })}
                       <div style={{padding:"10px 16px",fontSize:"11px",color:"#334155",textAlign:"center"}}>
-                        Score = Siege × Win%^1.5 × Aktualitätsfaktor · Bevorzugt aktive Top-Spieler mit hoher Quote
+                        Basiert auf Fixture-Daten der letzten 3 Jahre ({dataWindow}) · Score = Siege × Win%^1.5 · Klick → Spieler-Analyzer
                       </div>
                     </div>
                   );
