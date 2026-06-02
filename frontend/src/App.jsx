@@ -2924,21 +2924,7 @@ export default function App() {
                             {t.isUpcoming && <span style={{color:"#22d3ee",fontWeight:600}}>⏳ Upcoming</span>}
                           </div>
                         </div>
-                        {t.isActive && t.totalMatches > 0 && (
-                          <div style={{textAlign:"right",flexShrink:0}}>
-                            <div style={{fontSize:"11px",color:"#64748b",marginBottom:"3px"}}>Fortschritt</div>
-                            <div style={{fontSize:"18px",fontWeight:900,color:"#22d3ee"}}>{t.progress}%</div>
-                          </div>
-                        )}
                       </div>
-                      {t.isActive && t.totalMatches > 0 && (
-                        <div style={{marginTop:"8px"}}>
-                          <div style={{height:"4px",background:"#1e293b",borderRadius:"999px",overflow:"hidden"}}>
-                            <div style={{width:`${t.progress}%`,height:"100%",background:"linear-gradient(90deg,#22d3ee,#4ade80)",borderRadius:"999px",transition:"width 0.4s"}} />
-                          </div>
-                          <div style={{fontSize:"10px",color:"#475569",marginTop:"3px"}}>{t.finishedCount} / {t.totalMatches} Matches gespielt</div>
-                        </div>
-                      )}
                     </div>
                   );
                 };
