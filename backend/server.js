@@ -938,23 +938,33 @@ app.get("/api/tournament-predictions", async (req, res) => {
         if (loserLastRound<=roundOrder) eliminated.add(loser.toLowerCase());
       });
 
-      // ── FIX: Players who won via W/O but withdrew afterwards ─────────────────
-      // Detect: won a W/O match but have NO unfinished matches in later rounds
-      const walkoverWinners = new Set(
-        dedupedMatches
-          .filter(m => isWalkoverOrRetired(m) && getWinner(m, m._p1full, m._p2full))
-          .map(m => getWinner(m, m._p1full, m._p2full).toLowerCase())
-      );
-      // Check each W/O winner — if they have no pending (unfinished) matches → withdrew
-      walkoverWinners.forEach(winnerLow => {
-        const hasPendingMatch = dedupedMatches.some(m => {
-          const p1 = m._p1full?.toLowerCase();
-          const p2 = m._p2full?.toLowerCase();
-          return (p1 === winnerLow || p2 === winnerLow) && !isFinished(m);
+      // ── FIX: Detect players who withdrew/retired (won W/O but then withdrew) ──
+      // A player who won via W/O but whose NEXT match is also a W/O (cancelled)
+      // OR who has no further actual match scheduled → treat as withdrawn
+      dedupedMatches.forEach(m => {
+        if (!isWalkoverOrRetired(m)) return;
+        const winner = getWinner(m, m._p1full, m._p2full);
+        const loser  = winner === m._p1full ? m._p2full : m._p1full;
+        if (!winner) return;
+
+        const winnerLow = winner.toLowerCase();
+        const roundOrder = getRoundOrder(m._roundName);
+
+        // Find all matches for this winner in LATER rounds
+        const laterMatches = dedupedMatches.filter(lm => {
+          const p1 = lm._p1full?.toLowerCase();
+          const p2 = lm._p2full?.toLowerCase();
+          const isLaterRound = getRoundOrder(lm._roundName) > roundOrder;
+          return isLaterRound && (p1 === winnerLow || p2 === winnerLow);
         });
-        if (!hasPendingMatch) {
+
+        // If all later matches are also cancelled/W/O or there are none → withdrew
+        const allLaterCancelledOrNone = laterMatches.length === 0 ||
+          laterMatches.every(lm => isWalkoverOrRetired(lm));
+
+        if (allLaterCancelledOrNone) {
           eliminated.add(winnerLow);
-          console.log(`[Tournament] ${winnerLow} marked eliminated — W/O win but no pending matches`);
+          console.log(`[Tournament] Withdrew: ${winner} (won W/O in ${m._roundName} but no valid later match)`);
         }
       });
 
