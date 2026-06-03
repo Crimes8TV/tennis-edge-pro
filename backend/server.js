@@ -113,13 +113,19 @@ const eloFromRank = (rank) => {
 // rank=500  → ~1845
 // rank=1108 → ~1800
 
-// ─── FIX: deriveStats — kein harter Cap bei rank 300 mehr ────────────────────
-// ALT: Math.max(52, Math.min(88, 90 - Math.sqrt(Math.min(rank, 300)) * 2.5))
-// NEU: Sanftere Kurve, kein künstlicher Cap, unterscheidet rank=300 von rank=1108
+// ─── FIX: deriveBaseFromRank — stückweise lineare Kurve ──────────────────────
+// Klar unterscheidbare Werte für alle Rank-Bereiche, kein harter Cap:
+// rank=1→88, rank=50→73, rank=100→66, rank=200→58, rank=330→53,
+// rank=500→46, rank=1000→36, rank=1108→35, rank=2000→31
 const deriveBaseFromRank = (rank) => {
-  const r = Math.max(1, Math.min(2000, Number(rank)));
-  // Logarithmische Kurve: rank=1→88, rank=100→72, rank=330→63, rank=1000→54, rank=2000→50
-  return Math.max(40, Math.min(88, 92 - Math.log(r + 1) * 9));
+  const r = Math.max(1, Number(rank));
+  if (r <= 10)   return Math.round(88 - (r - 1) * 0.8);    // 88→81
+  if (r <= 50)   return Math.round(81 - (r - 10) * 0.2);   // 81→73
+  if (r <= 100)  return Math.round(73 - (r - 50) * 0.14);  // 73→66
+  if (r <= 200)  return Math.round(66 - (r - 100) * 0.08); // 66→58
+  if (r <= 500)  return Math.round(58 - (r - 200) * 0.04); // 58→46
+  if (r <= 1000) return Math.round(46 - (r - 500) * 0.02); // 46→36
+  return Math.round(Math.max(30, 36 - (r - 1000) * 0.005));
 };
 
 // ─── SPIELERLISTE ─────────────────────────────────────────────────────────────
@@ -507,17 +513,20 @@ app.get("/api/predict", async (req, res) => {
   const momentumFactor = Math.max(10, 100-rankingFactor-formFactor-clutchFactor);
   const confidence = Math.min(99, Math.round(Math.abs(p1Win-50)*1.8+Math.min(30,rankDiff*0.4)));
 
-  // ── FIX: deriveStats verwendet neue logarithmische Basiskurve ────────────
+  // ── FIX: deriveStats — base kommt direkt aus Rank, kein ELO-Pivot-Problem ──
+  // eloBonus nur noch als kleiner Feintuner (+/-3), nicht als Haupttreiber
   const deriveStats = (playerName, rank, elo, formData) => {
     const base = deriveBaseFromRank(rank);
-    const eloBonus = Math.max(-5, Math.min(5, (elo - 1800) * 0.02));
-    const r = (key) => stableRand(`${playerName}-${key}`) * 4;
-    const formBoost = formData ? (formData.form - 65) * 0.15 : 0;
+    // eloBonus: kleiner Zusatzbonus für Top-10 ELOs, kaum Einfluss bei niedrigen Ranks
+    const eloBonus = Math.max(-3, Math.min(3, (elo - 1700) * 0.01));
+    const r = (key) => stableRand(`${playerName}-${key}`) * 3;
+    const formBoost = formData ? (formData.form - 65) * 0.10 : 0;
+    // Min-Clamp auf 28 damit auch rank=2000 Spieler sichtbar unterschiedlich zu rank=1 sind
     return {
-      serve:    Math.min(92, Math.max(40, Math.round(base + eloBonus + r("serve") + formBoost))),
-      return:   Math.min(92, Math.max(40, Math.round(base + eloBonus + r("return") + formBoost))),
-      clutch:   Math.min(92, Math.max(40, Math.round(base + eloBonus + r("clutch") + formBoost))),
-      momentum: Math.min(92, Math.max(40, Math.round(base + eloBonus + r("momentum") + formBoost))),
+      serve:    Math.min(92, Math.max(28, Math.round(base + eloBonus + r("serve") + formBoost))),
+      return:   Math.min(92, Math.max(28, Math.round(base + eloBonus + r("return") + formBoost))),
+      clutch:   Math.min(92, Math.max(28, Math.round(base + eloBonus + r("clutch") + formBoost))),
+      momentum: Math.min(92, Math.max(28, Math.round(base + eloBonus + r("momentum") + formBoost))),
     };
   };
   const p1Stats = deriveStats(p1, Number(rank1), elo1, form1Data);
