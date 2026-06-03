@@ -372,7 +372,9 @@ async function getPlayerForm(playerName, standings) {
 
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
-  const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
+  const { p1, p2, surface = "hard" } = req.query;
+  let rank1 = parseInt(req.query.rank1) || 100;
+  let rank2 = parseInt(req.query.rank2) || 100;
   const bo = parseInt(req.query.bo) === 5 ? 5 : 3;
 
   const hashStr = (str) => {
@@ -383,9 +385,6 @@ app.get("/api/predict", async (req, res) => {
   const stableRand = (seed) => ((hashStr(seed) % 1000) / 500) - 1;
 
   const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
-  const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
-  const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
-  const expected2 = 1 - expected1;
 
   let form1Data = null, form2Data = null, standings = [];
   try {
@@ -396,11 +395,38 @@ app.get("/api/predict", async (req, res) => {
     const atpStandings = atpRes.status === "fulfilled" ? atpRes.value.data?.result || [] : [];
     const chalStandings = chalRes.status === "fulfilled" ? chalRes.value.data?.result || [] : [];
     standings = [...atpStandings, ...chalStandings];
+
+    // ── Look up real rank from standings if frontend passed 100 as fallback ──
+    const findRank = (name) => {
+      if (!name) return null;
+      const nameLow = name.toLowerCase().trim();
+      const parts = nameLow.split(" ");
+      const lastName = parts[parts.length-1];
+      const found = standings.find(s => {
+        const sn = (s.player||"").toLowerCase();
+        return sn.includes(nameLow) || sn.split(" ").pop() === lastName;
+      });
+      return found ? parseInt(found.place)||null : null;
+    };
+
+    if (rank1 >= 100) {
+      const found = findRank(p1);
+      if (found) rank1 = found;
+    }
+    if (rank2 >= 100) {
+      const found = findRank(p2);
+      if (found) rank2 = found;
+    }
+
     [form1Data, form2Data] = await Promise.all([
       getPlayerForm(p1, standings),
       getPlayerForm(p2, standings)
     ]);
   } catch(e) { console.error("Form fetch error:", e.message); }
+
+  const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
+  const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+  const expected2 = 1 - expected1;
 
   const hand1 = getPlayerHand(p1);
   const hand2 = getPlayerHand(p2);
