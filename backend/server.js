@@ -417,6 +417,7 @@ app.get("/api/predict", async (req, res) => {
       const found = findRank(p2);
       if (found) rank2 = found;
     }
+    console.log(`[PREDICT] ${p1} rank=${rank1}, ${p2} rank=${rank2}`);
 
     [form1Data, form2Data] = await Promise.all([
       getPlayerForm(p1, standings),
