@@ -2463,43 +2463,40 @@ export default function App() {
                               odds: mostLikely.prob > 0 ? (1/(mostLikely.prob/100)).toFixed(2) : null,
                               prob: mostLikely.prob
                             },
-                            /* +2.5 Sätze = leichter: Underdog gewinnt ≥1 Satz */
-                            {
+                            /* +2.5 Sätze — NUR Bo5 sinnvoll */
+                            bo===5 && {
                               label:`📊 ${dog.split(" ").pop()} +2.5 Sätze`,
                               type:"set_hc_25",
                               pick:`${dog.split(" ").pop()} +2.5 Sätze`,
                               odds: (() => {
-                                const pFav30 = bo===5
-                                  ? (setBets.find(b=>b.label==="3-0")?.prob||0)/100
-                                  : (setBets.find(b=>b.label==="2-0")?.prob||0)/100;
-                                const p = 1 - pFav30;
+                                const p30 = (setBets.find(b=>b.label==="3-0")?.prob||0)/100;
+                                const p = 1 - p30;
                                 return p > 0.01 ? (1/p).toFixed(2) : null;
                               })(),
-                              prob: bo===5
-                                ? 100 - (setBets.find(b=>b.label==="3-0")?.prob||0)
-                                : 100 - (setBets.find(b=>b.label==="2-0")?.prob||0)
+                              prob: 100 - (setBets.find(b=>b.label==="3-0")?.prob||0)
                             },
-                            /* +1.5 Sätze = schwerer: Underdog gewinnt ≥2 Sätze (Bo5) oder Match (Bo3) */
+                            /* +1.5 Sätze:
+                               Bo3: ≥1 Satz = 1 - P(2-0) → niedrige Quote
+                               Bo5: ≥2 Sätze = 1 - P(3-0) - P(3-1) → mittlere Quote */
                             {
                               label:`📊 ${dog.split(" ").pop()} +1.5 Sätze`,
                               type:"set_hc_15",
                               pick:`${dog.split(" ").pop()} +1.5 Sätze`,
                               odds: (() => {
                                 if (bo===5) {
-                                  // ≥2 Sätze = 1 - P(3-0) - P(3-1)
                                   const p30 = (setBets.find(b=>b.label==="3-0")?.prob||0)/100;
                                   const p31 = (setBets.find(b=>b.label==="3-1")?.prob||0)/100;
                                   const p = 1 - p30 - p31;
                                   return p > 0.01 ? (1/p).toFixed(2) : null;
                                 } else {
-                                  // Bo3: ≥2 Sätze = Underdog wins match
-                                  const p = (setBets.find(b=>b.label==="Upset")?.prob||0)/100;
+                                  const p20 = (setBets.find(b=>b.label==="2-0")?.prob||0)/100;
+                                  const p = 1 - p20;
                                   return p > 0.01 ? (1/p).toFixed(2) : null;
                                 }
                               })(),
                               prob: bo===5
-                                ? Math.round(100 - (setBets.find(b=>b.label==="3-0")?.prob||0) - (setBets.find(b=>b.label==="3-1")?.prob||0))
-                                : (setBets.find(b=>b.label==="Upset")?.prob||0)
+                                ? Math.round(100-(setBets.find(b=>b.label==="3-0")?.prob||0)-(setBets.find(b=>b.label==="3-1")?.prob||0))
+                                : Math.round(100-(setBets.find(b=>b.label==="2-0")?.prob||0))
                             },
                             bo===5 && {
                               label: over35Prob>=50 ? `📈 Over 3.5 Sets` : `📉 Under 3.5 Sets`,
