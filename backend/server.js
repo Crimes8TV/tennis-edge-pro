@@ -1240,73 +1240,116 @@ app.post("/api/news-analysis", async (req, res) => {
   try {
     const { player1, player2, headlines1, headlines2, baseProb1 } = req.body;
     if (!player1 || !player2) return res.status(400).json({ error: "Missing players" });
-
     const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
     if (!ANTHROPIC_KEY) return res.status(500).json({ error: "No Anthropic API key configured" });
 
-    const h1 = (headlines1||[]).slice(0,5);
-    const h2 = (headlines2||[]).slice(0,5);
+    // ── Echte Form-Daten holen ──────────────────────────────────────────────
+    const getRecentForm = async (playerName) => {
+      try {
+        const [atpRes, chalRes] = await Promise.allSettled([
+          apiGet({ method:"get_standings", event_type:"ATP" }),
+          apiGet({ method:"get_standings", event_type:"Challenger" })
+        ]);
+        const standings = [
+          ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+          ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+        ];
+        const formData = await getPlayerForm(playerName, standings);
+        if (!formData?.recentResults?.length) return null;
+        const recent = formData.recentResults.slice(0, 10);
+        const wins = recent.filter(r=>r.won).length;
+        const losses = recent.length - wins;
+        let streak = 0;
+        const dir = recent[0]?.won ? 1 : -1;
+        for (const r of recent) { if ((r.won?1:-1)===dir) streak++; else break; }
+        return {
+          wins, losses, total: recent.length,
+          winPct: recent.length > 0 ? Math.round(wins/recent.length*100) : null,
+          streak, streakWon: dir===1,
+          recentMatches: recent.slice(0,5).map(r => ({
+            won: r.won, tournament: r.tournament||"", opponent: r.opponent||""
+          }))
+        };
+      } catch(e) { return null; }
+    };
 
-    if (h1.length === 0 && h2.length === 0) {
-      return res.json({ noNews: true });
-    }
+    const [form1, form2] = await Promise.all([getRecentForm(player1), getRecentForm(player2)]);
 
-    const prompt = `You are a tennis prediction assistant. Analyze these recent news headlines for two players and assess how they affect the match prediction.
+    // ── Nur verletzungsrelevante News filtern ─────────────────────────────
+    const injuryKw = ["verletz","injury","injured","retire","withdraw","zurückgezogen",
+      "aufgabe","krank","illness","schmerz","pain","wrist","knee","back","shoulder",
+      "ankle","hamstring","doubtful","fraglich","fitness","physical","medical","scratched"];
+    const filterInjury = (h) => (h||[]).filter(s => injuryKw.some(k=>(s||"").toLowerCase().includes(k))).slice(0,3);
+    const injNews1 = filterInjury(headlines1);
+    const injNews2 = filterInjury(headlines2);
 
-Player 1: ${player1}
-News: ${h1.length > 0 ? h1.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+    const fmt = (name, form) => {
+      if (!form) return `${name}: Keine aktuellen Ergebnisse.`;
+      const streak = form.streak >= 2 ? (form.streakWon ? `🔥 ${form.streak}W-Streak` : `❄️ ${form.streak}L-Streak`) : "";
+      const matches = form.recentMatches.map(m=>`${m.won?"W":"L"}${m.opponent?` vs ${m.opponent}`:""}${m.tournament?` (${m.tournament})`:""}`.trim()).join(", ");
+      return `${name}: ${form.wins}W/${form.losses}L (letzte ${form.total}) ${streak}. Ergebnisse: ${matches}`;
+    };
 
-Player 2: ${player2}
-News: ${h2.length > 0 ? h2.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+    const prompt = `Du bist Tennis-Analyst. Bewerte die aktuelle Form und Verletzungsrisiken für ein bevorstehendes Match.
 
-Current model prediction: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
+AKTUELLE FORM (echte Ergebnisse letzte 2 Wochen):
+${fmt(player1, form1)}
+${fmt(player2, form2)}
 
-Analyze the headlines for: injuries, illness, fatigue, form (winning/losing streak), motivation, withdrawals, or any other match-relevant factors.
+VERLETZUNGS-NEWS (gefiltert):
+${player1}: ${injNews1.length > 0 ? injNews1.join(" | ") : "Keine Verletzungsnews."}
+${player2}: ${injNews2.length > 0 ? injNews2.join(" | ") : "Keine Verletzungsnews."}
 
-Respond ONLY with a valid JSON object, no markdown, no extra text:
+Modell-Vorhersage: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
+
+Modifier-Richtlinien (basierend auf echten Ergebnissen, NICHT auf allgemeinem Ruf):
+- Starker Streak (4+W) + gute Gegner: +4 bis +6
+- Moderater Streak (2-3W): +2 bis +3  
+- Neutral/gemischt: 0
+- Verlust-Streak (2-3L): -2 bis -3
+- Verletzungsrisiko konkret belegt: -3 bis -6
+
+Antworte NUR mit validem JSON:
 {
   "player1": {
-    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
-    "modifier": <integer from -8 to +8, 0 if neutral or no relevant news>,
-    "reason": "<one short sentence in German>",
-    "headlines_used": [<1-based indices of relevant headlines, empty array if none>]
+    "signal": "good_form | poor_form | injury_risk | neutral | motivated | fatigue | withdrawal_risk",
+    "modifier": <-8 bis +8>,
+    "reason": "<konkreter Satz auf Deutsch mit Bezug auf echte Ergebnisse>",
+    "form_summary": "<z.B. '4W/1L, 3-Siege-Streak'>",
+    "injury_flag": <true/false>
   },
   "player2": {
-    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
-    "modifier": <integer from -8 to +8, 0 if neutral or no relevant news>,
-    "reason": "<one short sentence in German>",
-    "headlines_used": [<1-based indices of relevant headlines, empty array if none>]
+    "signal": "good_form | poor_form | injury_risk | neutral | motivated | fatigue | withdrawal_risk",
+    "modifier": <-8 bis +8>,
+    "reason": "<konkreter Satz auf Deutsch mit Bezug auf echte Ergebnisse>",
+    "form_summary": "<z.B. '2W/3L, schwache Form'>",
+    "injury_flag": <true/false>
   },
   "overall_impact": "low | medium | high",
-  "summary": "<one sentence in German summarizing the news impact>"
+  "summary": "<ein Satz auf Deutsch, konkret auf die Ergebnisse bezogen>"
 }`;
 
     const response = await axios.post(
       "https://api.anthropic.com/v1/messages",
-      {
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 800,
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01"
-        },
-        timeout: 15000
-      }
+      { model: "claude-haiku-4-5-20251001", max_tokens: 900,
+        messages: [{ role: "user", content: prompt }] },
+      { headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01" }, timeout: 20000 }
     );
 
     const text = response.data.content?.map(c=>c.text||"").join("").trim();
-    const clean = text.replace(/```json|```/g,"").trim();
-    const parsed = JSON.parse(clean);
+    const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+    parsed.player1.formData = form1;
+    parsed.player2.formData = form2;
+    parsed.player1.injuryNews = injNews1;
+    parsed.player2.injuryNews = injNews2;
     res.json(parsed);
   } catch(err) {
-    console.error("NEWS ANALYSIS ERROR:", err.response?.data || err.message);
+    console.error("FORM ANALYSIS ERROR:", err.response?.data || err.message);
     res.status(500).json({ error: "Analysis failed" });
   }
 });
+
 
 // ─── SURFACE RANKINGS ─────────────────────────────────────────────────────────
 app.get("/api/surface-rankings", async (req, res) => {
