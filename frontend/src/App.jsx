@@ -1768,7 +1768,7 @@ export default function App() {
                     <div style={{margin:"16px 0",padding:"16px",borderRadius:"14px",background:"rgba(139,92,246,0.06)",border:"1px solid rgba(139,92,246,0.2)",display:"flex",alignItems:"center",gap:"12px"}}>
                       <div style={{width:"16px",height:"16px",borderRadius:"50%",border:"2px solid rgba(139,92,246,0.3)",borderTopColor:"#a78bfa",animation:"spin 0.8s linear infinite",flexShrink:0}} />
                       <div>
-                        <div style={{fontSize:"13px",fontWeight:700,color:"#a78bfa",marginBottom:"2px"}}>📰 News-Analyse läuft...</div>
+                        <div style={{fontSize:"13px",fontWeight:700,color:"#a78bfa",marginBottom:"2px"}}>📊 Form-Analyse läuft...</div>
                         <div style={{fontSize:"11px",color:"#64748b"}}>Aktuelle Nachrichten werden ausgewertet</div>
                       </div>
                     </div>
@@ -1777,7 +1777,7 @@ export default function App() {
                   {newsAnalysis && !newsAnalysisLoading && (() => {
                     if (newsAnalysis.error) return (
                       <div style={{margin:"16px 0",padding:"12px 16px",borderRadius:"12px",background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.2)",fontSize:"12px",color:"#f87171"}}>
-                        📰 News-Analyse Fehler: {newsAnalysis.errorMsg || "Unbekannt"} — stelle sicher dass ANTHROPIC_API_KEY auf Render gesetzt ist und der neue server.js deployed ist.
+                        📰 Form-Analyse Fehler: {newsAnalysis.errorMsg || "Unbekannt"} — stelle sicher dass ANTHROPIC_API_KEY auf Render gesetzt ist und der neue server.js deployed ist.
                       </div>
                     );
                     if (newsAnalysis.noNews) return (
@@ -1797,7 +1797,7 @@ export default function App() {
                         <div style={{padding:"12px 16px",borderBottom:`1px solid ${impactColor}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
                             <span style={{fontSize:"14px"}}>📰</span>
-                            <span style={{fontSize:"13px",fontWeight:800,color:"#e2e8f0"}}>News-Analyse</span>
+                            <span style={{fontSize:"13px",fontWeight:800,color:"#e2e8f0"}}>Form-Analyse</span>
                             <span style={{fontSize:"10px",fontWeight:700,color:impactColor,background:`${impactColor}22`,padding:"2px 8px",borderRadius:"6px",textTransform:"uppercase"}}>
                               {newsAnalysis.overall_impact} Impact
                             </span>
@@ -1862,19 +1862,25 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* Headlines used */}
+                          {/* Headlines used → jetzt Form-Daten */}
                           <div style={{marginTop:"12px",display:"flex",gap:"8px",flexWrap:"wrap"}}>
-                            {[newsAnalysis.player1, newsAnalysis.player2].map((p,pi) =>
-                              (p.headlines_used||[]).map(idx => {
-                                const h = p.headlines?.[idx-1];
-                                if (!h) return null;
-                                return (
-                                  <div key={`${pi}-${idx}`} style={{fontSize:"10px",color:"#64748b",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"6px",padding:"3px 8px",lineHeight:1.4,maxWidth:"100%"}}>
-                                    📄 {h.length > 80 ? h.slice(0,80)+"…" : h}
-                                  </div>
-                                );
-                              })
-                            )}
+                            {[newsAnalysis.player1, newsAnalysis.player2].map((p,pi) => {
+                              const form = p.formData;
+                              if (!form) return null;
+                              return (
+                                <div key={pi} style={{flex:1,minWidth:"140px",fontSize:"10px",color:"#64748b",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"6px",padding:"6px 8px"}}>
+                                  <div style={{fontWeight:700,color:"#94a3b8",marginBottom:"3px"}}>{p.name.split(" ").pop()}: {p.form_summary||`${form.wins}W/${form.losses}L`}</div>
+                                  {form.recentMatches?.slice(0,3).map((m,i) => (
+                                    <div key={i} style={{color:m.won?"#4ade80":"#f87171",marginBottom:"1px"}}>
+                                      {m.won?"✓":"✗"} {m.opponent||"?"}{m.tournament?` · ${m.tournament}`:""}
+                                    </div>
+                                  ))}
+                                  {p.injuryNews?.length > 0 && (
+                                    <div style={{marginTop:"4px",color:"#f97316",fontWeight:600}}>⚠️ {p.injuryNews[0].slice(0,60)}…</div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
