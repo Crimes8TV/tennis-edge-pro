@@ -23,8 +23,13 @@ const isAfter18Berlin = () => {
 };
 const getBerlinDate = (offsetDays = 0) => {
   const now = new Date();
-  now.setDate(now.getDate() + offsetDays);
-  return now.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+  // Get current Berlin date string first, then add offset
+  const berlinNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  berlinNow.setDate(berlinNow.getDate() + offsetDays);
+  const y = berlinNow.getFullYear();
+  const m = String(berlinNow.getMonth()+1).padStart(2,"0");
+  const d = String(berlinNow.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
 };
 
 // ─── ATP PLAYER HAND DATABASE ─────────────────────────────────────────────────
@@ -97,37 +102,6 @@ function getPlayerHand(name) {
   return playerHandDB[fullKey] || playerHandDB[lastName] || null;
 }
 
-// ─── FIX: Logarithmische ELO-Skala — funktioniert korrekt für alle Ranks ─────
-// ALT: Math.max(1500, 2400 - rank * 6)  → rank=330 ergibt 420 → clamp auf 1500 ❌
-// NEU: Logarithmisch, skaliert von ~2400 (rank=1) bis ~1200 (rank=2000+)
-const eloFromRank = (rank) => {
-  const r = Math.max(1, Number(rank));
-  return Math.round(Math.max(1200, 2400 - Math.log(r + 1) * 180));
-};
-// Referenzwerte:
-// rank=1    → ~2400
-// rank=10   → ~1985
-// rank=50   → ~2015  (log-Kurve, sinkt langsamer)
-// rank=100  → ~1960
-// rank=330  → ~1875
-// rank=500  → ~1845
-// rank=1108 → ~1800
-
-// ─── FIX: deriveBaseFromRank — stückweise lineare Kurve ──────────────────────
-// Klar unterscheidbare Werte für alle Rank-Bereiche, kein harter Cap:
-// rank=1→88, rank=50→73, rank=100→66, rank=200→58, rank=330→53,
-// rank=500→46, rank=1000→36, rank=1108→35, rank=2000→31
-const deriveBaseFromRank = (rank) => {
-  const r = Math.max(1, Number(rank));
-  if (r <= 10)   return Math.round(88 - (r - 1) * 0.8);    // 88→81
-  if (r <= 50)   return Math.round(81 - (r - 10) * 0.2);   // 81→73
-  if (r <= 100)  return Math.round(73 - (r - 50) * 0.14);  // 73→66
-  if (r <= 200)  return Math.round(66 - (r - 100) * 0.08); // 66→58
-  if (r <= 500)  return Math.round(58 - (r - 200) * 0.04); // 58→46
-  if (r <= 1000) return Math.round(46 - (r - 500) * 0.02); // 46→36
-  return Math.round(Math.max(30, 36 - (r - 1000) * 0.005));
-};
-
 // ─── SPIELERLISTE ─────────────────────────────────────────────────────────────
 app.get("/api/players", async (req, res) => {
   try {
@@ -138,21 +112,17 @@ app.get("/api/players", async (req, res) => {
     ]);
     const atpRaw = atpRes.status === "fulfilled" ? atpRes.value.data?.result || [] : [];
     const fixturesRaw = fixturesRes.status === "fulfilled" ? fixturesRes.value.data?.result || [] : [];
-    const atpPlayers = atpRaw.map(p => {
-      const rank = parseInt(p.place) || 999;
-      const base = deriveBaseFromRank(rank);
-      return {
-        name: p.player || "Unknown",
-        rank,
-        points: parseInt(p.points) || 0,
-        country: p.country || "",
-        player_key: p.player_key,
-        elo: eloFromRank(rank),
-        serve: base, return: base, clutch: base, momentum: base,
-        hard: 80, clay: 75, grass: 70,
-        form: [base, base, base, base, base]
-      };
-    });
+    const atpPlayers = atpRaw.map(p => ({
+      name: p.player || "Unknown",
+      rank: parseInt(p.place) || 999,
+      points: parseInt(p.points) || 0,
+      country: p.country || "",
+      player_key: p.player_key,
+      elo: Math.max(1500, 2400 - (parseInt(p.place) || 100) * 6),
+      serve: 70, return: 75, clutch: 80, momentum: 85,
+      hard: 80, clay: 75, grass: 70,
+      form: [80, 82, 78, 85, 87]
+    }));
     const atpNames = new Set(atpPlayers.map(p => p.name.toLowerCase()));
     const challengerPlayers = [];
     const seen = new Set();
@@ -165,20 +135,18 @@ app.get("/api/players", async (req, res) => {
         const alreadyIn = [...atpNames].some(n => n.includes(lastName.toLowerCase()));
         if (!alreadyIn) {
           const idx = challengerPlayers.length;
+          const base = Math.max(55, 72 - idx * 0.3);
           const hashStr = (str) => { let h=0; for(let i=0;i<str.length;i++) h=(Math.imul(31,h)+str.charCodeAt(i))|0; return Math.abs(h); };
           const stableVary = (key) => Math.round(((hashStr(`${shortName}-${key}`) % 800) / 100) - 4);
-          // Challenger Spieler: rank ~200-400 Bereich
-          const challRank = 200 + idx;
-          const base = Math.max(50, Math.round(deriveBaseFromRank(challRank)));
           challengerPlayers.push({
             name: shortName,
-            rank: challRank,
+            rank: 200 + idx,
             points: 0, country: "", player_key: null,
-            elo: eloFromRank(challRank),
-            serve:    Math.min(80, Math.max(46, Math.round(base + stableVary("serve")))),
-            return:   Math.min(80, Math.max(46, Math.round(base + stableVary("return")))),
-            clutch:   Math.min(80, Math.max(46, Math.round(base + stableVary("clutch")))),
-            momentum: Math.min(80, Math.max(46, Math.round(base + stableVary("momentum")))),
+            elo: Math.max(1400, 1600 - idx * 2),
+            serve:    Math.min(80, Math.max(52, Math.round(base + stableVary("serve")))),
+            return:   Math.min(80, Math.max(52, Math.round(base + stableVary("return")))),
+            clutch:   Math.min(80, Math.max(52, Math.round(base + stableVary("clutch")))),
+            momentum: Math.min(80, Math.max(52, Math.round(base + stableVary("momentum")))),
             hard: 68, clay: 68, grass: 63,
             form: [Math.round(base), Math.round(base+stableVary("f1")), Math.round(base+stableVary("f2")), Math.round(base+stableVary("f3")), Math.round(base+stableVary("f4"))]
           });
@@ -421,6 +389,8 @@ app.get("/api/predict", async (req, res) => {
   };
   const stableRand = (seed) => ((hashStr(seed) % 1000) / 500) - 1;
 
+  const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
+
   let form1Data = null, form2Data = null, standings = [];
   try {
     const [atpRes, chalRes] = await Promise.allSettled([
@@ -460,9 +430,7 @@ app.get("/api/predict", async (req, res) => {
     ]);
   } catch(e) { console.error("Form fetch error:", e.message); }
 
-  // ── FIX: Logarithmische ELO für beide Spieler ────────────────────────────
-  const elo1 = eloFromRank(rank1);
-  const elo2 = eloFromRank(rank2);
+  const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
   const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
   const expected2 = 1 - expected1;
 
@@ -473,11 +441,8 @@ app.get("/api/predict", async (req, res) => {
   else if (hand1 === "R" && hand2 === "L") { handMod1 = -2.5; handMod2 = 2.5; }
   if (surface === "clay") { handMod1 *= 1.3; handMod2 *= 1.3; }
 
-  // ── FIX: Form-Fallback verwendet ebenfalls logarithmische Kurve ──────────
-  // ALT: Math.max(30, Math.min(85, 85 - Number(rank) * 0.2))  → rank=330 → 19 → clamp 30
-  // NEU: deriveBaseFromRank gibt sinnvolle Werte für alle Ranks
-  const form1 = form1Data ? form1Data.form : Math.round(deriveBaseFromRank(rank1));
-  const form2 = form2Data ? form2Data.form : Math.round(deriveBaseFromRank(rank2));
+  const form1 = form1Data ? form1Data.form : Math.max(30, Math.min(85, 85 - Number(rank1) * 0.2));
+  const form2 = form2Data ? form2Data.form : Math.max(30, Math.min(85, 85 - Number(rank2) * 0.2));
 
   if (form1Data?.handRates && hand2) {
     const rate = hand2 === "R" ? form1Data.handRates.vsRight : form1Data.handRates.vsLeft;
@@ -513,20 +478,16 @@ app.get("/api/predict", async (req, res) => {
   const momentumFactor = Math.max(10, 100-rankingFactor-formFactor-clutchFactor);
   const confidence = Math.min(99, Math.round(Math.abs(p1Win-50)*1.8+Math.min(30,rankDiff*0.4)));
 
-  // ── FIX: deriveStats — base kommt direkt aus Rank, kein ELO-Pivot-Problem ──
-  // eloBonus nur noch als kleiner Feintuner (+/-3), nicht als Haupttreiber
   const deriveStats = (playerName, rank, elo, formData) => {
-    const base = deriveBaseFromRank(rank);
-    // eloBonus: kleiner Zusatzbonus für Top-10 ELOs, kaum Einfluss bei niedrigen Ranks
-    const eloBonus = Math.max(-3, Math.min(3, (elo - 1700) * 0.01));
-    const r = (key) => stableRand(`${playerName}-${key}`) * 3;
-    const formBoost = formData ? (formData.form - 65) * 0.10 : 0;
-    // Min-Clamp auf 28 damit auch rank=2000 Spieler sichtbar unterschiedlich zu rank=1 sind
+    const base = Math.max(52, Math.min(88, 90 - Math.sqrt(Math.min(rank, 300)) * 2.5));
+    const eloBonus = Math.max(-5, Math.min(5, (elo - 1900) * 0.02));
+    const r = (key) => stableRand(`${playerName}-${key}`) * 4;
+    const formBoost = formData ? (formData.form - 65) * 0.15 : 0;
     return {
-      serve:    Math.min(92, Math.max(28, Math.round(base + eloBonus + r("serve") + formBoost))),
-      return:   Math.min(92, Math.max(28, Math.round(base + eloBonus + r("return") + formBoost))),
-      clutch:   Math.min(92, Math.max(28, Math.round(base + eloBonus + r("clutch") + formBoost))),
-      momentum: Math.min(92, Math.max(28, Math.round(base + eloBonus + r("momentum") + formBoost))),
+      serve:    Math.min(92, Math.max(52, Math.round(base + eloBonus + r("serve") + formBoost))),
+      return:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("return") + formBoost))),
+      clutch:   Math.min(92, Math.max(52, Math.round(base + eloBonus + r("clutch") + formBoost))),
+      momentum: Math.min(92, Math.max(52, Math.round(base + eloBonus + r("momentum") + formBoost))),
     };
   };
   const p1Stats = deriveStats(p1, Number(rank1), elo1, form1Data);
@@ -534,11 +495,12 @@ app.get("/api/predict", async (req, res) => {
   const surfaceSetMod = surface==="clay"?0.03:surface==="grass"?-0.02:0;
 
   // ── FIX: setWinP1 von finalem p1Win ableiten (inkl. Form, Surface, Hand)
+  // statt nur von rohem Elo — damit Handicap/SetBetting konsistent mit Match Winner ist
   const p1WinFrac = p1Win / 100;
   const setWinP1 = Math.min(0.85, Math.max(0.15, p1WinFrac + surfaceSetMod));
   const setWinP2 = 1 - setWinP1;
   const expGPSW = 6+Math.max(0,(Math.max(setWinP1,setWinP2)-0.5)*2);
-  const expGPSL = Math.max(1, 6-(Math.max(setWinP1,setWinP2)-0.5)*10);
+  const expGPSL = Math.max(1, 6-(Math.max(setWinP1,setWinP2)-0.5)*10); // steeper falloff for close matches
   const favoriteIsP1 = setWinP1>=setWinP2;
   const favorite = favoriteIsP1?p1:p2, underdog = favoriteIsP1?p2:p1;
   const p=Math.max(setWinP1,setWinP2), q=1-p;
@@ -584,6 +546,7 @@ app.get("/api/valuepicks", async (req, res) => {
     const standingsRes = await apiGet({ method: "get_standings", event_type: "ATP" });
     const standings = standingsRes.data?.result || [];
 
+    // Also load Challenger standings for players not in ATP top
     let chalStandings = [];
     try {
       const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
@@ -592,6 +555,9 @@ app.get("/api/valuepicks", async (req, res) => {
 
     const allStandings = [...standings, ...chalStandings];
 
+    // ── Manual disambiguation for known name conflicts ────────────────────────
+    // API sometimes returns names reversed (e.g. "Manuel Cerundolo Juan")
+    // Map from fixture short name → exact standings player name
     const NAME_MAP = {
       "j. m. cerundolo": "Manuel Cerundolo Juan",
       "j.m. cerundolo":  "Manuel Cerundolo Juan",
@@ -599,9 +565,20 @@ app.get("/api/valuepicks", async (req, res) => {
       "f. cerundolo":    "Francisco Cerundolo",
     };
 
+    // Normalize reversed names for display (standings → readable)
+    const normalizeDisplayName = (standingsName) => {
+      if (!standingsName) return standingsName;
+      // Detect reversed format: last word looks like a first name
+      // e.g. "Manuel Cerundolo Juan" → last word "Juan" is a first name
+      // Simple heuristic: if standings name has 3+ words, try to detect reversal
+      return standingsName; // keep as-is for now, display handled in frontend
+    };
+
     const matchPlayerInStandings = (shortName, standingsList) => {
       if (!shortName) return null;
       const key = shortName.trim().toLowerCase();
+
+      // Check manual map first
       if (NAME_MAP[key]) {
         const mapped = standingsList.find(p =>
           (p.player||"").toLowerCase() === NAME_MAP[key].toLowerCase()
@@ -609,10 +586,13 @@ app.get("/api/valuepicks", async (req, res) => {
         if (mapped) return mapped;
         return { player: NAME_MAP[key], place: "200" };
       }
+
       const parts = shortName.trim().split(" ");
       const lastName = parts[parts.length-1].toLowerCase();
       const initials = parts.slice(0,-1).map(p => p.replace(/\./g,"").toLowerCase()).filter(Boolean);
+
       if (initials.length > 0) {
+        // Try matching against ALL words in standings name (handles reversed names)
         const exact = standingsList.find(p => {
           const pn = (p.player||"").toLowerCase();
           const pWords = pn.split(" ").filter(Boolean);
@@ -622,6 +602,7 @@ app.get("/api/valuepicks", async (req, res) => {
         });
         if (exact) return exact;
       }
+
       return standingsList.find(p => (p.player||"").toLowerCase().split(" ").includes(lastName)) || null;
     };
 
@@ -636,9 +617,10 @@ app.get("/api/valuepicks", async (req, res) => {
       const found = matchPlayerInStandings(shortName, allStandings);
       return found ? parseInt(found.place)||100 : 100;
     };
-
+    const eloFromRank = (rank) => Math.max(1500, 2400-rank*6);
     const valuePicks = [];
     for (const match of matches.slice(0,15)) {
+      // ── FIX: Skip cancelled/walkover matches for value picks ──────────────
       const statusNorm = (match.event_status||"").toLowerCase().replace(/ /g, "");
       const isCancelled = ["cancelled","canceled","walkover","w/o","retired","retirement","abandoned","withdrawal"].some(s => statusNorm.includes(s));
       if (isCancelled) continue;
@@ -647,8 +629,6 @@ app.get("/api/valuepicks", async (req, res) => {
       if (!p1Short || !p2Short) continue;
       const p1=getFullName(p1Short), p2=getFullName(p2Short);
       const rank1=getRank(p1Short), rank2=getRank(p2Short);
-
-      // ── FIX: Logarithmische ELO auch in Value Picks ──────────────────────
       const elo1=eloFromRank(rank1), elo2=eloFromRank(rank2);
       const expected1 = 1/(1+Math.pow(10,(elo2-elo1)/400));
       const prob1=Math.round(expected1*100), prob2=100-prob1;
@@ -704,8 +684,11 @@ app.get("/api/fixtures/today", async (req, res) => {
       const liveMatch = liveMap.get(key);
       const isLive = !!liveMatch || m.event_live==="1" || m.event_live===1;
       const isFinished = m.event_status==="Finished" || m.event_status==="After Extra Time";
+
+      // ── FIX: Normalize status before checking (handles "Walk Over" with space) ──
       const statusNorm = (m.event_status||"").toLowerCase().replace(/ /g, "");
       const isCancelled = ["cancelled","canceled","walkover","w/o","retired","retirement","abandoned","withdrawal"].some(s => statusNorm.includes(s));
+
       const src = liveMatch||m;
       const parseScore = (val) => val!==undefined&&val!==null?String(val).split(".")[0]:"-";
       const setScores = [];
@@ -714,13 +697,27 @@ app.get("/api/fixtures/today", async (req, res) => {
           if (s.score_first!==undefined&&s.score_first!==null) setScores.push({p1:parseScore(s.score_first),p2:parseScore(s.score_second)});
         });
       }
+      // ── Streak berechnen aus recentResults ───────────────────────────────────
+      const getStreak = (recentResults) => {
+        if (!Array.isArray(recentResults) || recentResults.length === 0) return null;
+        let streak = 0;
+        const dir = recentResults[0].won ? 1 : -1;
+        for (const r of recentResults) {
+          if ((r.won ? 1 : -1) === dir) streak++;
+          else break;
+        }
+        return { count: streak, won: dir === 1 };
+      };
+
       return {
         player1:m.event_first_player, player2:m.event_second_player,
         score:src.event_final_result||"-", gameScore:src.event_game_result||"-",
         sets:setScores, status:isLive?(src.event_status||"Live"):isFinished?"Finished":isCancelled?"Cancelled":m.event_status||"Scheduled",
         tournament:m.tournament_name||"", category:m._category||"",
         court: m.event_ground||m.court_name||"",
-        time:m.event_time||"", live:isLive, finished:isFinished, cancelled:isCancelled, matchKey:m.event_key
+        time:m.event_time||"", date:m.event_date||"",
+        isTomorrow: showTomorrow && m.event_date === tomorrow,
+        live:isLive, finished:isFinished, cancelled:isCancelled, matchKey:m.event_key
       };
     }).sort((a,b)=>{
       if(a.live&&!b.live)return -1; if(!a.live&&b.live)return 1;
@@ -822,6 +819,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
     const singles = singlesRes.status==="fulfilled"?singlesRes.value.data?.result||[]:[];
     const standings = standingsRes.status==="fulfilled"?standingsRes.value.data?.result||[]:[];
 
+    const eloFromRank = (rank) => Math.max(1500, 2400-Number(rank)*6);
+
     const rankCache = new Map();
     const getRank = (name) => {
       if (!name) return 300;
@@ -862,6 +861,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
     const getRoundOrder = (roundName) => ROUND_ORDER[(roundName||"").toLowerCase()]||0;
 
+    // ── FIX: Normalize status before checking (handles "Walk Over" with space) ──
     const isWalkoverOrRetired = (m) => {
       const status = (m.event_status||"").toLowerCase().replace(/ /g, "");
       return status.includes("walkover")||status.includes("w/o")||status.includes("retired")||status.includes("retirement")||status.includes("withdraw")||status.includes("default")||status.includes("cancelled")||status.includes("canceled")||status.includes("abandoned");
@@ -950,12 +950,18 @@ app.get("/api/tournament-predictions", async (req, res) => {
         if (loserLastRound<=roundOrder) eliminated.add(loser.toLowerCase());
       });
 
+      // ── FIX: Cancelled matches with no winner ─────────────────────────────────
+      // Only eliminate the player who has NO other matches in the tournament
+      // (the one who withdrew, not the one replaced by a lucky loser)
       dedupedMatches.forEach(m => {
         const statusNorm = (m.event_status||"").toLowerCase().replace(/ /g,"");
         const isCancelled = statusNorm.includes("cancelled")||statusNorm.includes("canceled")||
                             statusNorm.includes("abandoned");
         const hasNoWinner = !m.event_winner || m.event_winner==="" || m.event_winner==="0" || m.event_winner===null;
         if (!isCancelled || !hasNoWinner) return;
+
+        // For each player in this cancelled match:
+        // if they appear in NO other match → they withdrew → eliminate them
         [m._p1full, m._p2full].forEach(playerName => {
           if (!playerName) return;
           const playerLow = playerName.toLowerCase();
@@ -971,6 +977,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
         });
       });
 
+      // ── FIX: W/O winner who then withdrew (next match also cancelled/WO) ─────
       dedupedMatches.forEach(m => {
         if (!isWalkoverOrRetired(m)) return;
         const winner = getWinner(m, m._p1full, m._p2full);
@@ -1008,6 +1015,8 @@ app.get("/api/tournament-predictions", async (req, res) => {
 
       const top8=activePlayers.slice(0,8);
 
+      // ── CLAY SPECIALIST BONUS ────────────────────────────────────────────────
+      // Tournament surface detection
       const tournNameLower = (tourn.name||"").toLowerCase();
       const isClay = tournNameLower.includes("roland")||tournNameLower.includes("french")||
                      tournNameLower.includes("clay")||tournNameLower.includes("monte")||
@@ -1019,6 +1028,7 @@ app.get("/api/tournament-predictions", async (req, res) => {
                       tournNameLower.includes("queens")||tournNameLower.includes("grass")||
                       tournNameLower.includes("eastbourne")||tournNameLower.includes("stuttgart");
 
+      // Surface specialist multipliers (based on career surface performance)
       const CLAY_SPECIALISTS = {
         "alcaraz":1.25,"ruud":1.20,"nadal":1.30,"tsitsipas":1.12,"zverev":1.08,
         "norrie":1.05,"cerundolo":1.15,"rune":1.08,"musetti":1.12,"davidovich":1.10,
@@ -1042,10 +1052,17 @@ app.get("/api/tournament-predictions", async (req, res) => {
         return 1.0;
       };
 
-      const drawHalfMap = new Map();
+      // ── DRAW DIFFICULTY ANALYSIS ─────────────────────────────────────────────
+      // Split draw into halves based on round structure
+      // Players in same half of draw can only meet in semis/final
+      // Assign draw half based on match position in early rounds
+      const drawHalfMap = new Map(); // playerName → 0 or 1 (draw half)
       const earlyRounds = dedupedMatches.filter(m =>
         ["1/64-Finals","1/32-Finals","1/16-Finals"].includes(m._roundName)
       );
+
+      // Build half assignments from bracket position
+      // Sort early round matches, first half gets 0, second half gets 1
       const sortedEarlyMatches = [...earlyRounds].sort((a,b)=>(a.event_date||"").localeCompare(b.event_date||""));
       sortedEarlyMatches.forEach((m, idx) => {
         const half = idx < sortedEarlyMatches.length / 2 ? 0 : 1;
@@ -1053,9 +1070,11 @@ app.get("/api/tournament-predictions", async (req, res) => {
         if (m._p2full) drawHalfMap.set(m._p2full.toLowerCase(), half);
       });
 
+      // Calculate draw difficulty: avg rank of opponents in same half
       const getDrawDifficulty = (playerName) => {
         const half = drawHalfMap.get(playerName.toLowerCase());
         if (half === undefined) return 1.0;
+        // Get all active players in same half
         const sameHalf = activePlayers.filter(p =>
           p.name !== playerName && drawHalfMap.get(p.name.toLowerCase()) === half
         );
@@ -1063,16 +1082,20 @@ app.get("/api/tournament-predictions", async (req, res) => {
         const avgRank = sameHalf.reduce((s,p)=>s+p.rank,0) / sameHalf.length;
         const allAvgRank = activePlayers.filter(p=>p.name!==playerName).reduce((s,p)=>s+p.rank,0) /
                            Math.max(1, activePlayers.length-1);
+        // Easier draw (higher avg rank of opponents) → bonus; harder draw → penalty
+        // drawFactor: 0.9 to 1.1 range
         const drawFactor = Math.min(1.10, Math.max(0.90, 1.0 + (avgRank - allAvgRank) / allAvgRank * 0.3));
         return drawFactor;
       };
 
+      // ── WIN PROBABILITY WITH ALL FACTORS ────────────────────────────────────
       const rawScores = top8.map(p => {
         const baseScore = Math.exp(-p.rank * 0.08);
         const surfMult = getSurfaceMultiplier(p.name);
         const drawFactor = getDrawDifficulty(p.name);
+        // Also boost players who have been winning (round advancement bonus)
         const roundsWon = finishedMatches.filter(m=>m.winner.toLowerCase()===p.name.toLowerCase()).length;
-        const formBonus = 1.0 + roundsWon * 0.03;
+        const formBonus = 1.0 + roundsWon * 0.03; // +3% per round won in this tournament
         return {
           ...p,
           score: baseScore * surfMult * drawFactor * formBonus,
@@ -1088,14 +1111,18 @@ app.get("/api/tournament-predictions", async (req, res) => {
       const probSum=winProbs.reduce((s,p)=>s+p.winProb,0);
       if (winProbs.length>0&&probSum!==100) winProbs[0].winProb+=(100-probSum);
 
+      // ── FIX 1: Dynamic favorite = highest win probability ────────────────────
       const dynamicFavorite = winProbs[0] || allPlayers[0];
+
+      // ── FIX 2: Also recalculate match predictions with surface ELO ───────────
+      // (used in roundsMap below)
 
       const roundsMap = {};
       dedupedMatches.forEach(m=>{
         const key=m._roundName;
         if (!roundsMap[key]) roundsMap[key]={round:key,matches:[]};
         const r1=getRank(m._p1full), r2=getRank(m._p2full);
-        // ── FIX: Logarithmische ELO auch in Turnier-Predictions ──────────────
+        // Surface-adjusted Elo for match predictions
         const surfMult1 = getSurfaceMultiplier(m._p1full);
         const surfMult2 = getSurfaceMultiplier(m._p2full);
         const elo1=eloFromRank(r1) * surfMult1;
@@ -1289,8 +1316,9 @@ app.get("/api/surface-rankings", async (req, res) => {
     const top100 = standings.slice(0, 100);
 
     const dateEnd = getBerlinDate();
-    const dateStart3Y = getBerlinDate(-1095);
+    const dateStart3Y = getBerlinDate(-1095); // 3 years back
 
+    // Surface detection helper
     const getSurf = (m) => {
       const tn = (m.tournament_name||"").toLowerCase();
       if (tn.includes("clay")||tn.includes("roland")||tn.includes("french")||tn.includes("madrid")||
@@ -1305,6 +1333,7 @@ app.get("/api/surface-rankings", async (req, res) => {
 
     const results = [];
 
+    // Process in batches of 8
     for (let i = 0; i < top100.length; i += 8) {
       const batch = top100.slice(i, i + 8);
       const batchResults = await Promise.allSettled(
@@ -1353,6 +1382,7 @@ app.get("/api/surface-rankings", async (req, res) => {
       if (i + 8 < top100.length) await new Promise(r => setTimeout(r, 300));
     }
 
+    // Weighted score: wins × (win%)^1.5 × recency bonus (already baked in via 3Y window)
     const score = (wins, matches) => {
       if (matches < 1) return 0;
       const pct = wins/matches;
@@ -1389,8 +1419,10 @@ app.get("/api/calendar", async (req, res) => {
       ...challengers.map(m=>({...m,_type:"Challenger Singles"}))
     ];
 
+    // ── Surface detection — comprehensive city/tournament name list ────────────
     const detectSurface = (name) => {
       const n = (name||"").toLowerCase();
+      // Clay tournaments
       const clayKeywords = [
         "roland","french open","clay","monte carlo","monte-carlo","madrid","rome","roma",
         "hamburg","geneva","genf","barcelona","buenos aires","munich","münchen","lyon",
@@ -1398,6 +1430,7 @@ app.get("/api/calendar", async (req, res) => {
         "gstaad","kitzbühel","kitzbuehel","umag","winston","perugia","prostejov",
         "heilbronn","salinas","marbella","cordoba","santiago","lima","bogota"
       ];
+      // Grass tournaments
       const grassKeywords = [
         "wimbledon","halle","queen","queens","eastbourne","stuttgart","grass",
         "mallorca","nottingham","rosmalen","s-hertogenbosch","hertogenbosch",
@@ -1408,12 +1441,15 @@ app.get("/api/calendar", async (req, res) => {
       return "hard";
     };
 
+    // ── Filter out qualifying rounds from progress calculation ─────────────────
     const isMainDraw = (m) => {
       const round = (m.tournament_round||m.event_round||"").toLowerCase();
+      // Filter out anything that looks like qualifying
       if (round.includes("qual")) return false;
       if (round.includes("pre-")) return false;
       if (round.includes("qualifying")) return false;
       if (round.includes("q1") || round.includes("q2") || round.includes("q3")) return false;
+      // Keep only recognised main draw rounds
       const mainDrawTerms = ["final","semi","quarter","1/2","1/4","1/8","1/16","1/32","1/64","round of","r16","r32","r64","r128","first round","second round","third round"];
       return mainDrawTerms.some(t => round.includes(t));
     };
@@ -1466,8 +1502,10 @@ app.get("/api/calendar", async (req, res) => {
       };
     })
     .filter(t => !t.isFinished)
+    // Hide pure qualification tournaments
     .filter(t => !t.name.toLowerCase().includes("qualification"))
     .filter(t => !t.name.toLowerCase().includes("qualifying"))
+    // Hide tournaments with no main draw matches detected
     .filter(t => t.totalMatches > 0 || t.isUpcoming)
     .sort((a,b) => a.startDate.localeCompare(b.startDate));
 
