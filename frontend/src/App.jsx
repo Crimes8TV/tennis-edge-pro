@@ -441,7 +441,12 @@ function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare
 
       <div onClick={onClick} style={{cursor:"pointer"}}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-          <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
+          <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+            <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
+            {m.isTomorrow && !isLive && !isFinished && !isCancelled && (
+              <span style={{fontSize:"10px",color:"#a78bfa",fontWeight:700,background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:"4px",padding:"1px 6px"}}>📅 Morgen</span>
+            )}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
             {/* CHANGE 1: Cancelled Badge — rot statt gelb, klarer sichtbar */}
