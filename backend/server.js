@@ -311,26 +311,20 @@ async function getPlayerForm(playerName, standings) {
     const dateEnd = getBerlinDate();
     const dateStart = getBerlinDate(-90);
 
-    // Try ATP first (faster), add Challenger only if no results found
-    const atpRes = await apiGet({
-      method: "get_fixtures", date_start: dateStart, date_stop: dateEnd,
-      event_type_key: 265, player_key: playerKey
-    });
-    let matches = (atpRes.data?.result || []).filter(m => m.event_status==="Finished" || m.event_winner);
+    // Load ATP and Challenger fixtures in parallel
+    const [atpRes, chalRes] = await Promise.allSettled([
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265, player_key:playerKey }),
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:281, player_key:playerKey })
+    ]);
 
-    // If fewer than 3 ATP matches, also check Challenger
-    if (matches.length < 3) {
-      try {
-        const chalRes = await apiGet({
-          method: "get_fixtures", date_start: dateStart, date_stop: dateEnd,
-          event_type_key: 281, player_key: playerKey
-        });
-        const chalMatches = (chalRes.data?.result || []).filter(m => m.event_status==="Finished" || m.event_winner);
-        matches = [...matches, ...chalMatches].sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
-      } catch(e) {}
-    } else {
-      matches = matches.sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
-    }
+    const allMatches = [
+      ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+      ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+    ];
+
+    const matches = allMatches
+      .filter(m => m.event_status==="Finished" || m.event_winner)
+      .sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
     if (matches.length === 0) return null;
 
     const recent = matches.slice(-10).reverse();
