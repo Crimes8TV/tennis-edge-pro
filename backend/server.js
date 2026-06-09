@@ -1404,7 +1404,7 @@ Antworte NUR mit validem JSON:
       { model: "claude-haiku-4-5-20251001", max_tokens: 900,
         messages: [{ role: "user", content: prompt }] },
       { headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01" }, timeout: 20000 }
+          "anthropic-version": "2023-06-01" }, timeout: 35000 }
     );
 
     const text = response.data.content?.map(c=>c.text||"").join("").trim();
