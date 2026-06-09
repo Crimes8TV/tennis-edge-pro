@@ -1517,62 +1517,70 @@ export default function App() {
                       </div>
                     );
                     const categoryOrder = ["ATP Singles","ATP Doubles","Challenger Singles","Challenger Doubles"];
-                    const grouped = {};
-                    filteredFixtures.forEach(m => {
-                      const cat = m.category || "Sonstige";
-                      const tourn = m.tournament || "Unbekannt";
-                      const key = `${cat}|||${tourn}`;
-                      if (!grouped[key]) grouped[key] = {cat,tourn,matches:[]};
-                      grouped[key].matches.push(m);
-                    });
-                    const sortedKeys = Object.keys(grouped).sort((a,b) => {
-                      const idxA = categoryOrder.indexOf(grouped[a].cat);
-                      const idxB = categoryOrder.indexOf(grouped[b].cat);
-                      if (idxA !== idxB) return (idxA===-1?99:idxA)-(idxB===-1?99:idxB);
-                      return grouped[a].tourn.localeCompare(grouped[b].tourn);
-                    });
-                    const byCategory = {};
-                    sortedKeys.forEach(key => { const {cat} = grouped[key]; if (!byCategory[cat]) byCategory[cat]=[]; byCategory[cat].push(key); });
-                    return Object.entries(byCategory).map(([cat,keys]) => {
-                      const isATP = cat.includes("ATP");
-                      const liveInCat = keys.flatMap(k=>grouped[k].matches).filter(m=>m.live).length;
-                      const cancelledInCat = keys.flatMap(k=>grouped[k].matches).filter(m=>m.cancelled).length;
+
+                    // Split into today and tomorrow
+                    const todayFixtures = filteredFixtures.filter(m => !m.isTomorrow);
+                    const tomorrowFixtures = filteredFixtures.filter(m => m.isTomorrow);
+
+                    const renderGroup = (matchList, dayLabel) => {
+                      const grouped = {};
+                      matchList.forEach(m => {
+                        const cat = m.category || "Sonstige";
+                        const tourn = m.tournament || "Unbekannt";
+                        const key = `${cat}|||${tourn}`;
+                        if (!grouped[key]) grouped[key] = {cat, tourn, matches:[]};
+                        grouped[key].matches.push(m);
+                      });
+                      const sortedKeys = Object.keys(grouped).sort((a,b) => {
+                        const idxA = categoryOrder.indexOf(grouped[a].cat);
+                        const idxB = categoryOrder.indexOf(grouped[b].cat);
+                        if (idxA !== idxB) return (idxA===-1?99:idxA)-(idxB===-1?99:idxB);
+                        return grouped[a].tourn.localeCompare(grouped[b].tourn);
+                      });
                       return (
-                        <div key={cat} style={{marginBottom:"32px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",paddingBottom:"10px",borderBottom:`2px solid ${isATP?"rgba(34,211,238,0.3)":"rgba(250,204,21,0.3)"}`,cursor:"pointer",userSelect:"none"}} onClick={() => toggleCategory(cat)}>
-                            <span style={{fontSize:"16px",color:isATP?"#22d3ee":"#facc15",transition:"transform 0.2s",display:"inline-block",transform:collapsedCategories[cat]?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
-                            <span style={{fontSize:"18px",fontWeight:800,color:isATP?"#22d3ee":"#facc15"}}>{cat}</span>
-                            {liveInCat > 0 && <span style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",color:"#f87171",fontWeight:700}}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />{liveInCat} Live</span>}
-                            {/* CHANGE 4c: Cancelled Badge in Kategorie-Header */}
-                            {cancelledInCat > 0 && <span style={{fontSize:"11px",color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:"20px",padding:"2px 10px"}}>🚫 {cancelledInCat} abgesagt</span>}
-                            <span style={{fontSize:"12px",color:"#475569"}}>{keys.flatMap(k=>grouped[k].matches).length} Matches</span>
-                          </div>
-                          {!collapsedCategories[cat] && keys.map(key => {
-                            const {tourn,matches} = grouped[key];
-                            const liveInTourn = matches.filter(m=>m.live).length;
-                            const cancelledInTourn = matches.filter(m=>m.cancelled).length;
-                            const isColl = collapsedTournaments[key];
+                        <div key={dayLabel}>
+                          {dayLabel && (
+                            <div style={{display:"flex",alignItems:"center",gap:"10px",margin:"16px 0 12px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                              <span style={{fontSize:"13px",fontWeight:800,color:dayLabel==="Heute"?"#22d3ee":"#a78bfa"}}>
+                                {dayLabel==="Heute"?"📅 Heute":"📅 Morgen"}
+                              </span>
+                              <span style={{fontSize:"11px",color:"#475569"}}>{matchList.length} Matches</span>
+                            </div>
+                          )}
+                          {sortedKeys.map(key => {
+                            const {cat, tourn, matches} = grouped[key];
                             return (
-                              <div key={key} style={{marginBottom:"16px",background:"rgba(255,255,255,0.02)",borderRadius:"14px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
-                                <div style={{display:"flex",alignItems:"center",gap:"8px",padding:"12px 16px",cursor:"pointer",userSelect:"none"}} onClick={() => toggleTournament(key)}>
-                                  <span style={{fontSize:"13px",color:"#64748b",transition:"transform 0.2s",display:"inline-block",transform:isColl?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
-                                  <span style={{fontSize:"14px",fontWeight:700,color:"#cbd5e1"}}>🏆 {tourn}</span>
-                                  {liveInTourn > 0 && <span style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"11px",color:"#f87171",fontWeight:700}}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />{liveInTourn} Live</span>}
-                                  {cancelledInTourn > 0 && <span style={{fontSize:"11px",color:"#ef4444",fontWeight:600}}>🚫 {cancelledInTourn} abgesagt</span>}
-                                  <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{matches.length} Matches</span>
+                              <div key={key} className="matchSection">
+                                <div className="matchSectionHeader">
+                                  <span className={`matchCardBadge ${cat.includes("ATP")?"atp":"challenger"}`}>{cat}</span>
+                                  <span className="matchSectionTitle">{tourn}</span>
                                 </div>
-                                {!isColl && <div style={{padding:"0 12px 12px"}}>
-                                  <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                                    {/* CHANGE 5: Cancelled innerhalb Turnier ans Ende */}
-                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} onLogBet={(match)=>setBetModal(match)} />)}
-                                  </div>
-                                </div>}
+                                <div className="matchCardGrid">
+                                  {[...matches].sort((a,b) => {
+                                    const ac=a.cancelled?1:0, bc=b.cancelled?1:0;
+                                    return ac-bc;
+                                  }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers}
+                                    onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))}
+                                    onWatchlist={toggleWatchlist} isWatched={isWatched(m)}
+                                    onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}}
+                                    streaks={streaks} quickOdds={quickOdds}
+                                    onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))}
+                                    favoritePlayers={favoritePlayers}
+                                    onLogBet={(match)=>setBetModal(match)} />)}
+                                </div>
                               </div>
                             );
                           })}
                         </div>
                       );
-                    });
+                    };
+
+                    return (
+                      <>
+                        {renderGroup(todayFixtures, tomorrowFixtures.length > 0 ? "Heute" : null)}
+                        {tomorrowFixtures.length > 0 && renderGroup(tomorrowFixtures, "Morgen")}
+                      </>
+                    );
                   })()}
             </div>
           </>
