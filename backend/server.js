@@ -1283,50 +1283,82 @@ app.post("/api/news-analysis", async (req, res) => {
     const injNews1 = filterInjury(headlines1);
     const injNews2 = filterInjury(headlines2);
 
-    const fmt = (name, form) => {
+    // ── Verletzungs-Muster in Ergebnissen erkennen ───────────────────────────
+    const detectInjuryPattern = (form) => {
+      if (!form?.recentMatches?.length) return null;
+      const matches = form.recentMatches;
+      // Viele Niederlagen in kurzer Zeit (letzte 2 Turniere) = mögliche Verletzung
+      const lastThree = matches.slice(0, 3);
+      const lastThreeLosses = lastThree.filter(m => !m.won).length;
+      // Mehrere Turniere kurz hintereinander = Erschöpfung
+      const tournaments = [...new Set(matches.map(m => m.tournament))];
+      return {
+        recentLossRun: lastThreeLosses >= 2,
+        manyTournaments: tournaments.length >= 3,
+        tournaments
+      };
+    };
+
+    const pattern1 = detectInjuryPattern(form1);
+    const pattern2 = detectInjuryPattern(form2);
+
+    const fmt = (name, form, pattern) => {
       if (!form) return `${name}: Keine aktuellen Ergebnisse.`;
       const streak = form.streak >= 2 ? (form.streakWon ? `🔥 ${form.streak}W-Streak` : `❄️ ${form.streak}L-Streak`) : "";
-      const matches = form.recentMatches.map(m=>`${m.won?"W":"L"}${m.opponent?` vs ${m.opponent}`:""}${m.tournament?` (${m.tournament})`:""}`.trim()).join(", ");
-      return `${name}: ${form.wins}W/${form.losses}L (letzte ${form.total}) ${streak}. Ergebnisse: ${matches}`;
+      const matches = form.recentMatches.map(m =>
+        `${m.won?"W":"L"} vs ${m.opponent||"?"} (${m.tournament||"?"}${m.date?", "+m.date:""})`
+      ).join("; ");
+      const warnings = [];
+      if (pattern?.recentLossRun) warnings.push("⚠️ 2+ Niederlagen zuletzt");
+      if (pattern?.manyTournaments) warnings.push(`⚠️ ${pattern.tournaments.length} Turniere in kurzer Zeit (Erschöpfung möglich)`);
+      return `${name}: ${form.wins}W/${form.losses}L ${streak}\nErgebnisse: ${matches}${warnings.length ? "\nHinweise: "+warnings.join(", ") : ""}`;
     };
 
     const prompt = `Du bist Tennis-Analyst. Bewerte die aktuelle Form und Verletzungsrisiken für ein bevorstehendes Match.
 
-AKTUELLE FORM (echte Ergebnisse letzte 2 Wochen):
-${fmt(player1, form1)}
-${fmt(player2, form2)}
+WICHTIG: Die Ergebnisdaten zeigen NUR ob ein Match gewonnen/verloren wurde, NICHT ob ein Spieler aufgegeben hat oder verletzt war. Nutze die Verletzungs-News als primäre Quelle für Verletzungsrisiken.
 
-VERLETZUNGS-NEWS (gefiltert):
-${player1}: ${injNews1.length > 0 ? injNews1.join(" | ") : "Keine Verletzungsnews."}
-${player2}: ${injNews2.length > 0 ? injNews2.join(" | ") : "Keine Verletzungsnews."}
+AKTUELLE FORM (echte Ergebnisse):
+${fmt(player1, form1, pattern1)}
+
+${fmt(player2, form2, pattern2)}
+
+VERLETZUNGS-NEWS (alle verfügbaren Schlagzeilen über Verletzungen, Rückzüge, Fitness):
+${player1}: ${injNews1.length > 0 ? injNews1.join(" | ") : "Keine Verletzungsnews gefunden."}
+${player2}: ${injNews2.length > 0 ? injNews2.join(" | ") : "Keine Verletzungsnews gefunden."}
+
+Alle Schlagzeilen (ungefiltert, zur Sicherheit):
+${player1}: ${(headlines1||[]).slice(0,5).join(" | ") || "keine"}
+${player2}: ${(headlines2||[]).slice(0,5).join(" | ") || "keine"}
 
 Modell-Vorhersage: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
 
-Modifier-Richtlinien (basierend auf echten Ergebnissen, NICHT auf allgemeinem Ruf):
-- Starker Streak (4+W) + gute Gegner: +4 bis +6
-- Moderater Streak (2-3W): +2 bis +3  
-- Neutral/gemischt: 0
-- Verlust-Streak (2-3L): -2 bis -3
-- Verletzungsrisiko konkret belegt: -3 bis -6
+Bewertungsregeln:
+- Verletzung/Rückzug in News → injury_risk, modifier -4 bis -7
+- 3+ Niederlagen in Folge → poor_form, modifier -2 bis -4
+- 3+ Siege in Folge gegen gute Gegner → good_form, modifier +2 bis +4
+- Neutral/gemischt → modifier 0
+- Erschöpfung (viele Turniere) ohne Verletzung → fatigue, modifier -1 bis -2
+- Sei konservativ: max ±5 wenn keine klaren Signale
 
 Antworte NUR mit validem JSON:
 {
   "player1": {
     "signal": "good_form | poor_form | injury_risk | neutral | motivated | fatigue | withdrawal_risk",
     "modifier": <-8 bis +8>,
-    "reason": "<konkreter Satz auf Deutsch mit Bezug auf echte Ergebnisse>",
-    "form_summary": "<z.B. '4W/1L, 3-Siege-Streak'>",
-    "injury_flag": <true/false>
+    "reason": "<konkreter Satz auf Deutsch, direkt auf Ergebnisse/News bezogen>",
+    "form_summary": "<z.B. '2W/3L' oder '4W-Streak'>",
+    "injury_flag": <true wenn Verletzungshinweise vorhanden, sonst false>
   },
   "player2": {
     "signal": "good_form | poor_form | injury_risk | neutral | motivated | fatigue | withdrawal_risk",
     "modifier": <-8 bis +8>,
-    "reason": "<konkreter Satz auf Deutsch mit Bezug auf echte Ergebnisse>",
-    "form_summary": "<z.B. '2W/3L, schwache Form'>",
-    "injury_flag": <true/false>
+    "reason": "<konkreter Satz auf Deutsch, direkt auf Ergebnisse/News bezogen>",
+    "form_summary": "<z.B. '2W/3L' oder '3L-Streak'>",
+    "injury_flag": <true wenn Verletzungshinweise vorhanden, sonst false>
   },
   "overall_impact": "low | medium | high",
-  "summary": "<ein Satz auf Deutsch, konkret auf die Ergebnisse bezogen>"
+  "summary": "<ein konkreter Satz auf Deutsch>"
 }`;
 
     const response = await axios.post(
@@ -1631,6 +1663,7 @@ app.get("/api/debug-form", async (req, res) => {
         recentResults: form2?.recentResults?.slice(0,8) || [],
         wins: form2?.recentResults?.filter(r=>r.won).length || 0,
         losses: form2?.recentResults?.filter(r=>!r.won).length || 0,
+        newsRaw: news2Res.status==="fulfilled" ? (news2Res.value.data?.result||[]).slice(0,8).map(n=>n.news_title||n.title||n.headline||JSON.stringify(n).slice(0,100)) : "fetch failed"
       }
     });
   } catch(err) {
