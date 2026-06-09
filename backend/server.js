@@ -1700,6 +1700,22 @@ app.get("/api/streaks", async (req, res) => {
   } catch(err) { console.error("STREAKS ERROR:", err.message); res.json({}); }
 });
 
+// ─── DEBUG: Player lookup ─────────────────────────────────────────────────────
+app.get("/api/debug-player", async (req, res) => {
+  const name = (req.query.name||"").toLowerCase();
+  try {
+    const [atp, chal] = await Promise.allSettled([
+      apiGet({ method:"get_standings", event_type:"ATP" }),
+      apiGet({ method:"get_standings", event_type:"Challenger" })
+    ]);
+    const atpS = atp.status==="fulfilled" ? atp.value.data?.result||[] : [];
+    const chalS = chal.status==="fulfilled" ? chal.value.data?.result||[] : [];
+    const all = [...atpS, ...chalS];
+    const matches = all.filter(p => (p.player||"").toLowerCase().includes(name));
+    res.json({ query: name, found: matches.slice(0,5).map(p=>({name:p.player,key:p.player_key,rank:p.place})) });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 // ─── DEBUG: Form Analysis Data ───────────────────────────────────────────────
 app.get("/api/debug-form", async (req, res) => {
   try {
