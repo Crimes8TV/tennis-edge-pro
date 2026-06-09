@@ -980,17 +980,20 @@ export default function App() {
       const rawMod1 = parsed.player1?.modifier || 0;
       const rawMod2 = parsed.player2?.modifier || 0;
       const netMod = rawMod1 - rawMod2;
-      const adjustedProb1 = Math.min(95, Math.max(5, Math.round(baseProb1 + netMod)));
+      const base1 = Math.round(Number(baseProb1) || 50);
+      const base2 = 100 - base1;
+      const adjustedProb1 = Math.min(95, Math.max(5, base1 + netMod));
+      const adjustedProb2 = 100 - adjustedProb1;
 
       setNewsAnalysis({
         player1: { name: player1, ...parsed.player1, headlines: headlines1 },
         player2: { name: player2, ...parsed.player2, headlines: headlines2 },
         overall_impact: parsed.overall_impact,
         summary: parsed.summary,
-        baseProb1: Math.round(baseProb1),
-        baseProb2: Math.round(100 - baseProb1),
+        baseProb1: base1,
+        baseProb2: base2,
         adjustedProb1,
-        adjustedProb2: 100 - adjustedProb1,
+        adjustedProb2,
         netMod
       });
     } catch(err) {
@@ -1840,7 +1843,12 @@ export default function App() {
                                   <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{newsAnalysis.player2.name}</div>
                                   <div style={{display:"flex",alignItems:"baseline",gap:"6px",justifyContent:"flex-end"}}>
                                     <span style={{fontSize:"11px",color: newsAnalysis.adjustedProb2 > newsAnalysis.baseProb2 ? "#4ade80" : newsAnalysis.adjustedProb2 < newsAnalysis.baseProb2 ? "#f87171" : "#475569",fontWeight:700}}>
-                                      {newsAnalysis.adjustedProb2 > newsAnalysis.baseProb2 ? `▲+${newsAnalysis.adjustedProb2-newsAnalysis.baseProb2}` : newsAnalysis.adjustedProb2 < newsAnalysis.baseProb2 ? `▼${newsAnalysis.adjustedProb2-newsAnalysis.baseProb2}` : "="}
+                                      {(() => {
+                                        const delta = newsAnalysis.adjustedProb2 - newsAnalysis.baseProb2;
+                                        if (delta > 0) return `▲+${delta}`;
+                                        if (delta < 0) return `▼${delta}`;
+                                        return "=";
+                                      })()}
                                     </span>
                                     <span style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{newsAnalysis.adjustedProb2}%</span>
                                   </div>
