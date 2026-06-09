@@ -1284,20 +1284,15 @@ app.post("/api/news-analysis", async (req, res) => {
     const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
     if (!ANTHROPIC_KEY) return res.status(500).json({ error: "No Anthropic API key configured" });
 
-    // ── Echte Form-Daten holen ──────────────────────────────────────────────
+    // ── Echte Form-Daten holen (mit Cache) ───────────────────────────────────
     const getRecentForm = async (playerName) => {
       try {
-        const [atpRes, chalRes] = await Promise.allSettled([
-          apiGet({ method:"get_standings", event_type:"ATP" }),
-          apiGet({ method:"get_standings", event_type:"Challenger" })
-        ]);
-        const standings = [
-          ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
-          ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
-        ];
+        // Use cached standings from a simple ATP lookup
+        const standingsRes = await apiGet({ method:"get_standings", event_type:"ATP" });
+        const standings = standingsRes.data?.result || [];
         const formData = await getPlayerForm(playerName, standings);
         if (!formData?.recentResults?.length) return null;
-        const recent = formData.recentResults.slice(0, 10);
+        const recent = formData.recentResults.slice(0, 8);
         const wins = recent.filter(r=>r.won).length;
         const losses = recent.length - wins;
         let streak = 0;
@@ -1305,20 +1300,25 @@ app.post("/api/news-analysis", async (req, res) => {
         for (const r of recent) { if ((r.won?1:-1)===dir) streak++; else break; }
         return {
           wins, losses, total: recent.length,
-          winPct: recent.length > 0 ? Math.round(wins/recent.length*100) : null,
           streak, streakWon: dir===1,
           recentMatches: recent.slice(0,5).map(r => ({
-            won: r.won, tournament: r.tournament||"", opponent: r.opponent||""
+            won: r.won, tournament: r.tournament||"", opponent: r.opponent||"", date: r.date||""
           }))
         };
       } catch(e) { return null; }
     };
 
-    const [with1, with2, form1, form2] = await Promise.all([
-      getWithdrawals(player1),
-      getWithdrawals(player2),
-      getRecentForm(player1),
-      getRecentForm(player2)
+    // Run form fetch and withdrawal check in parallel, with individual timeouts
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise(resolve => setTimeout(() => resolve(null), ms))
+    ]);
+
+    const [form1, form2, with1, with2] = await Promise.all([
+      withTimeout(getRecentForm(player1), 12000),
+      withTimeout(getRecentForm(player2), 12000),
+      withTimeout(getWithdrawals(player1), 8000),
+      withTimeout(getWithdrawals(player2), 8000),
     ]);
 
     // ── Nur verletzungsrelevante News filtern ─────────────────────────────
