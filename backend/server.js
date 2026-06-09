@@ -253,7 +253,7 @@ app.get("/api/odds/:match_key", async (req, res) => {
 
 // ─── In-memory cache for form data (5 min TTL) ───────────────────────────────
 const formCache = new Map();
-const FORM_TTL = 5 * 60 * 1000;
+const FORM_TTL = 1 * 60 * 1000; // 1 minute - short enough to stay fresh
 
 // ─── HELPER: Calculate real form from recent matches ─────────────────────────
 async function getPlayerForm(playerName, standings) {
@@ -1300,20 +1300,15 @@ app.post("/api/news-analysis", async (req, res) => {
     // ── Echte Form-Daten holen (mit Fixture-Fallback für Challenger-Spieler) ──
     const getRecentForm = async (playerName) => {
       try {
-        const lastName = playerName.toLowerCase().trim().split(" ").pop();
-        // Try ATP standings first
-        const standingsRes = await apiGet({ method:"get_standings", event_type:"ATP" });
-        const atpStandings = standingsRes.data?.result || [];
-
-        // Also try Challenger standings
-        let chalStandings = [];
-        try {
-          const cRes = await apiGet({ method:"get_standings", event_type:"Challenger" });
-          chalStandings = cRes.data?.result || [];
-        } catch(e) {}
-
-        const allStandings = [...atpStandings, ...chalStandings];
-        const formData = await getPlayerForm(playerName, allStandings);
+        const [atpRes, chalRes] = await Promise.allSettled([
+          apiGet({ method:"get_standings", event_type:"ATP" }),
+          apiGet({ method:"get_standings", event_type:"Challenger" })
+        ]);
+        const standings = [
+          ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+          ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+        ];
+        const formData = await getPlayerForm(playerName, standings);
         if (!formData?.recentResults?.length) return null;
         const recent = formData.recentResults.slice(0, 8);
         const wins = recent.filter(r=>r.won).length;
