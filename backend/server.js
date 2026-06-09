@@ -263,17 +263,26 @@ async function getPlayerForm(playerName, standings) {
 
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
+    // Handle hyphenated names: "dedura-palomero" → also try "dedura"
+    const lastNameFirst = lastName.split("-")[0];
 
     let found = standings.find(p => {
       const pn = (p.player||"").toLowerCase();
-      return pn.split(" ").some(word => word === lastName) || pn.includes(lastName);
+      return pn.split(" ").some(word =>
+        word === lastName || word === lastNameFirst || word.includes(lastNameFirst)
+      ) || pn.includes(lastName);
     });
 
     if (!found?.player_key) {
       try {
         const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
         const chalStandings = chalRes.data?.result || [];
-        found = chalStandings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+        found = chalStandings.find(p => {
+          const pn = (p.player||"").toLowerCase();
+          return pn.split(" ").some(word =>
+            word === lastName || word === lastNameFirst || word.includes(lastNameFirst)
+          );
+        });
       } catch(e) { /* ignore */ }
     }
 
