@@ -1878,13 +1878,18 @@ export default function App() {
                               return (
                                 <div key={pi} style={{flex:1,minWidth:"140px",fontSize:"10px",color:"#64748b",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"6px",padding:"6px 8px"}}>
                                   <div style={{fontWeight:700,color:"#94a3b8",marginBottom:"3px"}}>{p.name.split(" ").pop()}: {p.form_summary||`${form.wins}W/${form.losses}L`}</div>
-                                  {form.recentMatches?.slice(0,3).map((m,i) => (
+                                  {form && form.recentMatches?.slice(0,3).map((m,i) => (
                                     <div key={i} style={{color:m.won?"#4ade80":"#f87171",marginBottom:"1px"}}>
                                       {m.won?"✓":"✗"} {m.opponent||"?"}{m.tournament?` · ${m.tournament}`:""}
                                     </div>
                                   ))}
+                                  {p.withdrawals?.length > 0 && p.withdrawals.map((w,i) => (
+                                    <div key={i} style={{color:"#f97316",fontWeight:700,marginBottom:"1px"}}>
+                                      🚨 {w.status}: {w.tournament}{w.date?` (${w.date})`:""}
+                                    </div>
+                                  ))}
                                   {p.injuryNews?.length > 0 && (
-                                    <div style={{marginTop:"4px",color:"#f97316",fontWeight:600}}>⚠️ {p.injuryNews[0].slice(0,60)}…</div>
+                                    <div style={{marginTop:"4px",color:"#facc15",fontWeight:600}}>⚠️ {p.injuryNews[0].slice(0,60)}…</div>
                                   )}
                                 </div>
                               );
