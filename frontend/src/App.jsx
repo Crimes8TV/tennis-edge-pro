@@ -985,6 +985,7 @@ export default function App() {
       const adjustedProb1 = Math.min(95, Math.max(5, base1 + netMod));
       const adjustedProb2 = 100 - adjustedProb1;
       console.log("[FormAnalyse] base1=",base1,"base2=",base2,"adj1=",adjustedProb1,"adj2=",adjustedProb2,"netMod=",netMod);
+      console.log("[FormAnalyse] types:", typeof base2, typeof adjustedProb2, "delta=", adjustedProb2 - base2);
 
       setNewsAnalysis({
         player1: { name: player1, ...parsed.player1, headlines: headlines1 },
@@ -1831,29 +1832,26 @@ export default function App() {
                               <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:"8px",alignItems:"center"}}>
                                 <div>
                                   <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{newsAnalysis.player1.name}</div>
-                                  <div style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
-                                    <span style={{fontSize:"22px",fontWeight:900,color:"#22d3ee"}}>{newsAnalysis.adjustedProb1}%</span>
-                                    <span style={{fontSize:"11px",color: newsAnalysis.adjustedProb1 > newsAnalysis.baseProb1 ? "#4ade80" : newsAnalysis.adjustedProb1 < newsAnalysis.baseProb1 ? "#f87171" : "#475569",fontWeight:700}}>
-                                      {newsAnalysis.adjustedProb1 > newsAnalysis.baseProb1 ? `▲+${newsAnalysis.adjustedProb1-newsAnalysis.baseProb1}` : newsAnalysis.adjustedProb1 < newsAnalysis.baseProb1 ? `▼${newsAnalysis.adjustedProb1-newsAnalysis.baseProb1}` : "="}
-                                    </span>
+                                  <div>
+                                    <div style={{fontSize:"22px",fontWeight:900,color:"#22d3ee"}}>{newsAnalysis.adjustedProb1}%</div>
+                                    {newsAnalysis.adjustedProb1 !== newsAnalysis.baseProb1 && (
+                                      <div style={{fontSize:"11px",color:newsAnalysis.adjustedProb1>newsAnalysis.baseProb1?"#4ade80":"#f87171",fontWeight:700}}>
+                                        {newsAnalysis.adjustedProb1>newsAnalysis.baseProb1?`▲+${newsAnalysis.adjustedProb1-newsAnalysis.baseProb1}%`:`▼${Math.abs(newsAnalysis.adjustedProb1-newsAnalysis.baseProb1)}%`}
+                                      </div>
+                                    )}
                                   </div>
                                   <div style={{fontSize:"10px",color:"#334155"}}>war {newsAnalysis.baseProb1}%</div>
                                 </div>
                                 <div style={{textAlign:"center",color:"#334155",fontSize:"12px",fontWeight:700}}>VS</div>
                                 <div style={{textAlign:"right"}}>
                                   <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{newsAnalysis.player2.name}</div>
-                                  <div style={{display:"flex",alignItems:"baseline",gap:"6px",justifyContent:"flex-end"}}>
+                                  <div style={{textAlign:"right"}}>
+                                    <div style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{Math.round(Number(newsAnalysis.adjustedProb2)||0)}%</div>
                                     {(() => {
-                                      const adj2 = Number(newsAnalysis.adjustedProb2) || 0;
-                                      const base2 = Number(newsAnalysis.baseProb2) || 0;
-                                      const delta2 = Math.round(adj2 - base2);
-                                      return (
-                                        <span style={{fontSize:"11px",color:delta2>0?"#4ade80":delta2<0?"#f87171":"#475569",fontWeight:700}}>
-                                          {delta2>0?`▲+${delta2}`:delta2<0?`▼${delta2}`:"="}
-                                        </span>
-                                      );
+                                      const delta2 = Math.round((Number(newsAnalysis.adjustedProb2)||0) - (Number(newsAnalysis.baseProb2)||0));
+                                      if (delta2 === 0) return null;
+                                      return <div style={{fontSize:"11px",color:delta2>0?"#4ade80":"#f87171",fontWeight:700}}>{delta2>0?`▲+${delta2}%`:`▼${Math.abs(delta2)}%`}</div>;
                                     })()}
-                                    <span style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{Math.round(Number(newsAnalysis.adjustedProb2)||0)}%</span>
                                   </div>
                                   <div style={{fontSize:"10px",color:"#334155"}}>war {newsAnalysis.baseProb2}%</div>
                                 </div>
