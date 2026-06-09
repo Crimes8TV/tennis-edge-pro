@@ -1797,6 +1797,8 @@ export default function App() {
                     const signalIcon = (s) => ({ injury_risk:"🤕", poor_form:"📉", good_form:"📈", fatigue:"😴", neutral:"➖", withdrawal_risk:"⚠️", motivated:"🔥" })[s] || "➖";
                     const signalColor = (s) => ({ injury_risk:"#f87171", poor_form:"#f87171", good_form:"#4ade80", fatigue:"#facc15", neutral:"#475569", withdrawal_risk:"#f97316", motivated:"#4ade80" })[s] || "#475569";
                     const hasAdjustment = newsAnalysis.netMod !== 0;
+                    // Always show panel if we have signal data
+                    const hasSignal = newsAnalysis.player1?.signal || newsAnalysis.player2?.signal;
 
                     return (
                       <div style={{margin:"16px 0",borderRadius:"14px",overflow:"hidden",border:`1px solid ${impactColor}33`,background:`${impactColor}08`}}>
@@ -1830,7 +1832,7 @@ export default function App() {
                             ))}
                           </div>
 
-                          {/* Adjusted prediction */}
+                          {/* Adjusted prediction or neutral summary */}
                           {hasAdjustment ? (
                             <div style={{padding:"12px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)"}}>
                               <div style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"10px"}}>📊 Angepasste Wahrscheinlichkeit</div>
@@ -1865,7 +1867,7 @@ export default function App() {
                             </div>
                           ) : (
                             <div style={{padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",fontSize:"12px",color:"#475569",textAlign:"center"}}>
-                              ➖ Keine relevanten News gefunden — Prediction unverändert
+                              ➖ Kein signifikanter Form-Unterschied — Prediction unverändert
                             </div>
                           )}
 
