@@ -938,21 +938,21 @@ export default function App() {
 
   const analyzeNewsForPrediction = async (player1, player2, baseProb1) => {
     setNewsAnalysisLoading(true);
+    console.log("[FormAnalyse] Start:", player1, "vs", player2);
     try {
-      // News holen (optional — für Verletzungsfilter, kein Blocker mehr)
+      // News holen (optional)
       const [news1Res, news2Res] = await Promise.all([
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player1)}`).then(r=>r.json()).catch(()=>[]),
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player2)}`).then(r=>r.json()).catch(()=>[])
       ]);
-
       const headlines1 = (Array.isArray(news1Res) ? news1Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
       const headlines2 = (Array.isArray(news2Res) ? news2Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
+      console.log("[FormAnalyse] Headlines:", headlines1.length, headlines2.length);
 
-      // Immer analysieren — Backend holt Form-Daten selbst
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
       let response;
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 40000); // 40s timeout
         response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -961,38 +961,26 @@ export default function App() {
         });
         clearTimeout(timeout);
       } catch(fetchErr) {
-        if (fetchErr.name === "AbortError") throw new Error("Form-Analyse Timeout (>40s)");
-        throw new Error(`Backend nicht erreichbar: ${fetchErr.message}`);
+        clearTimeout(timeout);
+        if (fetchErr.name === "AbortError") throw new Error("Timeout nach 45s");
+        throw new Error(`Nicht erreichbar: ${fetchErr.message}`);
       }
 
+      console.log("[FormAnalyse] Response status:", response.status);
       if (!response.ok) {
         const errText = await response.text().catch(()=>"");
-        throw new Error(`Backend Fehler ${response.status}: ${errText.slice(0,100)}`);
+        throw new Error(`Fehler ${response.status}: ${errText.slice(0,150)}`);
       }
 
-      // Step 3: Parse response
-      let parsed;
-      try {
-        parsed = await response.json();
-      } catch(parseErr) {
-        throw new Error(`JSON Parse Fehler: ${parseErr.message}`);
-      }
+      const parsed = await response.json();
+      console.log("[FormAnalyse] Parsed:", JSON.stringify(parsed).slice(0,200));
 
-      if (parsed.noNews) {
-        setNewsAnalysis({ noNews: true });
-        setNewsAnalysisLoading(false);
-        return;
-      }
-
-      if (parsed.error) {
-        throw new Error(`Claude Fehler: ${parsed.error}`);
-      }
+      if (parsed.error) throw new Error(`Server: ${parsed.error}`);
 
       const rawMod1 = parsed.player1?.modifier || 0;
       const rawMod2 = parsed.player2?.modifier || 0;
       const netMod = rawMod1 - rawMod2;
       const adjustedProb1 = Math.min(95, Math.max(5, Math.round(baseProb1 + netMod)));
-      const adjustedProb2 = 100 - adjustedProb1;
 
       setNewsAnalysis({
         player1: { name: player1, ...parsed.player1, headlines: headlines1 },
@@ -1002,11 +990,11 @@ export default function App() {
         baseProb1: Math.round(baseProb1),
         baseProb2: Math.round(100 - baseProb1),
         adjustedProb1,
-        adjustedProb2,
+        adjustedProb2: 100 - adjustedProb1,
         netMod
       });
     } catch(err) {
-      console.error("News analysis error:", err);
+      console.error("[FormAnalyse] Error:", err.message);
       setNewsAnalysis({ error: true, errorMsg: err.message });
     }
     setNewsAnalysisLoading(false);
