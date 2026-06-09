@@ -301,17 +301,19 @@ async function getPlayerForm(playerName, standings) {
     const dateEnd = getBerlinDate();
     const dateStart = getBerlinDate(-90);
 
-    const res = await apiGet({
-      method: "get_fixtures",
-      date_start: dateStart,
-      date_stop: dateEnd,
-      event_type_key: 265,
-      player_key: playerKey
-    });
+    const [atpRes, chalRes] = await Promise.allSettled([
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265, player_key:playerKey }),
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:281, player_key:playerKey })
+    ]);
 
-    const matches = (res.data?.result || []).filter(m =>
-      m.event_status === "Finished" || m.event_winner
-    );
+    const allMatches = [
+      ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+      ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+    ];
+
+    const matches = allMatches
+      .filter(m => m.event_status==="Finished" || m.event_winner)
+      .sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
     if (matches.length === 0) return null;
 
     const recent = matches.slice(-10).reverse();
