@@ -301,19 +301,26 @@ async function getPlayerForm(playerName, standings) {
     const dateEnd = getBerlinDate();
     const dateStart = getBerlinDate(-90);
 
-    const [atpRes, chalRes] = await Promise.allSettled([
-      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265, player_key:playerKey }),
-      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:281, player_key:playerKey })
-    ]);
+    // Try ATP first (faster), add Challenger only if no results found
+    const atpRes = await apiGet({
+      method: "get_fixtures", date_start: dateStart, date_stop: dateEnd,
+      event_type_key: 265, player_key: playerKey
+    });
+    let matches = (atpRes.data?.result || []).filter(m => m.event_status==="Finished" || m.event_winner);
 
-    const allMatches = [
-      ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
-      ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
-    ];
-
-    const matches = allMatches
-      .filter(m => m.event_status==="Finished" || m.event_winner)
-      .sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
+    // If fewer than 3 ATP matches, also check Challenger
+    if (matches.length < 3) {
+      try {
+        const chalRes = await apiGet({
+          method: "get_fixtures", date_start: dateStart, date_stop: dateEnd,
+          event_type_key: 281, player_key: playerKey
+        });
+        const chalMatches = (chalRes.data?.result || []).filter(m => m.event_status==="Finished" || m.event_winner);
+        matches = [...matches, ...chalMatches].sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
+      } catch(e) {}
+    } else {
+      matches = matches.sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
+    }
     if (matches.length === 0) return null;
 
     const recent = matches.slice(-10).reverse();
@@ -1641,26 +1648,34 @@ app.get("/api/streaks", async (req, res) => {
     ]);
     const fixtures = fixturesRes.data?.result || [];
     const standings = standingsRes.data?.result || [];
+
+    // Only top ATP players for streaks (faster)
     const playerNames = new Set();
     fixtures.forEach(m => {
       if (m.event_first_player) playerNames.add(m.event_first_player);
       if (m.event_second_player) playerNames.add(m.event_second_player);
     });
+
     const streakMap = {};
-    await Promise.allSettled([...playerNames].slice(0,20).map(async shortName => {
-      try {
-        const formData = await getPlayerForm(shortName, standings);
-        if (!formData?.recentResults?.length) return;
-        const results = formData.recentResults;
-        let streak = 0;
-        const dir = results[0].won ? 1 : -1;
-        for (const r of results) {
-          if ((r.won?1:-1) === dir) streak++;
-          else break;
-        }
-        streakMap[shortName] = { count: streak, won: dir === 1 };
-      } catch(e) {}
-    }));
+    // Process sequentially in small batches to avoid overloading API
+    const players = [...playerNames].slice(0, 12);
+    for (let i = 0; i < players.length; i += 4) {
+      const batch = players.slice(i, i + 4);
+      await Promise.allSettled(batch.map(async shortName => {
+        try {
+          const formData = await getPlayerForm(shortName, standings);
+          if (!formData?.recentResults?.length) return;
+          const results = formData.recentResults;
+          let streak = 0;
+          const dir = results[0].won ? 1 : -1;
+          for (const r of results) {
+            if ((r.won?1:-1) === dir) streak++;
+            else break;
+          }
+          streakMap[shortName] = { count: streak, won: dir === 1 };
+        } catch(e) {}
+      }));
+    }
     res.json(streakMap);
   } catch(err) { console.error("STREAKS ERROR:", err.message); res.json({}); }
 });
