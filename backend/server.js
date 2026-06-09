@@ -389,7 +389,7 @@ async function getPlayerForm(playerName, standings) {
     return result;
   } catch (err) {
     console.error("FORM ERROR:", err.message);
-    formCache.set(cacheKey, { data: null, ts: Date.now() });
+    // Don't cache null - allow retry on next request
     return null;
   }
 }
