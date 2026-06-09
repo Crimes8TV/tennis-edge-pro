@@ -23,8 +23,13 @@ const isAfter18Berlin = () => {
 };
 const getBerlinDate = (offsetDays = 0) => {
   const now = new Date();
-  now.setDate(now.getDate() + offsetDays);
-  return now.toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+  // Get current Berlin date string first, then add offset
+  const berlinNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  berlinNow.setDate(berlinNow.getDate() + offsetDays);
+  const y = berlinNow.getFullYear();
+  const m = String(berlinNow.getMonth()+1).padStart(2,"0");
+  const d = String(berlinNow.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
 };
 
 // ─── ATP PLAYER HAND DATABASE ─────────────────────────────────────────────────
@@ -248,7 +253,7 @@ app.get("/api/odds/:match_key", async (req, res) => {
 
 // ─── In-memory cache for form data (5 min TTL) ───────────────────────────────
 const formCache = new Map();
-const FORM_TTL = 5 * 60 * 1000;
+const FORM_TTL = 1 * 60 * 1000; // 1 minute - short enough to stay fresh
 
 // ─── HELPER: Calculate real form from recent matches ─────────────────────────
 async function getPlayerForm(playerName, standings) {
@@ -258,17 +263,27 @@ async function getPlayerForm(playerName, standings) {
 
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
+    const lastNameFirst = lastName.split("-")[0];
+    console.log(`[getPlayerForm] "${playerName}" → lastName="${lastName}", first="${lastNameFirst}"`);
 
     let found = standings.find(p => {
       const pn = (p.player||"").toLowerCase();
-      return pn.split(" ").some(word => word === lastName) || pn.includes(lastName);
+      return pn.split(" ").some(word =>
+        word === lastName || word === lastNameFirst || word.includes(lastNameFirst)
+      ) || pn.includes(lastName);
     });
+    console.log(`[getPlayerForm] standings match: ${found?.player||"none"} (key: ${found?.player_key||"none"})`);
 
     if (!found?.player_key) {
       try {
         const chalRes = await apiGet({ method: "get_standings", event_type: "Challenger" });
         const chalStandings = chalRes.data?.result || [];
-        found = chalStandings.find(p => (p.player||"").toLowerCase().trim().split(" ").pop() === lastName);
+        found = chalStandings.find(p => {
+          const pn = (p.player||"").toLowerCase();
+          return pn.split(" ").some(word =>
+            word === lastName || word === lastNameFirst || word.includes(lastNameFirst)
+          );
+        });
       } catch(e) { /* ignore */ }
     }
 
@@ -296,17 +311,29 @@ async function getPlayerForm(playerName, standings) {
     const dateEnd = getBerlinDate();
     const dateStart = getBerlinDate(-90);
 
-    const res = await apiGet({
-      method: "get_fixtures",
-      date_start: dateStart,
-      date_stop: dateEnd,
-      event_type_key: 265,
-      player_key: playerKey
+    // ATP fixtures support player_key filter; Challenger often does not
+    const [atpRes, chalRes] = await Promise.allSettled([
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265, player_key:playerKey }),
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:281 }) // no player_key filter
+    ]);
+
+    const atpMatches = (atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : [])
+      .filter(m => m.event_status==="Finished" || m.event_winner);
+
+    // Filter Challenger matches by player name
+    const chalMatchesRaw = chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [];
+    const chalMatches = chalMatchesRaw.filter(m => {
+      const p1n = (m.event_first_player||"").toLowerCase();
+      const p2n = (m.event_second_player||"").toLowerCase();
+      return (p1n.includes(lastNameFirst) || p2n.includes(lastNameFirst) ||
+              p1n.includes(lastName) || p2n.includes(lastName)) &&
+             (m.event_status==="Finished" || m.event_winner);
     });
 
-    const matches = (res.data?.result || []).filter(m =>
-      m.event_status === "Finished" || m.event_winner
-    );
+    const matches = [...atpMatches, ...chalMatches]
+      .sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""))
+      // Deduplicate by event_key
+      .filter((m,i,arr) => !m.event_key || arr.findIndex(x=>x.event_key===m.event_key)===i);
     if (matches.length === 0) return null;
 
     const recent = matches.slice(-10).reverse();
@@ -365,14 +392,16 @@ async function getPlayerForm(playerName, standings) {
     return result;
   } catch (err) {
     console.error("FORM ERROR:", err.message);
-    formCache.set(cacheKey, { data: null, ts: Date.now() });
+    // Don't cache null - allow retry on next request
     return null;
   }
 }
 
 // ─── MATCH PREDICTION ─────────────────────────────────────────────────────────
 app.get("/api/predict", async (req, res) => {
-  const { p1, p2, rank1 = 10, rank2 = 20, surface = "hard" } = req.query;
+  const { p1, p2, surface = "hard" } = req.query;
+  let rank1 = parseInt(req.query.rank1) || 100;
+  let rank2 = parseInt(req.query.rank2) || 100;
   const bo = parseInt(req.query.bo) === 5 ? 5 : 3;
 
   const hashStr = (str) => {
@@ -383,9 +412,6 @@ app.get("/api/predict", async (req, res) => {
   const stableRand = (seed) => ((hashStr(seed) % 1000) / 500) - 1;
 
   const eloFromRank = (rank) => Math.max(1500, 2400 - Number(rank) * 6);
-  const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
-  const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
-  const expected2 = 1 - expected1;
 
   let form1Data = null, form2Data = null, standings = [];
   try {
@@ -396,11 +422,39 @@ app.get("/api/predict", async (req, res) => {
     const atpStandings = atpRes.status === "fulfilled" ? atpRes.value.data?.result || [] : [];
     const chalStandings = chalRes.status === "fulfilled" ? chalRes.value.data?.result || [] : [];
     standings = [...atpStandings, ...chalStandings];
+
+    // ── Look up real rank from standings if frontend passed 100 as fallback ──
+    const findRank = (name) => {
+      if (!name) return null;
+      const nameLow = name.toLowerCase().trim();
+      const parts = nameLow.split(" ");
+      const lastName = parts[parts.length-1];
+      const found = standings.find(s => {
+        const sn = (s.player||"").toLowerCase();
+        return sn.includes(nameLow) || sn.split(" ").pop() === lastName;
+      });
+      return found ? parseInt(found.place)||null : null;
+    };
+
+    if (rank1 >= 100) {
+      const found = findRank(p1);
+      if (found) rank1 = found;
+    }
+    if (rank2 >= 100) {
+      const found = findRank(p2);
+      if (found) rank2 = found;
+    }
+    console.log(`[PREDICT] ${p1} rank=${rank1}, ${p2} rank=${rank2}`);
+
     [form1Data, form2Data] = await Promise.all([
       getPlayerForm(p1, standings),
       getPlayerForm(p2, standings)
     ]);
   } catch(e) { console.error("Form fetch error:", e.message); }
+
+  const elo1 = eloFromRank(rank1), elo2 = eloFromRank(rank2);
+  const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+  const expected2 = 1 - expected1;
 
   const hand1 = getPlayerHand(p1);
   const hand2 = getPlayerHand(p2);
@@ -683,7 +737,9 @@ app.get("/api/fixtures/today", async (req, res) => {
         sets:setScores, status:isLive?(src.event_status||"Live"):isFinished?"Finished":isCancelled?"Cancelled":m.event_status||"Scheduled",
         tournament:m.tournament_name||"", category:m._category||"",
         court: m.event_ground||m.court_name||"",
-        time:m.event_time||"", live:isLive, finished:isFinished, cancelled:isCancelled, matchKey:m.event_key
+        time:m.event_time||"", date:m.event_date||"",
+        isTomorrow: showTomorrow && m.event_date === tomorrow,
+        live:isLive, finished:isFinished, cancelled:isCancelled, matchKey:m.event_key
       };
     }).sort((a,b)=>{
       if(a.live&&!b.live)return -1; if(!a.live&&b.live)return 1;
@@ -1202,77 +1258,195 @@ app.get("/api/debug-tournament", async (req, res) => {
 });
 
 // ─── NEWS ANALYSIS (Claude Proxy) ────────────────────────────────────────────
+// ─── HELPER: Detect withdrawals from fixture data ────────────────────────────
+const getWithdrawals = async (playerName) => {
+  try {
+    const lastName = playerName.split(" ").pop().toLowerCase();
+    const dateFrom = getBerlinDate(-21);
+    const dateTo = getBerlinDate(1);
+    const [atp, chal] = await Promise.allSettled([
+      apiGet({ method:"get_fixtures", date_start:dateFrom, date_stop:dateTo, event_type_key:265 }),
+      apiGet({ method:"get_fixtures", date_start:dateFrom, date_stop:dateTo, event_type_key:281 })
+    ]);
+    const all = [
+      ...(atp.status==="fulfilled" ? atp.value.data?.result||[] : []),
+      ...(chal.status==="fulfilled" ? chal.value.data?.result||[] : [])
+    ];
+    return all.filter(m => {
+      const p1 = (m.event_first_player||"").toLowerCase();
+      const p2 = (m.event_second_player||"").toLowerCase();
+      if (!p1.includes(lastName) && !p2.includes(lastName)) return false;
+      const status = (m.event_status||"").toLowerCase().replace(/ /g,"");
+      return status.includes("cancelled") || status.includes("walkover") ||
+             status.includes("retired") || status.includes("w/o") ||
+             (m.event_winner === null && status !== "" && status !== "scheduled" && status !== "notstarted");
+    }).map(m => ({
+      tournament: m.tournament_name||"",
+      date: m.event_date||"",
+      opponent: (m.event_first_player||"").toLowerCase().includes(lastName)
+        ? m.event_second_player : m.event_first_player,
+      status: m.event_status||"W/O"
+    }));
+  } catch(e) { return []; }
+};
+
 app.post("/api/news-analysis", async (req, res) => {
   try {
     const { player1, player2, headlines1, headlines2, baseProb1 } = req.body;
     if (!player1 || !player2) return res.status(400).json({ error: "Missing players" });
-
     const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
     if (!ANTHROPIC_KEY) return res.status(500).json({ error: "No Anthropic API key configured" });
 
-    const h1 = (headlines1||[]).slice(0,5);
-    const h2 = (headlines2||[]).slice(0,5);
+    // ── Echte Form-Daten holen (mit Fixture-Fallback für Challenger-Spieler) ──
+    const getRecentForm = async (playerName) => {
+      try {
+        const [atpRes, chalRes] = await Promise.allSettled([
+          apiGet({ method:"get_standings", event_type:"ATP" }),
+          apiGet({ method:"get_standings", event_type:"Challenger" })
+        ]);
+        const standings = [
+          ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+          ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+        ];
+        const formData = await getPlayerForm(playerName, standings);
+        if (!formData?.recentResults?.length) return null;
+        const recent = formData.recentResults.slice(0, 8);
+        const wins = recent.filter(r=>r.won).length;
+        const losses = recent.length - wins;
+        let streak = 0;
+        const dir = recent[0]?.won ? 1 : -1;
+        for (const r of recent) { if ((r.won?1:-1)===dir) streak++; else break; }
+        return {
+          wins, losses, total: recent.length,
+          streak, streakWon: dir===1,
+          recentMatches: recent.slice(0,5).map(r => ({
+            won: r.won, tournament: r.tournament||"", opponent: r.opponent||"", date: r.date||""
+          }))
+        };
+      } catch(e) { return null; }
+    };
 
-    if (h1.length === 0 && h2.length === 0) {
-      return res.json({ noNews: true });
-    }
+    // Run form fetch and withdrawal check in parallel, with individual timeouts
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise(resolve => setTimeout(() => resolve(null), ms))
+    ]);
 
-    const prompt = `You are a tennis prediction assistant. Analyze these recent news headlines for two players and assess how they affect the match prediction.
+    const [form1, form2, with1, with2] = await Promise.all([
+      withTimeout(getRecentForm(player1), 12000),
+      withTimeout(getRecentForm(player2), 12000),
+      withTimeout(getWithdrawals(player1), 8000),
+      withTimeout(getWithdrawals(player2), 8000),
+    ]);
 
-Player 1: ${player1}
-News: ${h1.length > 0 ? h1.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+    // ── Nur verletzungsrelevante News filtern ─────────────────────────────
+    const injuryKw = ["verletz","injury","injured","retire","withdraw","zurückgezogen",
+      "aufgabe","krank","illness","schmerz","pain","wrist","knee","back","shoulder",
+      "ankle","hamstring","doubtful","fraglich","fitness","physical","medical","scratched"];
+    const filterInjury = (h) => (h||[]).filter(s => injuryKw.some(k=>(s||"").toLowerCase().includes(k))).slice(0,3);
+    const injNews1 = filterInjury(headlines1);
+    const injNews2 = filterInjury(headlines2);
 
-Player 2: ${player2}
-News: ${h2.length > 0 ? h2.map((h,i)=>`${i+1}. ${h}`).join("\n") : "No recent news found."}
+    // ── Verletzungs-Muster in Ergebnissen erkennen ───────────────────────────
+    const detectInjuryPattern = (form) => {
+      if (!form?.recentMatches?.length) return null;
+      const matches = form.recentMatches;
+      // Viele Niederlagen in kurzer Zeit (letzte 2 Turniere) = mögliche Verletzung
+      const lastThree = matches.slice(0, 3);
+      const lastThreeLosses = lastThree.filter(m => !m.won).length;
+      // Mehrere Turniere kurz hintereinander = Erschöpfung
+      const tournaments = [...new Set(matches.map(m => m.tournament))];
+      return {
+        recentLossRun: lastThreeLosses >= 2,
+        manyTournaments: tournaments.length >= 3,
+        tournaments
+      };
+    };
 
-Current model prediction: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
+    const pattern1 = detectInjuryPattern(form1);
+    const pattern2 = detectInjuryPattern(form2);
 
-Analyze the headlines for: injuries, illness, fatigue, form (winning/losing streak), motivation, withdrawals, or any other match-relevant factors.
+    const fmt = (name, form, pattern, withdrawals) => {
+      if (!form) return `${name}: Keine aktuellen Ergebnisse.`;
+      const streak = form.streak >= 2 ? (form.streakWon ? `🔥 ${form.streak}W-Streak` : `❄️ ${form.streak}L-Streak`) : "";
+      const matches = form.recentMatches.map(m =>
+        `${m.won?"W":"L"} vs ${m.opponent||"?"} (${m.tournament||"?"}${m.date?", "+m.date:""})`
+      ).join("; ");
+      const warnings = [];
+      if (pattern?.recentLossRun) warnings.push("⚠️ 2+ Niederlagen zuletzt");
+      if (pattern?.manyTournaments) warnings.push(`⚠️ ${pattern.tournaments.length} Turniere in kurzer Zeit`);
+      if (withdrawals?.length > 0) {
+        withdrawals.forEach(w => warnings.push(`🚨 RÜCKZUG/W/O: ${w.tournament} (${w.date}) - Status: ${w.status}`));
+      }
+      return `${name}: ${form.wins}W/${form.losses}L ${streak}\nErgebnisse: ${matches}${warnings.length ? "\n⚠️ HINWEISE: "+warnings.join(", ") : ""}`;
+    };
 
-Respond ONLY with a valid JSON object, no markdown, no extra text:
+    const prompt = `Du bist Tennis-Analyst. Bewerte die aktuelle Form und Verletzungsrisiken für ein bevorstehendes Match.
+
+WICHTIG: Rückzüge/W/O aus Fixture-Daten sind verlässlicher als News. Wenn ein Spieler einen Rückzug hatte, werte das als starkes Verletzungssignal.
+
+AKTUELLE FORM + RÜCKZÜGE:
+${fmt(player1, form1, pattern1, with1)}
+
+${fmt(player2, form2, pattern2, with2)}
+
+VERLETZUNGS-NEWS:
+${player1}: ${(headlines1||[]).slice(0,5).join(" | ") || "keine"}
+${player2}: ${(headlines2||[]).slice(0,5).join(" | ") || "keine"}
+
+Modell-Vorhersage: ${player1} ${Math.round(baseProb1)}% vs ${player2} ${Math.round(100-baseProb1)}%
+
+Bewertungsregeln:
+- Verletzung/Rückzug in News → injury_risk, modifier -4 bis -7
+- 3+ Niederlagen in Folge → poor_form, modifier -2 bis -4
+- 3+ Siege in Folge gegen gute Gegner → good_form, modifier +2 bis +4
+- Neutral/gemischt → modifier 0
+- Erschöpfung (viele Turniere) ohne Verletzung → fatigue, modifier -1 bis -2
+- Sei konservativ: max ±5 wenn keine klaren Signale
+
+Antworte NUR mit validem JSON:
 {
   "player1": {
-    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
-    "modifier": <integer from -8 to +8, 0 if neutral or no relevant news>,
-    "reason": "<one short sentence in German>",
-    "headlines_used": [<1-based indices of relevant headlines, empty array if none>]
+    "signal": "good_form | poor_form | injury_risk | neutral | motivated | fatigue | withdrawal_risk",
+    "modifier": <-8 bis +8>,
+    "reason": "<konkreter Satz auf Deutsch, direkt auf Ergebnisse/News bezogen>",
+    "form_summary": "<z.B. '2W/3L' oder '4W-Streak'>",
+    "injury_flag": <true wenn Verletzungshinweise vorhanden, sonst false>
   },
   "player2": {
-    "signal": "one of: injury_risk | poor_form | good_form | fatigue | neutral | withdrawal_risk | motivated",
-    "modifier": <integer from -8 to +8, 0 if neutral or no relevant news>,
-    "reason": "<one short sentence in German>",
-    "headlines_used": [<1-based indices of relevant headlines, empty array if none>]
+    "signal": "good_form | poor_form | injury_risk | neutral | motivated | fatigue | withdrawal_risk",
+    "modifier": <-8 bis +8>,
+    "reason": "<konkreter Satz auf Deutsch, direkt auf Ergebnisse/News bezogen>",
+    "form_summary": "<z.B. '2W/3L' oder '3L-Streak'>",
+    "injury_flag": <true wenn Verletzungshinweise vorhanden, sonst false>
   },
   "overall_impact": "low | medium | high",
-  "summary": "<one sentence in German summarizing the news impact>"
+  "summary": "<ein konkreter Satz auf Deutsch>"
 }`;
 
     const response = await axios.post(
       "https://api.anthropic.com/v1/messages",
-      {
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 800,
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_KEY,
-          "anthropic-version": "2023-06-01"
-        },
-        timeout: 15000
-      }
+      { model: "claude-haiku-4-5-20251001", max_tokens: 900,
+        messages: [{ role: "user", content: prompt }] },
+      { headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01" }, timeout: 35000 }
     );
 
     const text = response.data.content?.map(c=>c.text||"").join("").trim();
-    const clean = text.replace(/```json|```/g,"").trim();
-    const parsed = JSON.parse(clean);
+    const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+    parsed.player1.formData = form1;
+    parsed.player2.formData = form2;
+    parsed.player1.injuryNews = injNews1;
+    parsed.player2.injuryNews = injNews2;
+    parsed.player1.withdrawals = with1;
+    parsed.player2.withdrawals = with2;
     res.json(parsed);
   } catch(err) {
-    console.error("NEWS ANALYSIS ERROR:", err.response?.data || err.message);
+    console.error("FORM ANALYSIS ERROR:", err.response?.data || err.message);
     res.status(500).json({ error: "Analysis failed" });
   }
 });
+
 
 // ─── SURFACE RANKINGS ─────────────────────────────────────────────────────────
 app.get("/api/surface-rankings", async (req, res) => {
@@ -1492,28 +1666,95 @@ app.get("/api/streaks", async (req, res) => {
     ]);
     const fixtures = fixturesRes.data?.result || [];
     const standings = standingsRes.data?.result || [];
+
+    // Only top ATP players for streaks (faster)
     const playerNames = new Set();
     fixtures.forEach(m => {
       if (m.event_first_player) playerNames.add(m.event_first_player);
       if (m.event_second_player) playerNames.add(m.event_second_player);
     });
+
     const streakMap = {};
-    await Promise.allSettled([...playerNames].slice(0,20).map(async shortName => {
-      try {
-        const formData = await getPlayerForm(shortName, standings);
-        if (!formData?.recentResults?.length) return;
-        const results = formData.recentResults;
-        let streak = 0;
-        const dir = results[0].won ? 1 : -1;
-        for (const r of results) {
-          if ((r.won?1:-1) === dir) streak++;
-          else break;
-        }
-        streakMap[shortName] = { count: streak, won: dir === 1 };
-      } catch(e) {}
-    }));
+    // Process sequentially in small batches to avoid overloading API
+    const players = [...playerNames].slice(0, 12);
+    for (let i = 0; i < players.length; i += 4) {
+      const batch = players.slice(i, i + 4);
+      await Promise.allSettled(batch.map(async shortName => {
+        try {
+          const formData = await getPlayerForm(shortName, standings);
+          if (!formData?.recentResults?.length) return;
+          const results = formData.recentResults;
+          let streak = 0;
+          const dir = results[0].won ? 1 : -1;
+          for (const r of results) {
+            if ((r.won?1:-1) === dir) streak++;
+            else break;
+          }
+          streakMap[shortName] = { count: streak, won: dir === 1 };
+        } catch(e) {}
+      }));
+    }
     res.json(streakMap);
   } catch(err) { console.error("STREAKS ERROR:", err.message); res.json({}); }
+});
+
+// ─── DEBUG: Player lookup ─────────────────────────────────────────────────────
+app.get("/api/debug-player", async (req, res) => {
+  const name = (req.query.name||"").toLowerCase();
+  try {
+    const [atp, chal] = await Promise.allSettled([
+      apiGet({ method:"get_standings", event_type:"ATP" }),
+      apiGet({ method:"get_standings", event_type:"Challenger" })
+    ]);
+    const atpS = atp.status==="fulfilled" ? atp.value.data?.result||[] : [];
+    const chalS = chal.status==="fulfilled" ? chal.value.data?.result||[] : [];
+    const all = [...atpS, ...chalS];
+    const matches = all.filter(p => (p.player||"").toLowerCase().includes(name));
+    res.json({ query: name, found: matches.slice(0,5).map(p=>({name:p.player,key:p.player_key,rank:p.place})) });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ─── DEBUG: Form Analysis Data ───────────────────────────────────────────────
+app.get("/api/debug-form", async (req, res) => {
+  try {
+    const { p1, p2 } = req.query;
+    if (!p1 || !p2) return res.status(400).json({ error: "Need p1 and p2 params" });
+
+    const [atpRes, chalRes] = await Promise.allSettled([
+      apiGet({ method:"get_standings", event_type:"ATP" }),
+      apiGet({ method:"get_standings", event_type:"Challenger" })
+    ]);
+    const standings = [
+      ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+      ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+    ];
+
+    const [form1, form2, debugWith1, debugWith2] = await Promise.all([
+      getPlayerForm(p1, standings),
+      getPlayerForm(p2, standings),
+      getWithdrawals(p1),
+      getWithdrawals(p2)
+    ]);
+
+    res.json({
+      player1: {
+        name: p1,
+        recentResults: form1?.recentResults?.slice(0,8) || [],
+        wins: form1?.recentResults?.filter(r=>r.won).length || 0,
+        losses: form1?.recentResults?.filter(r=>!r.won).length || 0,
+        withdrawals: debugWith1
+      },
+      player2: {
+        name: p2,
+        recentResults: form2?.recentResults?.slice(0,8) || [],
+        wins: form2?.recentResults?.filter(r=>r.won).length || 0,
+        losses: form2?.recentResults?.filter(r=>!r.won).length || 0,
+        withdrawals: debugWith2
+      }
+    });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── DEBUG: Player tournament matches ────────────────────────────────────────
