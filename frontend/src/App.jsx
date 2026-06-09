@@ -951,12 +951,17 @@ export default function App() {
       // Immer analysieren — Backend holt Form-Daten selbst
       let response;
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 40000); // 40s timeout
         response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 })
+          body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 }),
+          signal: controller.signal
         });
+        clearTimeout(timeout);
       } catch(fetchErr) {
+        if (fetchErr.name === "AbortError") throw new Error("Form-Analyse Timeout (>40s)");
         throw new Error(`Backend nicht erreichbar: ${fetchErr.message}`);
       }
 
