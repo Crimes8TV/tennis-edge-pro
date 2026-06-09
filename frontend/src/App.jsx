@@ -984,6 +984,7 @@ export default function App() {
       const base2 = 100 - base1;
       const adjustedProb1 = Math.min(95, Math.max(5, base1 + netMod));
       const adjustedProb2 = 100 - adjustedProb1;
+      console.log("[FormAnalyse] base1=",base1,"base2=",base2,"adj1=",adjustedProb1,"adj2=",adjustedProb2,"netMod=",netMod);
 
       setNewsAnalysis({
         player1: { name: player1, ...parsed.player1, headlines: headlines1 },
