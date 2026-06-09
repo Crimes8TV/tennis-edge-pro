@@ -1236,6 +1236,38 @@ app.get("/api/debug-tournament", async (req, res) => {
 });
 
 // ─── NEWS ANALYSIS (Claude Proxy) ────────────────────────────────────────────
+// ─── HELPER: Detect withdrawals from fixture data ────────────────────────────
+const getWithdrawals = async (playerName) => {
+  try {
+    const lastName = playerName.split(" ").pop().toLowerCase();
+    const dateFrom = getBerlinDate(-21);
+    const dateTo = getBerlinDate(1);
+    const [atp, chal] = await Promise.allSettled([
+      apiGet({ method:"get_fixtures", date_start:dateFrom, date_stop:dateTo, event_type_key:265 }),
+      apiGet({ method:"get_fixtures", date_start:dateFrom, date_stop:dateTo, event_type_key:281 })
+    ]);
+    const all = [
+      ...(atp.status==="fulfilled" ? atp.value.data?.result||[] : []),
+      ...(chal.status==="fulfilled" ? chal.value.data?.result||[] : [])
+    ];
+    return all.filter(m => {
+      const p1 = (m.event_first_player||"").toLowerCase();
+      const p2 = (m.event_second_player||"").toLowerCase();
+      if (!p1.includes(lastName) && !p2.includes(lastName)) return false;
+      const status = (m.event_status||"").toLowerCase().replace(/ /g,"");
+      return status.includes("cancelled") || status.includes("walkover") ||
+             status.includes("retired") || status.includes("w/o") ||
+             (m.event_winner === null && status !== "" && status !== "scheduled" && status !== "notstarted");
+    }).map(m => ({
+      tournament: m.tournament_name||"",
+      date: m.event_date||"",
+      opponent: (m.event_first_player||"").toLowerCase().includes(lastName)
+        ? m.event_second_player : m.event_first_player,
+      status: m.event_status||"W/O"
+    }));
+  } catch(e) { return []; }
+};
+
 app.post("/api/news-analysis", async (req, res) => {
   try {
     const { player1, player2, headlines1, headlines2, baseProb1 } = req.body;
@@ -1273,7 +1305,12 @@ app.post("/api/news-analysis", async (req, res) => {
       } catch(e) { return null; }
     };
 
-    const [form1, form2] = await Promise.all([getRecentForm(player1), getRecentForm(player2)]);
+    const [with1, with2, form1, form2] = await Promise.all([
+      getWithdrawals(player1),
+      getWithdrawals(player2),
+      getRecentForm(player1),
+      getRecentForm(player2)
+    ]);
 
     // ── Nur verletzungsrelevante News filtern ─────────────────────────────
     const injuryKw = ["verletz","injury","injured","retire","withdraw","zurückgezogen",
@@ -1302,7 +1339,7 @@ app.post("/api/news-analysis", async (req, res) => {
     const pattern1 = detectInjuryPattern(form1);
     const pattern2 = detectInjuryPattern(form2);
 
-    const fmt = (name, form, pattern) => {
+    const fmt = (name, form, pattern, withdrawals) => {
       if (!form) return `${name}: Keine aktuellen Ergebnisse.`;
       const streak = form.streak >= 2 ? (form.streakWon ? `🔥 ${form.streak}W-Streak` : `❄️ ${form.streak}L-Streak`) : "";
       const matches = form.recentMatches.map(m =>
@@ -1310,24 +1347,23 @@ app.post("/api/news-analysis", async (req, res) => {
       ).join("; ");
       const warnings = [];
       if (pattern?.recentLossRun) warnings.push("⚠️ 2+ Niederlagen zuletzt");
-      if (pattern?.manyTournaments) warnings.push(`⚠️ ${pattern.tournaments.length} Turniere in kurzer Zeit (Erschöpfung möglich)`);
-      return `${name}: ${form.wins}W/${form.losses}L ${streak}\nErgebnisse: ${matches}${warnings.length ? "\nHinweise: "+warnings.join(", ") : ""}`;
+      if (pattern?.manyTournaments) warnings.push(`⚠️ ${pattern.tournaments.length} Turniere in kurzer Zeit`);
+      if (withdrawals?.length > 0) {
+        withdrawals.forEach(w => warnings.push(`🚨 RÜCKZUG/W/O: ${w.tournament} (${w.date}) - Status: ${w.status}`));
+      }
+      return `${name}: ${form.wins}W/${form.losses}L ${streak}\nErgebnisse: ${matches}${warnings.length ? "\n⚠️ HINWEISE: "+warnings.join(", ") : ""}`;
     };
 
     const prompt = `Du bist Tennis-Analyst. Bewerte die aktuelle Form und Verletzungsrisiken für ein bevorstehendes Match.
 
-WICHTIG: Die Ergebnisdaten zeigen NUR ob ein Match gewonnen/verloren wurde, NICHT ob ein Spieler aufgegeben hat oder verletzt war. Nutze die Verletzungs-News als primäre Quelle für Verletzungsrisiken.
+WICHTIG: Rückzüge/W/O aus Fixture-Daten sind verlässlicher als News. Wenn ein Spieler einen Rückzug hatte, werte das als starkes Verletzungssignal.
 
-AKTUELLE FORM (echte Ergebnisse):
-${fmt(player1, form1, pattern1)}
+AKTUELLE FORM + RÜCKZÜGE:
+${fmt(player1, form1, pattern1, with1)}
 
-${fmt(player2, form2, pattern2)}
+${fmt(player2, form2, pattern2, with2)}
 
-VERLETZUNGS-NEWS (alle verfügbaren Schlagzeilen über Verletzungen, Rückzüge, Fitness):
-${player1}: ${injNews1.length > 0 ? injNews1.join(" | ") : "Keine Verletzungsnews gefunden."}
-${player2}: ${injNews2.length > 0 ? injNews2.join(" | ") : "Keine Verletzungsnews gefunden."}
-
-Alle Schlagzeilen (ungefiltert, zur Sicherheit):
+VERLETZUNGS-NEWS:
 ${player1}: ${(headlines1||[]).slice(0,5).join(" | ") || "keine"}
 ${player2}: ${(headlines2||[]).slice(0,5).join(" | ") || "keine"}
 
@@ -1375,6 +1411,8 @@ Antworte NUR mit validem JSON:
     parsed.player2.formData = form2;
     parsed.player1.injuryNews = injNews1;
     parsed.player2.injuryNews = injNews2;
+    parsed.player1.withdrawals = with1;
+    parsed.player2.withdrawals = with2;
     res.json(parsed);
   } catch(err) {
     console.error("FORM ANALYSIS ERROR:", err.response?.data || err.message);
@@ -1640,15 +1678,11 @@ app.get("/api/debug-form", async (req, res) => {
       ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
     ];
 
-    const [form1, form2] = await Promise.all([
+    const [form1, form2, debugWith1, debugWith2] = await Promise.all([
       getPlayerForm(p1, standings),
-      getPlayerForm(p2, standings)
-    ]);
-
-    // Also fetch news
-    const [news1Res, news2Res] = await Promise.allSettled([
-      apiGet({ method:"get_news", player_key: standings.find(s=>(s.player||"").toLowerCase().includes(p1.toLowerCase().split(" ").pop()))?.player_key }),
-      apiGet({ method:"get_news", player_key: standings.find(s=>(s.player||"").toLowerCase().includes(p2.toLowerCase().split(" ").pop()))?.player_key })
+      getPlayerForm(p2, standings),
+      getWithdrawals(p1),
+      getWithdrawals(p2)
     ]);
 
     res.json({
@@ -1657,13 +1691,14 @@ app.get("/api/debug-form", async (req, res) => {
         recentResults: form1?.recentResults?.slice(0,8) || [],
         wins: form1?.recentResults?.filter(r=>r.won).length || 0,
         losses: form1?.recentResults?.filter(r=>!r.won).length || 0,
+        withdrawals: debugWith1
       },
       player2: {
         name: p2,
         recentResults: form2?.recentResults?.slice(0,8) || [],
         wins: form2?.recentResults?.filter(r=>r.won).length || 0,
         losses: form2?.recentResults?.filter(r=>!r.won).length || 0,
-        newsRaw: news2Res.status==="fulfilled" ? (news2Res.value.data?.result||[]).slice(0,8).map(n=>n.news_title||n.title||n.headline||JSON.stringify(n).slice(0,100)) : "fetch failed"
+        withdrawals: debugWith2
       }
     });
   } catch(err) {
