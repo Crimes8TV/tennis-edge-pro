@@ -939,7 +939,7 @@ export default function App() {
   const analyzeNewsForPrediction = async (player1, player2, baseProb1) => {
     setNewsAnalysisLoading(true);
     try {
-      // Step 1: Fetch news
+      // News holen (optional — für Verletzungsfilter, kein Blocker mehr)
       const [news1Res, news2Res] = await Promise.all([
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player1)}`).then(r=>r.json()).catch(()=>[]),
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player2)}`).then(r=>r.json()).catch(()=>[])
@@ -948,13 +948,7 @@ export default function App() {
       const headlines1 = (Array.isArray(news1Res) ? news1Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
       const headlines2 = (Array.isArray(news2Res) ? news2Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
 
-      if (headlines1.length === 0 && headlines2.length === 0) {
-        setNewsAnalysis({ noNews: true });
-        setNewsAnalysisLoading(false);
-        return;
-      }
-
-      // Step 2: Call backend proxy
+      // Immer analysieren — Backend holt Form-Daten selbst
       let response;
       try {
         response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
