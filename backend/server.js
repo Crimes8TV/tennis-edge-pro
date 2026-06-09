@@ -1284,13 +1284,23 @@ app.post("/api/news-analysis", async (req, res) => {
     const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
     if (!ANTHROPIC_KEY) return res.status(500).json({ error: "No Anthropic API key configured" });
 
-    // ── Echte Form-Daten holen (mit Cache) ───────────────────────────────────
+    // ── Echte Form-Daten holen (mit Fixture-Fallback für Challenger-Spieler) ──
     const getRecentForm = async (playerName) => {
       try {
-        // Use cached standings from a simple ATP lookup
+        const lastName = playerName.toLowerCase().trim().split(" ").pop();
+        // Try ATP standings first
         const standingsRes = await apiGet({ method:"get_standings", event_type:"ATP" });
-        const standings = standingsRes.data?.result || [];
-        const formData = await getPlayerForm(playerName, standings);
+        const atpStandings = standingsRes.data?.result || [];
+
+        // Also try Challenger standings
+        let chalStandings = [];
+        try {
+          const cRes = await apiGet({ method:"get_standings", event_type:"Challenger" });
+          chalStandings = cRes.data?.result || [];
+        } catch(e) {}
+
+        const allStandings = [...atpStandings, ...chalStandings];
+        const formData = await getPlayerForm(playerName, allStandings);
         if (!formData?.recentResults?.length) return null;
         const recent = formData.recentResults.slice(0, 8);
         const wins = recent.filter(r=>r.won).length;
