@@ -74,9 +74,10 @@ function PlayerAutocomplete({ label, playerNum, value, onChange, players, favori
 // ── CHANGE 1 & 2: MatchCard — Cancelled Banner + Badge ──────────────────────
 // ── BET MODAL ─────────────────────────────────────────────────────────────────
 function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
-  const [betType, setBetType] = useState("match_winner");
-  const [pick, setPick] = useState("");
-  const [odds, setOdds] = useState("");
+  const prefill = match?.prefill || {};
+  const [betType, setBetType] = useState(prefill.betType || "match_winner");
+  const [pick, setPick] = useState(prefill.pick || "");
+  const [odds, setOdds] = useState(prefill.odds || "");
   const [stake, setStake] = useState("10");
   const [note, setNote] = useState("");
   const [mode, setMode] = useState("single"); // single | combi
@@ -94,7 +95,9 @@ function BetModal({ match, onLog, onAddToCombi, onClose, combiBet = [] }) {
     { id:"set_3_0",      label:"🎾 Sieg 3-0 (Bo5)",   picks:[ `${p1Last} 3-0`, `${p2Last} 3-0` ] },
     { id:"set_3_1",      label:"🎾 Sieg 3-1 (Bo5)",   picks:[ `${p1Last} 3-1`, `${p2Last} 3-1` ] },
     { id:"set_3_2",      label:"🎾 Sieg 3-2 (Bo5)",   picks:[ `${p1Last} 3-2`, `${p2Last} 3-2` ] },
-    { id:"over_3_5",     label:"📊 Over 3.5 Sätze",   picks:[ "Over 3.5 Sets", "Under 3.5 Sets" ] },
+    { id:"set_hc_15",    label:"📊 +1.5 Sätze Hcap",  picks:[ `${p1Last} +1.5 Sätze`, `${p2Last} +1.5 Sätze` ] },
+    { id:"set_hc_25",    label:"📊 +2.5 Sätze Hcap",  picks:[ `${p1Last} +2.5 Sätze`, `${p2Last} +2.5 Sätze` ] },
+    { id:"over_3_5",     label:"📈 Over 3.5 Sätze",   picks:[ "Over 3.5 Sets", "Under 3.5 Sets" ] },
     { id:"handicap",     label:"📉 Handicap (Games)", picks:[ `${p1Last} -1.5`, `${p1Last} +1.5`, `${p2Last} -1.5`, `${p2Last} +1.5` ] },
     { id:"total_games",  label:"🔢 Total Games O/U",  picks:[ "Over 22.5", "Under 22.5", "Over 24.5", "Under 24.5", "Over 26.5", "Under 26.5" ] },
     { id:"first_set",    label:"1️⃣ 1. Satz Winner",   picks:[ `${p1Last} 1. Satz`, `${p2Last} 1. Satz` ] },
@@ -367,6 +370,8 @@ function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValue
     </div>
   );
 }
+
+function MatchCard({ m, onClick, players = [], onWatchlist, isWatched, onCompare, streaks = {}, quickOdds = {}, onQuickOddsChange, favoritePlayers = [], onLogBet }) {
   const isLive = m.live;
   const isFinished = m.finished;
   const isCancelled = m.cancelled;
@@ -436,7 +441,12 @@ function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValue
 
       <div onClick={onClick} style={{cursor:"pointer"}}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-          <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
+          <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+            <span className={`matchCardBadge ${catAtp ? "atp" : "challenger"}`}>{m.category}</span>
+            {m.isTomorrow && !isLive && !isFinished && !isCancelled && (
+              <span style={{fontSize:"10px",color:"#a78bfa",fontWeight:700,background:"rgba(139,92,246,0.1)",border:"1px solid rgba(139,92,246,0.3)",borderRadius:"4px",padding:"1px 6px"}}>📅 Morgen</span>
+            )}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {isLive && <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f87171", boxShadow: "0 0 6px #f87171", animation: "pulse 1.5s infinite", display: "inline-block" }} />}
             {/* CHANGE 1: Cancelled Badge — rot statt gelb, klarer sichtbar */}
@@ -542,7 +552,7 @@ function CombiSlip({ combiBet = [], setCombiBet, valuePerformance = [], setValue
           </button>
           {!isCancelled && !isFinished && onLogBet && (
             <button
-              onClick={(e) => { e.stopPropagation(); onLogBet(m); }}
+              onClick={(e) => { e.stopPropagation(); onLogBet({...m, prefill: qo.o1 ? { odds: qo.o1 } : {}}); }}
               style={{flex:1,padding:"6px",borderRadius:"8px",border:"1px solid rgba(74,222,128,0.25)",background:"rgba(74,222,128,0.06)",color:"#4ade80",fontSize:"11px",fontWeight:600,cursor:"pointer"}}>
               📋 Wette
             </button>
@@ -928,61 +938,51 @@ export default function App() {
 
   const analyzeNewsForPrediction = async (player1, player2, baseProb1) => {
     setNewsAnalysisLoading(true);
+    console.log("[FormAnalyse] Start:", player1, "vs", player2);
     try {
-      // Step 1: Fetch news
+      // News holen (optional)
       const [news1Res, news2Res] = await Promise.all([
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player1)}`).then(r=>r.json()).catch(()=>[]),
         fetch(`https://tennis-edge-backend.onrender.com/api/news/${encodeURIComponent(player2)}`).then(r=>r.json()).catch(()=>[])
       ]);
-
       const headlines1 = (Array.isArray(news1Res) ? news1Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
       const headlines2 = (Array.isArray(news2Res) ? news2Res : []).slice(0,5).map(n=>n.title).filter(Boolean);
+      console.log("[FormAnalyse] Headlines:", headlines1.length, headlines2.length);
 
-      if (headlines1.length === 0 && headlines2.length === 0) {
-        setNewsAnalysis({ noNews: true });
-        setNewsAnalysisLoading(false);
-        return;
-      }
-
-      // Step 2: Call backend proxy
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
       let response;
       try {
         response = await fetch("https://tennis-edge-backend.onrender.com/api/news-analysis", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 })
+          body: JSON.stringify({ player1, player2, headlines1, headlines2, baseProb1 }),
+          signal: controller.signal
         });
+        clearTimeout(timeout);
       } catch(fetchErr) {
-        throw new Error(`Backend nicht erreichbar: ${fetchErr.message}`);
+        clearTimeout(timeout);
+        if (fetchErr.name === "AbortError") throw new Error("Timeout nach 45s");
+        throw new Error(`Nicht erreichbar: ${fetchErr.message}`);
       }
 
+      console.log("[FormAnalyse] Response status:", response.status);
       if (!response.ok) {
         const errText = await response.text().catch(()=>"");
-        throw new Error(`Backend Fehler ${response.status}: ${errText.slice(0,100)}`);
+        throw new Error(`Fehler ${response.status}: ${errText.slice(0,150)}`);
       }
 
-      // Step 3: Parse response
-      let parsed;
-      try {
-        parsed = await response.json();
-      } catch(parseErr) {
-        throw new Error(`JSON Parse Fehler: ${parseErr.message}`);
-      }
+      const parsed = await response.json();
+      console.log("[FormAnalyse] Parsed:", JSON.stringify(parsed).slice(0,200));
 
-      if (parsed.noNews) {
-        setNewsAnalysis({ noNews: true });
-        setNewsAnalysisLoading(false);
-        return;
-      }
-
-      if (parsed.error) {
-        throw new Error(`Claude Fehler: ${parsed.error}`);
-      }
+      if (parsed.error) throw new Error(`Server: ${parsed.error}`);
 
       const rawMod1 = parsed.player1?.modifier || 0;
       const rawMod2 = parsed.player2?.modifier || 0;
       const netMod = rawMod1 - rawMod2;
-      const adjustedProb1 = Math.min(95, Math.max(5, Math.round(baseProb1 + netMod)));
+      const base1 = Math.round(Number(baseProb1) || 50);
+      const base2 = 100 - base1;
+      const adjustedProb1 = Math.min(95, Math.max(5, base1 + netMod));
       const adjustedProb2 = 100 - adjustedProb1;
 
       setNewsAnalysis({
@@ -990,14 +990,14 @@ export default function App() {
         player2: { name: player2, ...parsed.player2, headlines: headlines2 },
         overall_impact: parsed.overall_impact,
         summary: parsed.summary,
-        baseProb1: Math.round(baseProb1),
-        baseProb2: Math.round(100 - baseProb1),
+        baseProb1: base1,
+        baseProb2: base2,
         adjustedProb1,
         adjustedProb2,
         netMod
       });
     } catch(err) {
-      console.error("News analysis error:", err);
+      console.error("[FormAnalyse] Error:", err.message);
       setNewsAnalysis({ error: true, errorMsg: err.message });
     }
     setNewsAnalysisLoading(false);
@@ -1507,62 +1507,70 @@ export default function App() {
                       </div>
                     );
                     const categoryOrder = ["ATP Singles","ATP Doubles","Challenger Singles","Challenger Doubles"];
-                    const grouped = {};
-                    filteredFixtures.forEach(m => {
-                      const cat = m.category || "Sonstige";
-                      const tourn = m.tournament || "Unbekannt";
-                      const key = `${cat}|||${tourn}`;
-                      if (!grouped[key]) grouped[key] = {cat,tourn,matches:[]};
-                      grouped[key].matches.push(m);
-                    });
-                    const sortedKeys = Object.keys(grouped).sort((a,b) => {
-                      const idxA = categoryOrder.indexOf(grouped[a].cat);
-                      const idxB = categoryOrder.indexOf(grouped[b].cat);
-                      if (idxA !== idxB) return (idxA===-1?99:idxA)-(idxB===-1?99:idxB);
-                      return grouped[a].tourn.localeCompare(grouped[b].tourn);
-                    });
-                    const byCategory = {};
-                    sortedKeys.forEach(key => { const {cat} = grouped[key]; if (!byCategory[cat]) byCategory[cat]=[]; byCategory[cat].push(key); });
-                    return Object.entries(byCategory).map(([cat,keys]) => {
-                      const isATP = cat.includes("ATP");
-                      const liveInCat = keys.flatMap(k=>grouped[k].matches).filter(m=>m.live).length;
-                      const cancelledInCat = keys.flatMap(k=>grouped[k].matches).filter(m=>m.cancelled).length;
+
+                    // Split into today and tomorrow
+                    const todayFixtures = filteredFixtures.filter(m => !m.isTomorrow);
+                    const tomorrowFixtures = filteredFixtures.filter(m => m.isTomorrow);
+
+                    const renderGroup = (matchList, dayLabel) => {
+                      const grouped = {};
+                      matchList.forEach(m => {
+                        const cat = m.category || "Sonstige";
+                        const tourn = m.tournament || "Unbekannt";
+                        const key = `${cat}|||${tourn}`;
+                        if (!grouped[key]) grouped[key] = {cat, tourn, matches:[]};
+                        grouped[key].matches.push(m);
+                      });
+                      const sortedKeys = Object.keys(grouped).sort((a,b) => {
+                        const idxA = categoryOrder.indexOf(grouped[a].cat);
+                        const idxB = categoryOrder.indexOf(grouped[b].cat);
+                        if (idxA !== idxB) return (idxA===-1?99:idxA)-(idxB===-1?99:idxB);
+                        return grouped[a].tourn.localeCompare(grouped[b].tourn);
+                      });
                       return (
-                        <div key={cat} style={{marginBottom:"32px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",paddingBottom:"10px",borderBottom:`2px solid ${isATP?"rgba(34,211,238,0.3)":"rgba(250,204,21,0.3)"}`,cursor:"pointer",userSelect:"none"}} onClick={() => toggleCategory(cat)}>
-                            <span style={{fontSize:"16px",color:isATP?"#22d3ee":"#facc15",transition:"transform 0.2s",display:"inline-block",transform:collapsedCategories[cat]?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
-                            <span style={{fontSize:"18px",fontWeight:800,color:isATP?"#22d3ee":"#facc15"}}>{cat}</span>
-                            {liveInCat > 0 && <span style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(248,113,113,0.15)",border:"1px solid rgba(248,113,113,0.4)",borderRadius:"20px",padding:"2px 10px",fontSize:"11px",color:"#f87171",fontWeight:700}}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />{liveInCat} Live</span>}
-                            {/* CHANGE 4c: Cancelled Badge in Kategorie-Header */}
-                            {cancelledInCat > 0 && <span style={{fontSize:"11px",color:"#ef4444",fontWeight:700,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:"20px",padding:"2px 10px"}}>🚫 {cancelledInCat} abgesagt</span>}
-                            <span style={{fontSize:"12px",color:"#475569"}}>{keys.flatMap(k=>grouped[k].matches).length} Matches</span>
-                          </div>
-                          {!collapsedCategories[cat] && keys.map(key => {
-                            const {tourn,matches} = grouped[key];
-                            const liveInTourn = matches.filter(m=>m.live).length;
-                            const cancelledInTourn = matches.filter(m=>m.cancelled).length;
-                            const isColl = collapsedTournaments[key];
+                        <div key={dayLabel}>
+                          {dayLabel && (
+                            <div style={{display:"flex",alignItems:"center",gap:"10px",margin:"16px 0 12px",paddingBottom:"8px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+                              <span style={{fontSize:"13px",fontWeight:800,color:dayLabel==="Heute"?"#22d3ee":"#a78bfa"}}>
+                                {dayLabel==="Heute"?"📅 Heute":"📅 Morgen"}
+                              </span>
+                              <span style={{fontSize:"11px",color:"#475569"}}>{matchList.length} Matches</span>
+                            </div>
+                          )}
+                          {sortedKeys.map(key => {
+                            const {cat, tourn, matches} = grouped[key];
                             return (
-                              <div key={key} style={{marginBottom:"16px",background:"rgba(255,255,255,0.02)",borderRadius:"14px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.05)"}}>
-                                <div style={{display:"flex",alignItems:"center",gap:"8px",padding:"12px 16px",cursor:"pointer",userSelect:"none"}} onClick={() => toggleTournament(key)}>
-                                  <span style={{fontSize:"13px",color:"#64748b",transition:"transform 0.2s",display:"inline-block",transform:isColl?"rotate(-90deg)":"rotate(0deg)"}}>▼</span>
-                                  <span style={{fontSize:"14px",fontWeight:700,color:"#cbd5e1"}}>🏆 {tourn}</span>
-                                  {liveInTourn > 0 && <span style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"11px",color:"#f87171",fontWeight:700}}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:"#f87171",boxShadow:"0 0 6px #f87171",display:"inline-block"}} />{liveInTourn} Live</span>}
-                                  {cancelledInTourn > 0 && <span style={{fontSize:"11px",color:"#ef4444",fontWeight:600}}>🚫 {cancelledInTourn} abgesagt</span>}
-                                  <span style={{fontSize:"11px",color:"#475569",marginLeft:"auto"}}>{matches.length} Matches</span>
+                              <div key={key} className="matchSection">
+                                <div className="matchSectionHeader">
+                                  <span className={`matchCardBadge ${cat.includes("ATP")?"atp":"challenger"}`}>{cat}</span>
+                                  <span className="matchSectionTitle">{tourn}</span>
                                 </div>
-                                {!isColl && <div style={{padding:"0 12px 12px"}}>
-                                  <div className="matchCardGrid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))"}}>
-                                    {/* CHANGE 5: Cancelled innerhalb Turnier ans Ende */}
-                                    {[...matches].sort((a,b) => { const ac=a.cancelled?1:0,bc=b.cancelled?1:0; return ac-bc; }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers} onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))} onWatchlist={toggleWatchlist} isWatched={isWatched(m)} onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}} streaks={streaks} quickOdds={quickOdds} onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))} favoritePlayers={favoritePlayers} onLogBet={(match)=>setBetModal(match)} />)}
-                                  </div>
-                                </div>}
+                                <div className="matchCardGrid">
+                                  {[...matches].sort((a,b) => {
+                                    const ac=a.cancelled?1:0, bc=b.cancelled?1:0;
+                                    return ac-bc;
+                                  }).map((m,i) => <MatchCard key={i} m={m} players={safePlayers}
+                                    onClick={() => m.live ? openMatchDetail(m) : (setP1(m.player1),setP2(m.player2),setTab("predictor"))}
+                                    onWatchlist={toggleWatchlist} isWatched={isWatched(m)}
+                                    onCompare={(p1,p2) => {setPlayer(p1);setComparePlayer(p2);setTab("player");}}
+                                    streaks={streaks} quickOdds={quickOdds}
+                                    onQuickOddsChange={(key,field,val)=>setQuickOdds(prev=>({...prev,[key]:{...prev[key],[field]:val}}))}
+                                    favoritePlayers={favoritePlayers}
+                                    onLogBet={(match)=>setBetModal(match)} />)}
+                                </div>
                               </div>
                             );
                           })}
                         </div>
                       );
-                    });
+                    };
+
+                    return (
+                      <>
+                        {renderGroup(todayFixtures, tomorrowFixtures.length > 0 ? "Heute" : null)}
+                        {tomorrowFixtures.length > 0 && renderGroup(tomorrowFixtures, "Morgen")}
+                      </>
+                    );
                   })()}
             </div>
           </>
@@ -1758,7 +1766,7 @@ export default function App() {
                     <div style={{margin:"16px 0",padding:"16px",borderRadius:"14px",background:"rgba(139,92,246,0.06)",border:"1px solid rgba(139,92,246,0.2)",display:"flex",alignItems:"center",gap:"12px"}}>
                       <div style={{width:"16px",height:"16px",borderRadius:"50%",border:"2px solid rgba(139,92,246,0.3)",borderTopColor:"#a78bfa",animation:"spin 0.8s linear infinite",flexShrink:0}} />
                       <div>
-                        <div style={{fontSize:"13px",fontWeight:700,color:"#a78bfa",marginBottom:"2px"}}>📰 News-Analyse läuft...</div>
+                        <div style={{fontSize:"13px",fontWeight:700,color:"#a78bfa",marginBottom:"2px"}}>📊 Form-Analyse läuft...</div>
                         <div style={{fontSize:"11px",color:"#64748b"}}>Aktuelle Nachrichten werden ausgewertet</div>
                       </div>
                     </div>
@@ -1767,7 +1775,7 @@ export default function App() {
                   {newsAnalysis && !newsAnalysisLoading && (() => {
                     if (newsAnalysis.error) return (
                       <div style={{margin:"16px 0",padding:"12px 16px",borderRadius:"12px",background:"rgba(248,113,113,0.06)",border:"1px solid rgba(248,113,113,0.2)",fontSize:"12px",color:"#f87171"}}>
-                        📰 News-Analyse Fehler: {newsAnalysis.errorMsg || "Unbekannt"} — stelle sicher dass ANTHROPIC_API_KEY auf Render gesetzt ist und der neue server.js deployed ist.
+                        📰 Form-Analyse Fehler: {newsAnalysis.errorMsg || "Unbekannt"} — stelle sicher dass ANTHROPIC_API_KEY auf Render gesetzt ist und der neue server.js deployed ist.
                       </div>
                     );
                     if (newsAnalysis.noNews) return (
@@ -1780,6 +1788,8 @@ export default function App() {
                     const signalIcon = (s) => ({ injury_risk:"🤕", poor_form:"📉", good_form:"📈", fatigue:"😴", neutral:"➖", withdrawal_risk:"⚠️", motivated:"🔥" })[s] || "➖";
                     const signalColor = (s) => ({ injury_risk:"#f87171", poor_form:"#f87171", good_form:"#4ade80", fatigue:"#facc15", neutral:"#475569", withdrawal_risk:"#f97316", motivated:"#4ade80" })[s] || "#475569";
                     const hasAdjustment = newsAnalysis.netMod !== 0;
+                    // Always show panel if we have signal data
+                    const hasSignal = newsAnalysis.player1?.signal || newsAnalysis.player2?.signal;
 
                     return (
                       <div style={{margin:"16px 0",borderRadius:"14px",overflow:"hidden",border:`1px solid ${impactColor}33`,background:`${impactColor}08`}}>
@@ -1787,7 +1797,7 @@ export default function App() {
                         <div style={{padding:"12px 16px",borderBottom:`1px solid ${impactColor}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
                             <span style={{fontSize:"14px"}}>📰</span>
-                            <span style={{fontSize:"13px",fontWeight:800,color:"#e2e8f0"}}>News-Analyse</span>
+                            <span style={{fontSize:"13px",fontWeight:800,color:"#e2e8f0"}}>Form-Analyse</span>
                             <span style={{fontSize:"10px",fontWeight:700,color:impactColor,background:`${impactColor}22`,padding:"2px 8px",borderRadius:"6px",textTransform:"uppercase"}}>
                               {newsAnalysis.overall_impact} Impact
                             </span>
@@ -1813,7 +1823,7 @@ export default function App() {
                             ))}
                           </div>
 
-                          {/* Adjusted prediction */}
+                          {/* Adjusted prediction or neutral summary */}
                           {hasAdjustment ? (
                             <div style={{padding:"12px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)"}}>
                               <div style={{fontSize:"11px",color:"#64748b",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700,marginBottom:"10px"}}>📊 Angepasste Wahrscheinlichkeit</div>
@@ -1833,7 +1843,12 @@ export default function App() {
                                   <div style={{fontSize:"12px",color:"#94a3b8",marginBottom:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{newsAnalysis.player2.name}</div>
                                   <div style={{display:"flex",alignItems:"baseline",gap:"6px",justifyContent:"flex-end"}}>
                                     <span style={{fontSize:"11px",color: newsAnalysis.adjustedProb2 > newsAnalysis.baseProb2 ? "#4ade80" : newsAnalysis.adjustedProb2 < newsAnalysis.baseProb2 ? "#f87171" : "#475569",fontWeight:700}}>
-                                      {newsAnalysis.adjustedProb2 > newsAnalysis.baseProb2 ? `▲+${newsAnalysis.adjustedProb2-newsAnalysis.baseProb2}` : newsAnalysis.adjustedProb2 < newsAnalysis.baseProb2 ? `▼${newsAnalysis.adjustedProb2-newsAnalysis.baseProb2}` : "="}
+                                      {(() => {
+                                        const delta = newsAnalysis.adjustedProb2 - newsAnalysis.baseProb2;
+                                        if (delta > 0) return `▲+${delta}`;
+                                        if (delta < 0) return `▼${delta}`;
+                                        return "=";
+                                      })()}
                                     </span>
                                     <span style={{fontSize:"22px",fontWeight:900,color:"#f472b6"}}>{newsAnalysis.adjustedProb2}%</span>
                                   </div>
@@ -1848,23 +1863,34 @@ export default function App() {
                             </div>
                           ) : (
                             <div style={{padding:"10px 14px",borderRadius:"10px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",fontSize:"12px",color:"#475569",textAlign:"center"}}>
-                              ➖ Keine relevanten News gefunden — Prediction unverändert
+                              ➖ Kein signifikanter Form-Unterschied — Prediction unverändert
                             </div>
                           )}
 
-                          {/* Headlines used */}
+                          {/* Headlines used → jetzt Form-Daten */}
                           <div style={{marginTop:"12px",display:"flex",gap:"8px",flexWrap:"wrap"}}>
-                            {[newsAnalysis.player1, newsAnalysis.player2].map((p,pi) =>
-                              (p.headlines_used||[]).map(idx => {
-                                const h = p.headlines?.[idx-1];
-                                if (!h) return null;
-                                return (
-                                  <div key={`${pi}-${idx}`} style={{fontSize:"10px",color:"#64748b",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"6px",padding:"3px 8px",lineHeight:1.4,maxWidth:"100%"}}>
-                                    📄 {h.length > 80 ? h.slice(0,80)+"…" : h}
-                                  </div>
-                                );
-                              })
-                            )}
+                            {[newsAnalysis.player1, newsAnalysis.player2].map((p,pi) => {
+                              const form = p.formData;
+                              if (!form) return null;
+                              return (
+                                <div key={pi} style={{flex:1,minWidth:"140px",fontSize:"10px",color:"#64748b",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:"6px",padding:"6px 8px"}}>
+                                  <div style={{fontWeight:700,color:"#94a3b8",marginBottom:"3px"}}>{p.name.split(" ").pop()}: {p.form_summary||`${form.wins}W/${form.losses}L`}</div>
+                                  {form && form.recentMatches?.slice(0,3).map((m,i) => (
+                                    <div key={i} style={{color:m.won?"#4ade80":"#f87171",marginBottom:"1px"}}>
+                                      {m.won?"✓":"✗"} {m.opponent||"?"}{m.tournament?` · ${m.tournament}`:""}
+                                    </div>
+                                  ))}
+                                  {p.withdrawals?.length > 0 && p.withdrawals.map((w,i) => (
+                                    <div key={i} style={{color:"#f97316",fontWeight:700,marginBottom:"1px"}}>
+                                      🚨 {w.status}: {w.tournament}{w.date?` (${w.date})`:""}
+                                    </div>
+                                  ))}
+                                  {p.injuryNews?.length > 0 && (
+                                    <div style={{marginTop:"4px",color:"#facc15",fontWeight:600}}>⚠️ {p.injuryNews[0].slice(0,60)}…</div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
@@ -2432,6 +2458,118 @@ export default function App() {
                           );
                         })()}
                         <p style={{margin:"8px 0 0",fontSize:"11px",color:"#334155",textAlign:"center"}}>⚠️ These are model-based estimates only. Always bet responsibly.</p>
+
+                        {/* ── SCHNELL-WETTE DIREKT LOGGEN ──────────────────── */}
+                        <div style={{marginTop:"16px",padding:"16px",borderRadius:"14px",background:"rgba(74,222,128,0.04)",border:"1px solid rgba(74,222,128,0.15)"}}>
+                          <div style={{fontSize:"13px",fontWeight:700,color:"#4ade80",marginBottom:"12px",display:"flex",alignItems:"center",gap:"8px"}}>
+                            📋 Wette direkt loggen
+                            <span style={{fontSize:"10px",color:"#475569",fontWeight:500}}>Quoten aus Value Check werden übernommen</span>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"8px"}}>
+                            {[{
+                              label:`🏆 ${fav.split(" ").pop()} siegt`,
+                              type:"match_winner",
+                              pick: fav,
+                              odds: hasBookOdds
+                                ? (matchP1>=matchP2 ? bookOdds1 : bookOdds2)
+                                : (1/(favProb/100)).toFixed(2),
+                              prob: favProb
+                            },
+                            mostLikely && {
+                              label:`🎾 ${mostLikely.score}`,
+                              type: mostLikely.label==="Upset"?"match_winner"
+                                  : mostLikely.label.includes("2-")?"set_2_"+mostLikely.label.split("-")[1]
+                                  : "set_3_"+mostLikely.label.split("-")[1],
+                              pick: mostLikely.score,
+                              odds: mostLikely.prob > 0 ? (1/(mostLikely.prob/100)).toFixed(2) : null,
+                              prob: mostLikely.prob
+                            },
+                            /* +2.5 Sätze — NUR Bo5 sinnvoll */
+                            bo===5 && {
+                              label:`📊 ${dog.split(" ").pop()} +2.5 Sätze`,
+                              type:"set_hc_25",
+                              pick:`${dog.split(" ").pop()} +2.5 Sätze`,
+                              odds: (() => {
+                                const p30 = (setBets.find(b=>b.label==="3-0")?.prob||0)/100;
+                                const p = 1 - p30;
+                                return p > 0.01 ? (1/p).toFixed(2) : null;
+                              })(),
+                              prob: 100 - (setBets.find(b=>b.label==="3-0")?.prob||0)
+                            },
+                            /* +1.5 Sätze:
+                               Bo3: ≥1 Satz = 1 - P(2-0) → niedrige Quote
+                               Bo5: ≥2 Sätze = 1 - P(3-0) - P(3-1) → mittlere Quote */
+                            {
+                              label:`📊 ${dog.split(" ").pop()} +1.5 Sätze`,
+                              type:"set_hc_15",
+                              pick:`${dog.split(" ").pop()} +1.5 Sätze`,
+                              odds: (() => {
+                                if (bo===5) {
+                                  const p30 = (setBets.find(b=>b.label==="3-0")?.prob||0)/100;
+                                  const p31 = (setBets.find(b=>b.label==="3-1")?.prob||0)/100;
+                                  const p = 1 - p30 - p31;
+                                  return p > 0.01 ? (1/p).toFixed(2) : null;
+                                } else {
+                                  const p20 = (setBets.find(b=>b.label==="2-0")?.prob||0)/100;
+                                  const p = 1 - p20;
+                                  return p > 0.01 ? (1/p).toFixed(2) : null;
+                                }
+                              })(),
+                              prob: bo===5
+                                ? Math.round(100-(setBets.find(b=>b.label==="3-0")?.prob||0)-(setBets.find(b=>b.label==="3-1")?.prob||0))
+                                : Math.round(100-(setBets.find(b=>b.label==="2-0")?.prob||0))
+                            },
+                            bo===5 && {
+                              label: over35Prob>=50 ? `📈 Over 3.5 Sets` : `📉 Under 3.5 Sets`,
+                              type:"over_3_5",
+                              pick: over35Prob>=50 ? "Over 3.5 Sets" : "Under 3.5 Sets",
+                              odds: over35Prob>=50
+                                ? (odds35 && odds35 > 1 ? odds35 : (1/(over35Prob/100)).toFixed(2))
+                                : (1/((100-over35Prob)/100)).toFixed(2),
+                              prob: over35Prob>=50 ? over35Prob : 100-over35Prob
+                            },
+                            hLine >= 1 && {
+                              label:`📉 ${fav.split(" ").pop()} -${hLine} Games`,
+                              type:"handicap",
+                              pick:`${fav.split(" ").pop()} -${hLine} Games`,
+                              odds: null,
+                              prob: null
+                            }].filter(Boolean).map((bet, i) => bet && (
+                              <button key={i} onClick={() => {
+                                setBetModal({
+                                  player1: prediction.player1,
+                                  player2: prediction.player2,
+                                  tournament: prediction.tournament || "",
+                                  prefill: {
+                                    betType: bet.type,
+                                    pick: bet.pick,
+                                    odds: bet.odds ? String(bet.odds) : ""
+                                  }
+                                });
+                              }} style={{
+                                padding:"10px 12px",borderRadius:"10px",
+                                border:"1px solid rgba(74,222,128,0.2)",
+                                background:"rgba(74,222,128,0.06)",
+                                cursor:"pointer",textAlign:"left",transition:"all 0.2s"
+                              }}
+                              onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(74,222,128,0.4)"}
+                              onMouseLeave={e=>e.currentTarget.style.borderColor="rgba(74,222,128,0.2)"}>
+                                <div style={{fontSize:"12px",fontWeight:700,color:"#4ade80",marginBottom:"3px"}}>{bet.label}</div>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  {bet.prob!=null && <span style={{fontSize:"11px",color:"#64748b"}}>Modell: {Math.round(bet.prob)}%</span>}
+                                  {bet.odds && <span style={{fontSize:"13px",fontWeight:800,color:"#facc15"}}>{bet.odds}</span>}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={() => setBetModal({
+                            player1: prediction.player1,
+                            player2: prediction.player2,
+                            tournament: prediction.tournament || ""
+                          })} style={{width:"100%",padding:"9px",borderRadius:"10px",border:"1px solid rgba(255,255,255,0.08)",background:"rgba(255,255,255,0.03)",color:"#64748b",fontSize:"12px",cursor:"pointer",fontWeight:600}}>
+                            ✏️ Eigene Wette eingeben
+                          </button>
+                        </div>
                       </div>
                     );
                   })()}
