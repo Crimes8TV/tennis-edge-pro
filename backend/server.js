@@ -311,20 +311,29 @@ async function getPlayerForm(playerName, standings) {
     const dateEnd = getBerlinDate();
     const dateStart = getBerlinDate(-90);
 
-    // Load ATP and Challenger fixtures in parallel
+    // ATP fixtures support player_key filter; Challenger often does not
     const [atpRes, chalRes] = await Promise.allSettled([
       apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:265, player_key:playerKey }),
-      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:281, player_key:playerKey })
+      apiGet({ method:"get_fixtures", date_start:dateStart, date_stop:dateEnd, event_type_key:281 }) // no player_key filter
     ]);
 
-    const allMatches = [
-      ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
-      ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
-    ];
+    const atpMatches = (atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : [])
+      .filter(m => m.event_status==="Finished" || m.event_winner);
 
-    const matches = allMatches
-      .filter(m => m.event_status==="Finished" || m.event_winner)
-      .sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""));
+    // Filter Challenger matches by player name
+    const chalMatchesRaw = chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [];
+    const chalMatches = chalMatchesRaw.filter(m => {
+      const p1n = (m.event_first_player||"").toLowerCase();
+      const p2n = (m.event_second_player||"").toLowerCase();
+      return (p1n.includes(lastNameFirst) || p2n.includes(lastNameFirst) ||
+              p1n.includes(lastName) || p2n.includes(lastName)) &&
+             (m.event_status==="Finished" || m.event_winner);
+    });
+
+    const matches = [...atpMatches, ...chalMatches]
+      .sort((a,b) => (a.event_date||"").localeCompare(b.event_date||""))
+      // Deduplicate by event_key
+      .filter((m,i,arr) => !m.event_key || arr.findIndex(x=>x.event_key===m.event_key)===i);
     if (matches.length === 0) return null;
 
     const recent = matches.slice(-10).reverse();
