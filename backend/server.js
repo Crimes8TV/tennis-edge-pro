@@ -1593,6 +1593,51 @@ app.get("/api/streaks", async (req, res) => {
   } catch(err) { console.error("STREAKS ERROR:", err.message); res.json({}); }
 });
 
+// ─── DEBUG: Form Analysis Data ───────────────────────────────────────────────
+app.get("/api/debug-form", async (req, res) => {
+  try {
+    const { p1, p2 } = req.query;
+    if (!p1 || !p2) return res.status(400).json({ error: "Need p1 and p2 params" });
+
+    const [atpRes, chalRes] = await Promise.allSettled([
+      apiGet({ method:"get_standings", event_type:"ATP" }),
+      apiGet({ method:"get_standings", event_type:"Challenger" })
+    ]);
+    const standings = [
+      ...(atpRes.status==="fulfilled" ? atpRes.value.data?.result||[] : []),
+      ...(chalRes.status==="fulfilled" ? chalRes.value.data?.result||[] : [])
+    ];
+
+    const [form1, form2] = await Promise.all([
+      getPlayerForm(p1, standings),
+      getPlayerForm(p2, standings)
+    ]);
+
+    // Also fetch news
+    const [news1Res, news2Res] = await Promise.allSettled([
+      apiGet({ method:"get_news", player_key: standings.find(s=>(s.player||"").toLowerCase().includes(p1.toLowerCase().split(" ").pop()))?.player_key }),
+      apiGet({ method:"get_news", player_key: standings.find(s=>(s.player||"").toLowerCase().includes(p2.toLowerCase().split(" ").pop()))?.player_key })
+    ]);
+
+    res.json({
+      player1: {
+        name: p1,
+        recentResults: form1?.recentResults?.slice(0,8) || [],
+        wins: form1?.recentResults?.filter(r=>r.won).length || 0,
+        losses: form1?.recentResults?.filter(r=>!r.won).length || 0,
+      },
+      player2: {
+        name: p2,
+        recentResults: form2?.recentResults?.slice(0,8) || [],
+        wins: form2?.recentResults?.filter(r=>r.won).length || 0,
+        losses: form2?.recentResults?.filter(r=>!r.won).length || 0,
+      }
+    });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── DEBUG: Player tournament matches ────────────────────────────────────────
 app.get("/api/debug-player-tournament", async (req, res) => {
   try {
