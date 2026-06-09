@@ -263,8 +263,8 @@ async function getPlayerForm(playerName, standings) {
 
   try {
     const lastName = playerName.toLowerCase().trim().split(" ").pop();
-    // Handle hyphenated names: "dedura-palomero" → also try "dedura"
     const lastNameFirst = lastName.split("-")[0];
+    console.log(`[getPlayerForm] "${playerName}" → lastName="${lastName}", first="${lastNameFirst}"`);
 
     let found = standings.find(p => {
       const pn = (p.player||"").toLowerCase();
@@ -272,6 +272,7 @@ async function getPlayerForm(playerName, standings) {
         word === lastName || word === lastNameFirst || word.includes(lastNameFirst)
       ) || pn.includes(lastName);
     });
+    console.log(`[getPlayerForm] standings match: ${found?.player||"none"} (key: ${found?.player_key||"none"})`);
 
     if (!found?.player_key) {
       try {
